@@ -8,6 +8,8 @@ import { InspectionsPage } from "../features/inspections/InspectionsPage";
 import { ReportsPage } from "../features/reports/ReportsPage";
 import { NotificationsPage } from "../features/notifications/NotificationsPage";
 import { AuditLogPage } from "../features/auditlog/AuditLogPage";
+import { KnowledgeBasePage } from "../features/knowledge/KnowledgeBasePage";
+import { AiAssistantPage } from "../features/ai/AiAssistantPage";
 import { fetchNotifications } from "../services/api";
 
 function AppContent() {
@@ -47,6 +49,18 @@ function AppContent() {
       {(activeTab === "all" || activeTab === "inspections") && (
         <section id="inspections" className="section-container" style={{ marginBottom: "2rem" }}>
           <InspectionsPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "knowledge") && (
+        <section id="knowledge" className="section-container" style={{ marginBottom: "2rem" }}>
+          <KnowledgeBasePage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "ai") && (
+        <section id="ai" className="section-container" style={{ marginBottom: "2rem" }}>
+          <AiAssistantPage />
         </section>
       )}
 

@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    KnowledgeCategoryListView if False else KnowledgeSourceListCreateView,
+    KnowledgeSourceListCreateView,
     KnowledgeSourceDetailView,
     KnowledgeMetaView,
 )

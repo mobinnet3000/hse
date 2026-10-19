@@ -10,6 +10,8 @@ export type NavTab =
   | "inspections"
   | "reports"
   | "notifications"
+  | "knowledge"
+  | "ai"
   | "audit";
 
 interface AppLayoutProps {
@@ -39,6 +41,8 @@ export function AppLayout({
     { id: "dashboard", label: "داشبورد" },
     { id: "risks", label: "ریسک‌ها" },
     { id: "inspections", label: "بازرسی‌ها و اقدامات" },
+    { id: "knowledge", label: "پایگاه دانش و مقررات" },
+    { id: "ai", label: "دستیار هوشمند HSE" },
     { id: "reports", label: "گزارش‌ها" },
     { id: "notifications", label: "اعلان‌ها" },
     { id: "audit", label: "حسابرسی" },

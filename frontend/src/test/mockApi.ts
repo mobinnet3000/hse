@@ -57,6 +57,18 @@ export function riskRoutes(overrides: Routes = {}): Routes {
       }),
     "/notifications/": () => jsonResponse([]),
     "/audit-logs/": () => jsonResponse([]),
+    "/knowledge-base/": () => jsonResponse([]),
+    "/knowledge-base/meta/": () => jsonResponse({ categories: [], statuses: [] }),
+    "/ai/status/": () =>
+      jsonResponse({
+        provider: "grounded_rule_engine",
+        is_live_configured: false,
+        active_engine: "grounded_rule_engine",
+        engine_label: "موتور تحلیلی پایگاه دانش مقررات و استانداردها",
+        verified_regulations_count: 8,
+        supported_features: [],
+        disclaimer: "مشورتی است.",
+      }),
     ...overrides,
   };
 }

@@ -443,3 +443,214 @@ export function getReportExportUrl(reportType: string, organizationId?: number, 
   const queryStr = params.toString();
   return `${import.meta.env.VITE_API_BASE_URL ?? "/api/v1"}/reports/export/${reportType}/${queryStr ? `?${queryStr}` : ""}`;
 }
+
+// -----------------------------------------
+// Phase 6: Knowledge Base & AI Assistant
+// -----------------------------------------
+
+export type KnowledgeSource = {
+  id: number;
+  organization: number | null;
+  organization_name: string | null;
+  title: string;
+  code: string;
+  category: "regulation" | "standard" | "law" | "internal_procedure" | "guideline";
+  category_display: string;
+  issuing_authority: string;
+  effective_date: string | null;
+  version: string;
+  status: "active" | "under_revision" | "superseded";
+  status_display: string;
+  is_verified: boolean;
+  summary: string;
+  content: string;
+  tags: string;
+  created_by: number | null;
+  creator_name: string | null;
+  can_edit: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type KnowledgeMeta = {
+  categories: { value: string; label: string }[];
+  statuses: { value: string; label: string }[];
+};
+
+export type AiStatus = {
+  provider: string;
+  is_live_configured: boolean;
+  active_engine: string;
+  engine_label: string;
+  verified_regulations_count: number;
+  supported_features: string[];
+  disclaimer: string;
+};
+
+export type GroundedSourceRef = {
+  id: number;
+  code: string;
+  title: string;
+  category: string;
+  issuing_authority?: string;
+  summary?: string;
+};
+
+export type AiSuggestedHazard = {
+  title: string;
+  category: string;
+  suggested_likelihood: number;
+  suggested_severity: number;
+  causes: string;
+  consequences: string;
+  existing_controls_hint: string;
+  regulation_reference: string;
+};
+
+export type AiWorkplaceAnalysis = {
+  is_ai_generated: boolean;
+  engine: string;
+  grounded_sources: GroundedSourceRef[];
+  disclaimer: string;
+  hazards: AiSuggestedHazard[];
+};
+
+export type AiChecklistItem = {
+  order: number;
+  text: string;
+  is_required: boolean;
+  citation?: string;
+};
+
+export type AiChecklistSuggestion = {
+  is_ai_generated: boolean;
+  engine: string;
+  suggested_title: string;
+  suggested_description: string;
+  items: AiChecklistItem[];
+  grounded_sources: GroundedSourceRef[];
+  disclaimer: string;
+};
+
+export type HierarchyControlTier = {
+  tier: number;
+  level: "elimination" | "substitution" | "engineering_controls" | "administrative_controls" | "ppe";
+  label: string;
+  priority: string;
+  recommendation: string;
+};
+
+export type AiHierarchyControls = {
+  is_ai_generated: boolean;
+  hazard_title: string;
+  hierarchy: HierarchyControlTier[];
+  grounded_sources: GroundedSourceRef[];
+  standard_reference: string;
+  disclaimer: string;
+};
+
+export function fetchKnowledgeSources(
+  params?: { category?: string; status?: string; organization?: string; search?: string },
+  signal?: AbortSignal
+) {
+  const q = new URLSearchParams();
+  if (params?.category) q.set("category", params.category);
+  if (params?.status) q.set("status", params.status);
+  if (params?.organization) q.set("organization", params.organization);
+  if (params?.search) q.set("search", params.search);
+  const qs = q.toString();
+  return request<KnowledgeSource[]>(`/knowledge-base/${qs ? `?${qs}` : ""}`, { signal });
+}
+
+export function fetchKnowledgeMeta(signal?: AbortSignal) {
+  return request<KnowledgeMeta>("/knowledge-base/meta/", { signal });
+}
+
+export function createKnowledgeSource(data: Partial<KnowledgeSource>) {
+  return request<KnowledgeSource>("/knowledge-base/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateKnowledgeSource(id: number, data: Partial<KnowledgeSource>) {
+  return request<KnowledgeSource>(`/knowledge-base/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteKnowledgeSource(id: number) {
+  return request<void>(`/knowledge-base/${id}/`, {
+    method: "DELETE",
+  });
+}
+
+export function fetchAiStatus(organizationId?: number, signal?: AbortSignal) {
+  const url = organizationId ? `/ai/status/?organization_id=${organizationId}` : "/ai/status/";
+  return request<AiStatus>(url, { signal });
+}
+
+export function analyzeWorkplaceWithAi(data: {
+  organization_id: number;
+  workplace_id?: number | null;
+  activity_description: string;
+  equipment?: string;
+  materials?: string;
+}) {
+  return request<AiWorkplaceAnalysis>("/ai/analyze-workplace/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function suggestChecklistWithAi(data: {
+  organization_id: number;
+  focus_area: string;
+  title_hint?: string;
+}) {
+  return request<AiChecklistSuggestion>("/ai/suggest-checklist/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function suggestControlsWithAi(data: {
+  organization_id: number;
+  hazard_title: string;
+  category?: string;
+  description?: string;
+}) {
+  return request<AiHierarchyControls>("/ai/suggest-controls/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function applyAiHazard(data: {
+  organization_id: number;
+  workplace_id?: number | null;
+  title: string;
+  category: string;
+  causes?: string;
+  consequences?: string;
+  existing_controls?: string;
+}) {
+  return request<Hazard>("/ai/apply-hazard/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function applyAiChecklist(data: {
+  organization_id: number;
+  title: string;
+  description?: string;
+  items: { order: number; text: string; is_required: boolean }[];
+}) {
+  return request<Checklist>("/ai/apply-checklist/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+

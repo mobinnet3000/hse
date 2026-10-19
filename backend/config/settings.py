@@ -1,4 +1,4 @@
-﻿import os
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.dashboard",
     "apps.reports",
+    "apps.knowledge_base",
+    "apps.ai_assistant",
 ]
 
 MIDDLEWARE = [
