@@ -10,6 +10,7 @@ from apps.findings.models import NonConformity
 from apps.incidents.models import Incident, IncidentAttachment
 from apps.inspections.models import Inspection, InspectionResponse
 from apps.organizations.models import Membership, Organization
+from apps.permits.models import Permit, PermitAttachment, ShiftHandover
 from apps.risks.models import Hazard, RiskAssessment
 from apps.workplaces.models import Workplace
 
@@ -345,5 +346,202 @@ class Command(BaseCommand):
                 "uploaded_by": viewer_user,
             }
         )
+
+        # 9. Permits to Work (PTW) & Shift Handover
+        ptw1, _ = Permit.objects.update_or_create(
+            reference_code="PTW-202610-0101",
+            defaults={
+                "organization": org_foolad,
+                "workplace": wp_roll,
+                "permit_type": Permit.PermitType.HOT_WORK,
+                "title": "جوشکاری و تقویت شاسی نقاله خنک‌کننده نورد",
+                "description": "جوشکاری تقویتی تیرهای حائل و تعویض بلبرینگ یاتاقان موتور نقاله.",
+                "work_area": "سوله شماره ۱، لاین میانی نقاله خنک‌کننده",
+                "equipment_involved": "موتور گیربکس و غلتک نقاله کوره",
+                "valid_from": now - timedelta(hours=2),
+                "valid_until": now + timedelta(hours=6),
+                "actual_start": now - timedelta(hours=1, minutes=45),
+                "requester": supervisor_user,
+                "responsible_supervisor": supervisor_user,
+                "approver": hse_mgr_user,
+                "status": Permit.Status.ACTIVE,
+                "assigned_workers": "مرتضی باقری (جوشکار)، احمد سهرابی (کمک‌جوشکار)",
+                "precautions_taken": "محل جوشکاری با چادر نسوز عایق‌بندی شد. کپسول آتش‌نشانی CO2 در فاصله ۳ متری مستقر گردید.",
+                "required_ppe": "ماسک تنفسی با فیلتر بخارات فلزی، دستکش چرمی ساق‌بلند، شیلد جوشکاری",
+                "gas_testing_required": False,
+                "isolation_loto_required": True,
+                "isolation_loto_details": "سوئیچ اصلی برق قطع، قفل قرمز شماره ۱۲ و تگ هشدار نصب شد.",
+                "controls_verified": True,
+                "controls_verified_by": inspector_user,
+                "controls_verified_at": now - timedelta(hours=1, minutes=50),
+                "is_synthetic": True,
+            }
+        )
+        ptw1.related_hazards.set([haz_hydro])
+
+        ptw2, _ = Permit.objects.update_or_create(
+            reference_code="PTW-202610-0102",
+            defaults={
+                "organization": org_foolad,
+                "workplace": wp_cast,
+                "permit_type": Permit.PermitType.WORK_AT_HEIGHT,
+                "title": "تعمیر ریل و روشنایی جرثقیل سقفی ۳۰ تنی در ارتفاع ۱۵ متری",
+                "description": "سرویس دوره‌ای کابل‌های انتقال برق و تعویض پروژکتورهای LED بالای ریل جرثقیل.",
+                "work_area": "تاج سوله ریخته‌گری، تیر حمال شمالی",
+                "equipment_involved": "جرثقیل سقفی شماره ۲ و باس‌بار ۳۸۰ ولت",
+                "valid_from": now + timedelta(hours=4),
+                "valid_until": now + timedelta(hours=12),
+                "requester": supervisor_user,
+                "responsible_supervisor": supervisor_user,
+                "approver": hse_mgr_user,
+                "status": Permit.Status.APPROVED,
+                "assigned_workers": "محسن نوری، بهروز رفیعی",
+                "precautions_taken": "نصب لایف‌لاین افقی فولادی در امتداد ریل جهت مهار هارنس.",
+                "required_ppe": "هارنس ایمنی فول‌بادی دو قلابه با ضربه‌گیر، کلاه بنددار، کفش ضدلغزش",
+                "gas_testing_required": False,
+                "isolation_loto_required": True,
+                "isolation_loto_details": "برق کل باس‌بار جرثقیل قطع و کلید سکسیونر در تابلوی توزیع قفل شد.",
+                "is_synthetic": True,
+            }
+        )
+
+        ptw3, _ = Permit.objects.update_or_create(
+            reference_code="PTW-202610-0103",
+            defaults={
+                "organization": org_foolad,
+                "workplace": wp_trans,
+                "permit_type": Permit.PermitType.EXCAVATION,
+                "title": "گودبرداری خط لوله اطفای حریق محوطه ترابری",
+                "description": "حفاری کانال به عمق ۲.۵ متر جهت تعویض لوله فرسوده آتش‌نشانی.",
+                "work_area": "جنب پارکینگ ترابری سنگین",
+                "equipment_involved": "بیل مکانیکی کوماتسو ۲۲۰ و کمپکتور دستی",
+                "valid_from": now - timedelta(days=1),
+                "valid_until": now + timedelta(days=2),
+                "actual_start": now - timedelta(hours=20),
+                "requester": supervisor_user,
+                "responsible_supervisor": supervisor_user,
+                "approver": hse_mgr_user,
+                "status": Permit.Status.SUSPENDED,
+                "suspension_reason": "بارش باران شدید و ریزش دیواره خاکی، نیاز به سازه نگهبان و تخلیه آب انباشته.",
+                "assigned_workers": "پیمانکاری حفار سازه (۴ نفر)",
+                "precautions_taken": "نوار خطر زرد و علائم هشدار پیرامون کانال نصب گردید.",
+                "required_ppe": "چکمه ایمنی، کلاه، جلیقه شبرنگ",
+                "is_synthetic": True,
+            }
+        )
+
+        ptw4, _ = Permit.objects.update_or_create(
+            reference_code="PTW-202610-0104",
+            defaults={
+                "organization": org_foolad,
+                "workplace": wp_roll,
+                "permit_type": Permit.PermitType.HOT_WORK,
+                "title": "برشکاری گارد محافظ گیربکس نورد",
+                "description": "برش حرارتی ورق محافظ آسیب‌دیده با مشعل استیلن.",
+                "work_area": "انتهای خط نورد، سکوی بازرسی",
+                "valid_from": now - timedelta(days=3, hours=4),
+                "valid_until": now - timedelta(days=3),
+                "actual_start": now - timedelta(days=3, hours=3, minutes=30),
+                "actual_completion": now - timedelta(days=3, hours=1),
+                "closed_at": now - timedelta(days=3, hours=1),
+                "requester": supervisor_user,
+                "responsible_supervisor": supervisor_user,
+                "approver": hse_mgr_user,
+                "closed_by": hse_mgr_user,
+                "status": Permit.Status.CLOSED,
+                "closure_summary": "عملیات بدون حادثه پایان یافت و پس از ۲ ساعت دیده‌بانی حریق، ترخیص اعلام گردید.",
+                "is_synthetic": True,
+            }
+        )
+
+        ptw5, _ = Permit.objects.update_or_create(
+            reference_code="PTW-202610-0201",
+            defaults={
+                "organization": org_petro,
+                "workplace": wp_spheres,
+                "permit_type": Permit.PermitType.CONFINED_SPACE,
+                "title": "ورود به مخزن کروی TK-201 جهت ضخامت‌سنجی آلتراسونیک",
+                "description": "تخلیه کامل، شستشوی شیمیایی و ورود تیم بازرسی فنی به داخل مخزن کروی گاز مایع.",
+                "work_area": "مخزن کروی گاز مایع TK-201",
+                "equipment_involved": "دریچه منهول زیرین و فوقانی مخزن، ونتیلاتور دمنده هوا",
+                "valid_from": now - timedelta(hours=3),
+                "valid_until": now + timedelta(hours=5),
+                "actual_start": now - timedelta(hours=2),
+                "requester": supervisor_user,
+                "responsible_supervisor": supervisor_user,
+                "approver": hse_mgr_user,
+                "status": Permit.Status.ACTIVE,
+                "assigned_workers": "امیر قاسمی (کارشناس NDT)، داوود کیانی (مراقب منهول)",
+                "precautions_taken": "تهویه اجباری مداوم با بلوور ضدانفجار برقرار شد. مراقب منهول خارج مخزن مستقر است.",
+                "required_ppe": "سیستم تنفسی هوارسان، چراغ‌قوه ضدجرقه EX، هارنس نجات",
+                "gas_testing_required": True,
+                "gas_testing_results": "O2: 20.9%, LEL: 0%, H2S: 0 ppm, CO: 0 ppm (سنجش ساعت 08:30 تایید شد)",
+                "isolation_loto_required": True,
+                "isolation_loto_details": "اسپید کور در کلیه خطوط ورودی/خروجی نصب و ولوها زنجیر و قفل شدند.",
+                "controls_verified": True,
+                "controls_verified_by": hse_mgr_user,
+                "controls_verified_at": now - timedelta(hours=2, minutes=15),
+                "is_synthetic": True,
+            }
+        )
+
+        PermitAttachment.objects.get_or_create(
+            permit=ptw1,
+            title="چک‌لیست کنترل شرایط پیش از کار گرم و ایمنی حریق",
+            defaults={
+                "attachment_type": "checklist",
+                "file_url": "https://storage.hseguard.local/attachments/permits/ptw-101-hotwork-check.pdf",
+                "description": "بررسی فاصله‌گذاری کپسول‌ها و عایق‌کاری نسوز",
+                "uploaded_by": supervisor_user,
+            }
+        )
+        PermitAttachment.objects.get_or_create(
+            permit=ptw5,
+            title="گواهی نتایج گازسنجی چندگانه مخزن کروی",
+            defaults={
+                "attachment_type": "gas_test",
+                "file_url": "https://storage.hseguard.local/attachments/permits/ptw-201-gas-cert.pdf",
+                "description": "گزارش دستگاه سنجش Drager با امضای افسر گازسنجی",
+                "uploaded_by": hse_mgr_user,
+            }
+        )
+
+        sh1, _ = ShiftHandover.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            shift_date=now.date() - timedelta(days=1),
+            shift_type=ShiftHandover.ShiftType.EVENING,
+            defaults={
+                "outgoing_supervisor": supervisor_user,
+                "incoming_supervisor": inspector_user,
+                "status": ShiftHandover.Status.ACKNOWLEDGED,
+                "handover_notes": "شیفت عصر با روند پایدار سپری شد. نورد سبک با ظرفیت ۸۵ تن بر ساعت فعال بود.",
+                "safety_concerns": "روشنایی اضطراری خروجی شرقی بازبینی گردد.",
+                "equipment_status": "کوره پیشگرم در حالت استاندارد. نقاله خنک‌کننده آماده تعمیرات روز بعد.",
+                "outstanding_actions_summary": "تعویض کابل ارت ایستگاه جوشکاری در برنامه شیفت صبح فردا.",
+                "acknowledged_by": inspector_user,
+                "acknowledged_at": now - timedelta(days=1, hours=8),
+                "acknowledgement_notes": "گزارش تحویل گرفته شد، موارد ایمنی در آغاز شیفت شب بازبینی گردید.",
+                "is_synthetic": True,
+            }
+        )
+
+        sh2, _ = ShiftHandover.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            shift_date=now.date(),
+            shift_type=ShiftHandover.ShiftType.MORNING,
+            defaults={
+                "outgoing_supervisor": supervisor_user,
+                "incoming_supervisor": inspector_user,
+                "status": ShiftHandover.Status.SUBMITTED,
+                "handover_notes": "شیفت صبح با اجرای یک مورد مجوز کار گرم فعال به پایان رسید. قطعه تعمیرشده در حال تست است.",
+                "safety_concerns": "محوطه کار گرم نقاله هنوز تحت دیده‌بانی حریق قرار دارد. پرسنل از تردد غیرضروری خودداری نمایند.",
+                "equipment_status": "خط نورد شماره ۱ فعال است. الکتروموتور نقاله با لرزش طبیعی کار می‌کند.",
+                "outstanding_actions_summary": "مختومه‌سازی مجوز کار گرم پس از تأیید نهایی افسر HSE در شیفت عصر انجام شود.",
+                "is_synthetic": True,
+            }
+        )
+        sh2.active_permits.set([ptw1])
 
         self.stdout.write(self.style.SUCCESS("All synthetic demo data seeded successfully with is_synthetic=True."))

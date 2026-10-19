@@ -153,3 +153,49 @@ def can_investigate_incident(user, incident):
         return True
     return incident.assigned_investigator_id == user.id
 
+
+PERMIT_APPROVER_ROLES = {
+    Membership.Roles.ORG_ADMIN,
+    Membership.Roles.HSE_MANAGER,
+}
+
+PERMIT_CONTROLLER_ROLES = {
+    Membership.Roles.ORG_ADMIN,
+    Membership.Roles.HSE_MANAGER,
+    Membership.Roles.HSE_INSPECTOR,
+    Membership.Roles.WORKSHOP_SUPERVISOR,
+}
+
+SHIFT_HANDOVER_ROLES = {
+    Membership.Roles.ORG_ADMIN,
+    Membership.Roles.HSE_MANAGER,
+    Membership.Roles.WORKSHOP_SUPERVISOR,
+    Membership.Roles.HSE_INSPECTOR,
+}
+
+
+def can_approve_permits(user, organization_id):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    return membership_role(user, organization_id) in PERMIT_APPROVER_ROLES
+
+
+def can_control_permits(user, organization_id):
+    """Can activate, verify controls, suspend, resume, or close permits."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    return membership_role(user, organization_id) in PERMIT_CONTROLLER_ROLES
+
+
+def can_conduct_shift_handover(user, organization_id):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    return membership_role(user, organization_id) in SHIFT_HANDOVER_ROLES
+
+

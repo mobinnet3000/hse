@@ -849,4 +849,288 @@ export function fetchIncidentStats(organizationId?: number, signal?: AbortSignal
   return request<IncidentSummaryStats>(url, { signal });
 }
 
+// =========================================================
+// Permit to Work (PTW) & Shift Handover APIs
+// =========================================================
+
+export type PermitType =
+  | "hot_work"
+  | "work_at_height"
+  | "confined_space"
+  | "electrical_isolation"
+  | "excavation"
+  | "general_high_risk";
+
+export type PermitStatus =
+  | "requested"
+  | "under_review"
+  | "approved"
+  | "active"
+  | "suspended"
+  | "completed"
+  | "closed"
+  | "rejected"
+  | "cancelled"
+  | "expired";
+
+export interface PermitListItem {
+  id: number;
+  organization: number;
+  organization_name?: string;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  reference_code: string;
+  permit_type: PermitType;
+  permit_type_display: string;
+  title: string;
+  status: PermitStatus;
+  status_display: string;
+  valid_from: string;
+  valid_until: string;
+  actual_start?: string | null;
+  actual_completion?: string | null;
+  requester: number;
+  requester_name: string;
+  approver?: number | null;
+  approver_name?: string | null;
+  gas_testing_required: boolean;
+  isolation_loto_required: boolean;
+  controls_verified: boolean;
+  is_synthetic: boolean;
+  created_at: string;
+}
+
+export interface PermitDetail extends PermitListItem {
+  description: string;
+  work_area: string;
+  equipment_involved: string;
+  assigned_workers: string;
+  responsible_supervisor?: number | null;
+  responsible_supervisor_name?: string | null;
+  precautions_taken: string;
+  required_ppe: string;
+  gas_testing_results: string;
+  isolation_loto_details: string;
+  controls_verified_by?: number | null;
+  controls_verified_by_name?: string | null;
+  controls_verified_at?: string | null;
+  review_notes: string;
+  rejection_reason: string;
+  suspension_reason: string;
+  closure_summary: string;
+  closed_by?: number | null;
+  closed_by_name?: string | null;
+  closed_at?: string | null;
+  related_hazards: Hazard[];
+  attachments: Array<{
+    id: number;
+    title: string;
+    attachment_type: string;
+    file_url: string;
+    description: string;
+    uploaded_at: string;
+  }>;
+  can_approve: boolean;
+  can_control: boolean;
+  updated_at: string;
+}
+
+export interface PermitSummaryStats {
+  total_permits: number;
+  active_count: number;
+  suspended_count: number;
+  requested_count: number;
+  approved_count: number;
+  closed_count: number;
+  expired_count: number;
+  by_type: Record<string, number>;
+  by_status: Record<string, number>;
+}
+
+export type ShiftType = "morning" | "evening" | "night";
+export type ShiftHandoverStatus = "submitted" | "acknowledged";
+
+export interface ShiftHandoverItem {
+  id: number;
+  organization: number;
+  organization_name?: string;
+  workplace: number;
+  workplace_name?: string;
+  shift_date: string;
+  shift_type: ShiftType;
+  shift_type_display: string;
+  status: ShiftHandoverStatus;
+  status_display: string;
+  outgoing_supervisor: number;
+  outgoing_supervisor_name?: string;
+  incoming_supervisor?: number | null;
+  incoming_supervisor_name?: string | null;
+  handover_notes: string;
+  safety_concerns: string;
+  equipment_status: string;
+  outstanding_actions_summary: string;
+  unresolved_hazards_summary: string;
+  active_permits: Array<{
+    id: number;
+    reference_code: string;
+    title: string;
+    status: string;
+  }>;
+  acknowledged_by?: number | null;
+  acknowledged_by_name?: string | null;
+  acknowledged_at?: string | null;
+  acknowledgement_notes: string;
+  is_synthetic: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShiftSafetySummary {
+  active_permits_count: number;
+  active_permits: Array<{ id: number; code: string; title: string; type: string; status: string }>;
+  unresolved_hazards_count: number;
+  unresolved_hazards: Array<{ id: number; title: string; category: string }>;
+  open_capas_count: number;
+  open_capas: Array<{ id: number; desc: string; due_date: string | null; status: string }>;
+  recent_incidents_count: number;
+  recent_incidents: Array<{ id: number; title: string; severity: string; type: string }>;
+}
+
+export function fetchPermits(params?: Record<string, string | number>, signal?: AbortSignal) {
+  const query = params
+    ? "?" +
+      Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== "")
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join("&")
+    : "";
+  return request<PermitListItem[]>(`/permits/${query}`, { signal });
+}
+
+export function fetchPermitDetail(id: number, signal?: AbortSignal) {
+  return request<PermitDetail>(`/permits/${id}/`, { signal });
+}
+
+export function createPermit(data: Record<string, any>) {
+  return request<PermitDetail>("/permits/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function reviewPermit(
+  id: number,
+  data: { status: "under_review" | "approved" | "rejected"; review_notes?: string }
+) {
+  return request<PermitDetail>(`/permits/${id}/review/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function approvePermit(id: number, data?: { notes?: string }) {
+  return request<PermitDetail>(`/permits/${id}/approve/`, {
+    method: "POST",
+    body: JSON.stringify(data || {}),
+  });
+}
+
+export function activatePermit(
+  id: number,
+  data: { gas_testing_results?: string; isolation_loto_details?: string }
+) {
+  return request<PermitDetail>(`/permits/${id}/activate/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function suspendPermit(id: number, data: { reason: string }) {
+  return request<PermitDetail>(`/permits/${id}/suspend/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function resumePermit(id: number) {
+  return request<PermitDetail>(`/permits/${id}/resume/`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function completePermit(id: number) {
+  return request<PermitDetail>(`/permits/${id}/complete/`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function closePermit(id: number, data: { closure_summary: string }) {
+  return request<PermitDetail>(`/permits/${id}/close/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function rejectPermit(id: number, data: { reason: string }) {
+  return request<PermitDetail>(`/permits/${id}/reject/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function cancelPermit(id: number, data?: { reason?: string }) {
+  return request<PermitDetail>(`/permits/${id}/cancel/`, {
+    method: "POST",
+    body: JSON.stringify(data || {}),
+  });
+}
+
+export function fetchPermitStats(organizationId?: number, signal?: AbortSignal) {
+  const url = organizationId ? `/permits/stats/?organization=${organizationId}` : "/permits/stats/";
+  return request<PermitSummaryStats>(url, { signal });
+}
+
+export function fetchShiftHandovers(params?: Record<string, string | number>, signal?: AbortSignal) {
+  const query = params
+    ? "?" +
+      Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== "")
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join("&")
+    : "";
+  return request<ShiftHandoverItem[]>(`/permits/handovers/${query}`, { signal });
+}
+
+export function fetchShiftHandoverDetail(id: number, signal?: AbortSignal) {
+  return request<ShiftHandoverItem>(`/permits/handovers/${id}/`, { signal });
+}
+
+export function createShiftHandover(data: Record<string, any>) {
+  return request<ShiftHandoverItem>("/permits/handovers/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function acknowledgeShiftHandover(id: number, data?: { acknowledgement_notes?: string }) {
+  return request<ShiftHandoverItem>(`/permits/handovers/${id}/acknowledge/`, {
+    method: "POST",
+    body: JSON.stringify(data || {}),
+  });
+}
+
+export function fetchShiftSafetySummary(
+  organizationId: number,
+  workplaceId?: number,
+  signal?: AbortSignal
+) {
+  const wpParam = workplaceId ? `&workplace=${workplaceId}` : "";
+  return request<ShiftSafetySummary>(
+    `/permits/handovers/safety-summary/?organization=${organizationId}${wpParam}`,
+    { signal }
+  );
+}
+
 

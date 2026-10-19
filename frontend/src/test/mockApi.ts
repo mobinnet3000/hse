@@ -81,6 +81,31 @@ export function riskRoutes(overrides: Routes = {}): Routes {
         by_severity: {},
         by_status: {},
       }),
+    "/permits/": () => jsonResponse([]),
+    "/permits/stats/": () =>
+      jsonResponse({
+        total_permits: 0,
+        active_count: 0,
+        suspended_count: 0,
+        requested_count: 0,
+        approved_count: 0,
+        closed_count: 0,
+        expired_count: 0,
+        by_type: {},
+        by_status: {},
+      }),
+    "/permits/handovers/": () => jsonResponse([]),
+    "/permits/handovers/safety-summary/": () =>
+      jsonResponse({
+        active_permits_count: 0,
+        active_permits: [],
+        unresolved_hazards_count: 0,
+        unresolved_hazards: [],
+        open_capas_count: 0,
+        open_capas: [],
+        recent_incidents_count: 0,
+        recent_incidents: [],
+      }),
     ...overrides,
   };
 }
