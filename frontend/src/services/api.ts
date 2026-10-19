@@ -654,3 +654,199 @@ export function applyAiChecklist(data: {
   });
 }
 
+// ==========================================
+// Incidents & Near-Misses (Phase 07)
+// ==========================================
+
+export type IncidentType = "incident" | "near_miss" | "unsafe_act" | "unsafe_condition";
+export type IncidentSeverity = "minor" | "moderate" | "major" | "critical";
+export type IncidentStatus =
+  | "reported"
+  | "under_review"
+  | "under_investigation"
+  | "action_required"
+  | "awaiting_verification"
+  | "closed"
+  | "reopened";
+
+export type IncidentAttachment = {
+  id: number;
+  incident: number;
+  title: string;
+  attachment_type: string;
+  file_url: string;
+  description: string;
+  uploaded_by?: number | null;
+  uploaded_by_name?: string | null;
+  uploaded_at: string;
+};
+
+export type IncidentListItem = {
+  id: number;
+  organization: number;
+  organization_name: string;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  title: string;
+  incident_type: IncidentType;
+  incident_type_display: string;
+  severity: IncidentSeverity;
+  severity_display: string;
+  status: IncidentStatus;
+  status_display: string;
+  occurred_at: string;
+  reported_by?: number | null;
+  reported_by_name?: string | null;
+  assigned_investigator?: number | null;
+  assigned_investigator_name?: string | null;
+  injury_count: number;
+  lost_time_days: number;
+  capa_count: number;
+  is_synthetic: boolean;
+  created_at: string;
+};
+
+export type IncidentDetail = IncidentListItem & {
+  location_details: string;
+  description: string;
+  immediate_actions_taken: string;
+  environmental_impact: string;
+  property_damage_cost: string | number | null;
+  root_cause: string;
+  contributing_factors: string;
+  investigation_completed_at?: string | null;
+  review_notes: string;
+  closure_notes: string;
+  reopen_reason: string;
+  related_hazard?: number | null;
+  related_hazard_title?: string | null;
+  related_corrective_actions: CorrectiveAction[];
+  attachments: IncidentAttachment[];
+  can_review: boolean;
+  can_investigate: boolean;
+  can_close: boolean;
+  updated_at: string;
+  closed_at?: string | null;
+};
+
+export type IncidentSummaryStats = {
+  total_incidents: number;
+  near_miss_count: number;
+  under_investigation_count: number;
+  closed_count: number;
+  total_lost_time_days: number;
+  by_type: Record<string, number>;
+  by_severity: Record<string, number>;
+  by_status: Record<string, number>;
+};
+
+export type CreateIncidentPayload = {
+  organization: number;
+  workplace?: number | null;
+  title: string;
+  incident_type: IncidentType;
+  severity: IncidentSeverity;
+  occurred_at: string;
+  location_details?: string;
+  description: string;
+  immediate_actions_taken?: string;
+  injury_count?: number;
+  lost_time_days?: number;
+  environmental_impact?: string;
+  property_damage_cost?: number | null;
+  related_hazard?: number | null;
+  is_synthetic?: boolean;
+};
+
+export function fetchIncidents(
+  params?: {
+    organization?: string | number;
+    workplace?: string | number;
+    status?: string;
+    severity?: string;
+    incident_type?: string;
+    search?: string;
+    date_from?: string;
+    date_to?: string;
+  },
+  signal?: AbortSignal
+) {
+  const q = new URLSearchParams();
+  if (params?.organization) q.set("organization", String(params.organization));
+  if (params?.workplace) q.set("workplace", String(params.workplace));
+  if (params?.status) q.set("status", params.status);
+  if (params?.severity) q.set("severity", params.severity);
+  if (params?.incident_type) q.set("incident_type", params.incident_type);
+  if (params?.search) q.set("search", params.search);
+  if (params?.date_from) q.set("date_from", params.date_from);
+  if (params?.date_to) q.set("date_to", params.date_to);
+  const qs = q.toString();
+  return request<IncidentListItem[]>(`/incidents/${qs ? `?${qs}` : ""}`, { signal });
+}
+
+export function fetchIncidentDetail(id: number, signal?: AbortSignal) {
+  return request<IncidentDetail>(`/incidents/${id}/`, { signal });
+}
+
+export function createIncident(data: CreateIncidentPayload) {
+  return request<IncidentDetail>("/incidents/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function reviewIncident(
+  id: number,
+  data: {
+    status: "under_review" | "under_investigation" | "closed";
+    assigned_investigator_id?: number | null;
+    review_notes?: string;
+  }
+) {
+  return request<IncidentDetail>(`/incidents/${id}/review/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function investigateIncident(
+  id: number,
+  data: {
+    root_cause: string;
+    contributing_factors?: string;
+    immediate_actions_taken?: string;
+  }
+) {
+  return request<IncidentDetail>(`/incidents/${id}/investigate/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function linkIncidentCapa(id: number, correctiveActionId: number) {
+  return request<IncidentDetail>(`/incidents/${id}/link-capa/`, {
+    method: "POST",
+    body: JSON.stringify({ corrective_action_id: correctiveActionId }),
+  });
+}
+
+export function closeIncident(id: number, data: { closure_notes: string }) {
+  return request<IncidentDetail>(`/incidents/${id}/close/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function reopenIncident(id: number, data: { reopen_reason: string }) {
+  return request<IncidentDetail>(`/incidents/${id}/reopen/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchIncidentStats(organizationId?: number, signal?: AbortSignal) {
+  const url = organizationId ? `/incidents/summary-stats/?organization=${organizationId}` : "/incidents/summary-stats/";
+  return request<IncidentSummaryStats>(url, { signal });
+}
+
+

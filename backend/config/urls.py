@@ -17,6 +17,7 @@ urlpatterns = [
     path("api/v1/audit-logs/", include("apps.auditlog.urls")),
     path("api/v1/knowledge-base/", include("apps.knowledge_base.urls")),
     path("api/v1/ai/", include("apps.ai_assistant.urls")),
+    path("api/v1/incidents/", include("apps.incidents.urls")),
     path("api/v1/", include("apps.core.urls")),
 ]
 

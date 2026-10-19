@@ -69,6 +69,18 @@ export function riskRoutes(overrides: Routes = {}): Routes {
         supported_features: [],
         disclaimer: "مشورتی است.",
       }),
+    "/incidents/": () => jsonResponse([]),
+    "/incidents/summary-stats/": () =>
+      jsonResponse({
+        total_incidents: 0,
+        near_miss_count: 0,
+        under_investigation_count: 0,
+        closed_count: 0,
+        total_lost_time_days: 0,
+        by_type: {},
+        by_severity: {},
+        by_status: {},
+      }),
     ...overrides,
   };
 }

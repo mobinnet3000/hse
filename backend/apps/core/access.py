@@ -128,3 +128,28 @@ def can_review(user, organization_id):
 
 def is_active_member(user, organization_id):
     return active_membership(user, organization_id) is not None
+
+
+INCIDENT_MANAGER_ROLES = {
+    Membership.Roles.ORG_ADMIN,
+    Membership.Roles.HSE_MANAGER,
+}
+
+
+def can_manage_incidents(user, organization_id):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    return membership_role(user, organization_id) in INCIDENT_MANAGER_ROLES
+
+
+def can_investigate_incident(user, incident):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    if can_manage_incidents(user, incident.organization_id):
+        return True
+    return incident.assigned_investigator_id == user.id
+

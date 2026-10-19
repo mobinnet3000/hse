@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.reports",
     "apps.knowledge_base",
     "apps.ai_assistant",
+    "apps.incidents",
 ]
 
 MIDDLEWARE = [
