@@ -1161,3 +1161,356 @@ export function fetchShiftSafetySummary(
 }
 
 
+
+// ---------------------------------------------------------------------------
+// Phase 09 — Assets, preventive maintenance and calibration
+// ---------------------------------------------------------------------------
+
+export type EquipmentCategory =
+  | "fire_extinguisher"
+  | "ppe"
+  | "gas_detection"
+  | "electrical"
+  | "rescue"
+  | "lifting"
+  | "other";
+
+export type EquipmentStatus =
+  | "ready"
+  | "under_maintenance"
+  | "out_of_service"
+  | "retired";
+
+export type CalibrationStatus =
+  | "not_required"
+  | "missing"
+  | "valid"
+  | "due_soon"
+  | "expired"
+  | "failed";
+
+export type CalibrationResult = "passed" | "failed";
+export type MaintenanceWorkType = "preventive" | "corrective";
+export type MaintenanceWorkOrderStatus = "planned" | "in_progress" | "completed" | "cancelled";
+
+export interface EquipmentListItem {
+  id: number;
+  organization: number;
+  workplace: number | null;
+  workplace_name: string | null;
+  code: string;
+  name: string;
+  category: EquipmentCategory;
+  category_display: string;
+  category_detail: string;
+  manufacturer: string;
+  model_number: string;
+  serial_number: string;
+  status: EquipmentStatus;
+  status_display: string;
+  calibration_required: boolean;
+  calibration_status: CalibrationStatus;
+  calibration_status_display: string;
+  calibration_due_on: string | null;
+  is_calibration_valid: boolean;
+  open_work_orders_count: number;
+  is_synthetic: boolean;
+  can_manage: boolean;
+  can_conduct_work: boolean;
+  can_calibrate: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HazardReference {
+  id: number;
+  title: string;
+  category: string;
+  category_display: string;
+  status: string;
+  status_display: string;
+}
+
+export interface PermitReference {
+  id: number;
+  reference_code: string;
+  title: string;
+  status: string;
+  status_display: string;
+  valid_until: string;
+}
+
+export interface MaintenancePlan {
+  id: number;
+  organization: number;
+  equipment: number;
+  equipment_code: string;
+  equipment_name: string;
+  title: string;
+  interval_days: number;
+  instructions: string;
+  responsible: number | null;
+  responsible_name: string | null;
+  start_date: string;
+  next_due_date: string;
+  is_active: boolean;
+  is_overdue: boolean;
+  is_due_soon: boolean;
+  is_synthetic: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MaintenanceWorkOrder {
+  id: number;
+  organization: number;
+  equipment: number;
+  equipment_code: string;
+  equipment_name: string;
+  plan: number | null;
+  plan_title: string | null;
+  title: string;
+  work_type: MaintenanceWorkType;
+  work_type_display: string;
+  status: MaintenanceWorkOrderStatus;
+  status_display: string;
+  assigned_to: number | null;
+  assigned_to_name: string | null;
+  scheduled_date: string;
+  completed_date: string | null;
+  description: string;
+  findings: string;
+  result: string;
+  cancellation_reason: string;
+  is_synthetic: boolean;
+  can_start: boolean;
+  can_complete: boolean;
+  can_cancel: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalibrationRecord {
+  id: number;
+  organization: number;
+  equipment: number;
+  equipment_code: string;
+  equipment_name: string;
+  performed_on: string;
+  next_due_on: string;
+  provider: string;
+  certificate_number: string;
+  result: CalibrationResult;
+  result_display: string;
+  notes: string;
+  document_reference: string;
+  performed_by: number | null;
+  performed_by_name: string | null;
+  created_at: string;
+}
+
+export interface RelatedIncident {
+  id: number;
+  title: string;
+  status: string;
+  status_display: string;
+  occurred_at: string;
+}
+
+export interface RelatedInspection {
+  id: number;
+  title: string;
+  status: string;
+  status_display: string;
+  created_at: string;
+}
+
+export interface RelatedNonConformity {
+  id: number;
+  description: string;
+  severity: string;
+  severity_display: string;
+  status: string;
+  status_display: string;
+  created_at: string;
+}
+
+export interface RelatedCorrectiveAction {
+  id: number;
+  description: string;
+  status: string;
+  status_display: string;
+  due_date: string | null;
+  nonconformity_id: number;
+}
+
+export interface EquipmentDetail extends EquipmentListItem {
+  description: string;
+  specifications: string;
+  purchase_date: string | null;
+  installation_date: string | null;
+  related_hazards: HazardReference[];
+  related_permits: PermitReference[];
+  maintenance_plans: MaintenancePlan[];
+  work_orders: MaintenanceWorkOrder[];
+  calibrations: CalibrationRecord[];
+  related_incidents: RelatedIncident[];
+  related_inspections: RelatedInspection[];
+  related_nonconformities: RelatedNonConformity[];
+  related_corrective_actions: RelatedCorrectiveAction[];
+}
+
+export interface EquipmentStats {
+  total_equipment: number;
+  by_status: Record<string, number>;
+  by_category: Record<string, number>;
+  ready_count: number;
+  under_maintenance_count: number;
+  out_of_service_count: number;
+  retired_count: number;
+  maintenance_overdue_count: number;
+  maintenance_due_soon_count: number;
+  open_work_order_count: number;
+  overdue_work_order_count: number;
+  calibration_due_soon_count: number;
+  calibration_expired_count: number;
+  calibration_failed_count: number;
+  calibration_missing_count: number;
+  calibration_valid_count: number;
+  calibration_invalid_count: number;
+  calibration_due_soon_days: number;
+  maintenance_due_soon_days: number;
+}
+
+function assetQuery(params?: Record<string, string | number | undefined>) {
+  if (!params) return "";
+  const entries = Object.entries(params).filter(
+    ([, value]) => value !== undefined && value !== "",
+  );
+  if (entries.length === 0) return "";
+  return `?${entries
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join("&")}`;
+}
+
+export function fetchEquipment(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<EquipmentListItem[]>(`/assets/equipment/${assetQuery(params)}`, { signal });
+}
+
+export function fetchEquipmentDetail(id: number, signal?: AbortSignal) {
+  return request<EquipmentDetail>(`/assets/equipment/${id}/`, { signal });
+}
+
+export function createEquipment(data: Record<string, unknown>) {
+  return request<EquipmentDetail>("/assets/equipment/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateEquipment(id: number, data: Record<string, unknown>) {
+  return request<EquipmentDetail>(`/assets/equipment/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function changeEquipmentStatus(
+  id: number,
+  data: { status: EquipmentStatus; reason?: string },
+) {
+  return request<EquipmentDetail>(`/assets/equipment/${id}/status/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchEquipmentStats(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<EquipmentStats>(`/assets/equipment/stats/${assetQuery(params)}`, { signal });
+}
+
+export function fetchMaintenancePlans(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<MaintenancePlan[]>(`/assets/maintenance-plans/${assetQuery(params)}`, {
+    signal,
+  });
+}
+
+export function createMaintenancePlan(data: Record<string, unknown>) {
+  return request<MaintenancePlan>("/assets/maintenance-plans/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateMaintenancePlan(id: number, data: Record<string, unknown>) {
+  return request<MaintenancePlan>(`/assets/maintenance-plans/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchMaintenanceWorkOrders(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<MaintenanceWorkOrder[]>(
+    `/assets/maintenance-work-orders/${assetQuery(params)}`,
+    { signal },
+  );
+}
+
+export function createMaintenanceWorkOrder(data: Record<string, unknown>) {
+  return request<MaintenanceWorkOrder>("/assets/maintenance-work-orders/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function startMaintenanceWorkOrder(id: number) {
+  return request<MaintenanceWorkOrder>(`/assets/maintenance-work-orders/${id}/start/`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function completeMaintenanceWorkOrder(
+  id: number,
+  data: { result: string; findings?: string; completed_date?: string },
+) {
+  return request<MaintenanceWorkOrder>(`/assets/maintenance-work-orders/${id}/complete/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function cancelMaintenanceWorkOrder(id: number, reason: string) {
+  return request<MaintenanceWorkOrder>(`/assets/maintenance-work-orders/${id}/cancel/`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function fetchCalibrations(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<CalibrationRecord[]>(`/assets/calibrations/${assetQuery(params)}`, {
+    signal,
+  });
+}
+
+export function createCalibration(data: Record<string, unknown>) {
+  return request<CalibrationRecord>("/assets/calibrations/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}

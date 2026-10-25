@@ -32,7 +32,7 @@ class NonConformityListCreateView(APIView):
     def get(self, request):
         queryset = NonConformity.objects.filter(
             organization_id__in=accessible_organization_ids(request.user)
-        ).select_related("organization", "workplace", "inspection")
+        ).select_related("organization", "workplace", "equipment", "inspection")
         organization_id = request.query_params.get("organization")
         if organization_id:
             try:
@@ -122,11 +122,23 @@ class NonConformityListCreateView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        equipment = serializer.validated_data.get("equipment") or inspection.equipment
+        if equipment is not None and equipment.organization_id != inspection.organization_id:
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_equipment",
+                        "message": "تجهیز باید متعلق به همان سازمان باشد.",
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         nc = serializer.save(
             organization=inspection.organization,
             inspection=inspection,
             inspection_response=inspection_response,
             workplace=inspection.workplace,
+            equipment=equipment,
             source=NonConformity.Source.INSPECTION,
             created_by=request.user,
         )
@@ -171,6 +183,17 @@ class NonConformityListCreateView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        equipment = serializer.validated_data.get("equipment")
+        if equipment is not None and equipment.organization_id != organization_id:
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_equipment",
+                        "message": "تجهیز باید متعلق به همان سازمان باشد.",
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         responsible = serializer.validated_data.get("responsible")
         if responsible is not None and not is_active_member(
             responsible, organization_id
@@ -203,7 +226,7 @@ class NonConformityDetailView(APIView):
 
     def get_object(self, request, pk):
         nc = (
-            NonConformity.objects.select_related("organization", "workplace", "inspection")
+            NonConformity.objects.select_related("organization", "workplace", "equipment", "inspection")
             .filter(pk=pk)
             .first()
         )
@@ -280,6 +303,17 @@ class NonConformityDetailView(APIView):
                     "error": {
                         "code": "invalid_workplace",
                         "message": "محل کار باید متعلق به همان سازمان باشد.",
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        equipment = serializer.validated_data.get("equipment")
+        if equipment is not None and equipment.organization_id != nc.organization_id:
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_equipment",
+                        "message": "تجهیز باید متعلق به همان سازمان باشد.",
                     }
                 },
                 status=status.HTTP_400_BAD_REQUEST,

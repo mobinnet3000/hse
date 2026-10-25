@@ -4,11 +4,22 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.assets.models import Equipment, MaintenanceWorkOrder
 from apps.capa.models import CorrectiveAction
 from apps.core.access import accessible_organization_ids, can_view_organization
 from apps.findings.models import NonConformity
 from apps.inspections.models import Inspection
 from apps.risks.models import RiskAssessment
+
+
+CALIBRATION_STATUS_LABELS = {
+    "not_required": "کالیبراسیون لازم نیست",
+    "missing": "ثبت‌نشده",
+    "valid": "معتبر",
+    "due_soon": "نزدیک سررسید",
+    "expired": "منقضی",
+    "failed": "ناموفق",
+}
 
 
 def export_csv(filename, headers, row_generator):
@@ -186,6 +197,74 @@ class ReportExportView(APIView):
                     ]
 
             return export_csv("non_conformities_report.csv", headers, row_gen())
+
+        elif report_type == "assets":
+            qs = Equipment.objects.select_related(
+                "organization", "workplace"
+            ).prefetch_related("calibrations", "maintenance_plans", "work_orders").all()
+            if target_orgs is not None:
+                qs = qs.filter(organization_id__in=target_orgs)
+            if workplace_id:
+                qs = qs.filter(workplace_id=workplace_id)
+            category_filter = request.query_params.get("category")
+            if category_filter:
+                qs = qs.filter(category=category_filter)
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            calibration_filter = request.query_params.get("calibration_status")
+            if calibration_filter:
+                qs = qs.filter(
+                    pk__in=[item.pk for item in qs if item.calibration_status == calibration_filter]
+                )
+            if date_from:
+                qs = qs.filter(created_at__date__gte=date_from)
+            if date_to:
+                qs = qs.filter(created_at__date__lte=date_to)
+
+            headers = [
+                "شناسه",
+                "سازمان",
+                "محل استقرار",
+                "کد تجهیز",
+                "نام تجهیز",
+                "دسته",
+                "وضعیت",
+                "وضعیت کالیبراسیون",
+                "سررسید کالیبراسیون",
+                "موعد بعدی نگهداری",
+                "دستورکار باز",
+                "داده سنتتیک",
+            ]
+
+            def row_gen():
+                for e in qs.iterator(chunk_size=200):
+                    next_plan = (
+                        e.maintenance_plans.filter(is_active=True)
+                        .order_by("next_due_date")
+                        .values_list("next_due_date", flat=True)
+                        .first()
+                    )
+                    yield [
+                        e.pk,
+                        e.organization.name if e.organization else "",
+                        e.workplace.name if e.workplace else "—",
+                        e.code,
+                        e.name,
+                        e.get_category_display(),
+                        e.get_status_display(),
+                        CALIBRATION_STATUS_LABELS.get(e.calibration_status, e.calibration_status),
+                        e.calibration_due_on.strftime("%Y-%m-%d") if e.calibration_due_on else "",
+                        next_plan.strftime("%Y-%m-%d") if next_plan else "",
+                        e.work_orders.filter(
+                            status__in=[
+                                MaintenanceWorkOrder.Status.PLANNED,
+                                MaintenanceWorkOrder.Status.IN_PROGRESS,
+                            ]
+                        ).count(),
+                        "بله" if e.is_synthetic else "خیر",
+                    ]
+
+            return export_csv("assets_report.csv", headers, row_gen())
 
         elif report_type == "corrective-actions":
             qs = CorrectiveAction.objects.select_related(

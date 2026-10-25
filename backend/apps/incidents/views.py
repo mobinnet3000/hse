@@ -38,7 +38,7 @@ from .services import (
 def get_accessible_incident_or_404(pk: int, user) -> Incident:
     try:
         incident = (
-            Incident.objects.select_related("organization", "workplace", "reported_by", "assigned_investigator")
+            Incident.objects.select_related("organization", "workplace", "equipment", "reported_by", "assigned_investigator")
             .prefetch_related("related_corrective_actions", "attachments")
             .get(pk=pk)
         )
@@ -106,7 +106,7 @@ class IncidentListCreateView(generics.ListCreateAPIView):
         if date_to:
             qs = qs.filter(occurred_at__date__lte=date_to)
 
-        return qs.select_related("organization", "workplace", "reported_by", "assigned_investigator").distinct()
+        return qs.select_related("organization", "workplace", "equipment", "reported_by", "assigned_investigator").distinct()
 
     def perform_create(self, serializer):
         user = self.request.user

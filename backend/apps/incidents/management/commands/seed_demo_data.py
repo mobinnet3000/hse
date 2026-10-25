@@ -4,6 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from apps.accounts.models import User
+from apps.assets.models import CalibrationRecord, Equipment, MaintenancePlan, MaintenanceWorkOrder
 from apps.capa.models import CorrectiveAction
 from apps.checklists.models import Checklist, ChecklistItem
 from apps.findings.models import NonConformity
@@ -629,5 +630,381 @@ class Command(BaseCommand):
         )
         if ptw1 is not None:
             sh2.active_permits.set([ptw1])
+
+        # 10. Assets, preventive maintenance and calibration
+        def seed_equipment(organization, code, defaults):
+            existing = Equipment.objects.filter(organization=organization, code=code).first()
+            if existing is not None and not existing.is_synthetic:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipped demo equipment {code}: code belongs to a real asset."
+                    )
+                )
+                return None
+            payload = {**defaults, "is_synthetic": True, "created_by": hse_mgr_user}
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.save()
+                return existing
+            return Equipment.objects.create(
+                organization=organization, code=code, **payload
+            )
+
+        def seed_calibration(equipment, certificate_number, defaults):
+            record = CalibrationRecord.objects.filter(
+                equipment=equipment, certificate_number=certificate_number
+            ).first()
+            if record is not None and not record.is_synthetic:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipped demo calibration {certificate_number}: record is not synthetic."
+                    )
+                )
+                return record
+            payload = {**defaults, "is_synthetic": True, "performed_by": inspector_user}
+            if record is not None:
+                for field, value in payload.items():
+                    setattr(record, field, value)
+                record.save()
+                return record
+            return CalibrationRecord.objects.create(
+                equipment=equipment,
+                organization=equipment.organization,
+                certificate_number=certificate_number,
+                **payload,
+            )
+
+        def seed_plan(equipment, title, defaults):
+            plan = MaintenancePlan.objects.filter(
+                equipment=equipment, title=title, is_synthetic=True
+            ).first()
+            payload = {**defaults, "is_synthetic": True, "created_by": hse_mgr_user}
+            if plan is not None:
+                for field, value in payload.items():
+                    setattr(plan, field, value)
+                plan.save()
+                return plan
+            return MaintenancePlan.objects.create(
+                equipment=equipment,
+                organization=equipment.organization,
+                title=title,
+                **payload,
+            )
+
+        def seed_work_order(equipment, title, defaults):
+            order = MaintenanceWorkOrder.objects.filter(
+                equipment=equipment, title=title, is_synthetic=True
+            ).first()
+            payload = {**defaults, "is_synthetic": True, "created_by": hse_mgr_user}
+            if order is not None:
+                for field, value in payload.items():
+                    setattr(order, field, value)
+                order.save()
+                return order
+            return MaintenanceWorkOrder.objects.create(
+                equipment=equipment,
+                organization=equipment.organization,
+                title=title,
+                **payload,
+            )
+
+        # Foolad Alborz assets
+        ext_fa = seed_equipment(
+            org_foolad,
+            "FA-EXT-001",
+            {
+                "name": "کپسول آتش‌نشانی CO2 ۶ کیلوگرمی",
+                "category": Equipment.Category.FIRE_EXTINGUISHER,
+                "workplace": wp_roll,
+                "manufacturer": "Pars Fire",
+                "model_number": "CO2-6",
+                "serial_number": "PF-6-1401-018",
+                "status": Equipment.Status.READY,
+                "description": "کپسول ثابت ایستگاه کنترل خط نورد.",
+                "calibration_required": False,
+            },
+        )
+        if ext_fa is not None:
+            ext_fa.related_hazards.set([haz_hydro])
+            if ptw1 is not None:
+                ext_fa.related_permits.set([ptw1])
+            plan_ext = seed_plan(
+                ext_fa,
+                "بازرسی ماهانه کپسول و فشارسنج",
+                {
+                    "interval_days": 30,
+                    "instructions": "بررسی فشار، پلمب، شیلنگ و برچسب بازرسی؛ ثبت در فرم PM-EXT.",
+                    "responsible": supervisor_user,
+                    "start_date": now.date() - timedelta(days=45),
+                    "next_due_date": now.date() + timedelta(days=5),
+                    "is_active": True,
+                },
+            )
+            for days_ago, label in ((55, "بازرسی دو ماه پیش"), (25, "بازرسی ماه گذشته")):
+                seed_work_order(
+                    ext_fa,
+                    label,
+                    {
+                        "plan": plan_ext,
+                        "work_type": MaintenanceWorkOrder.WorkType.PREVENTIVE,
+                        "status": MaintenanceWorkOrder.Status.COMPLETED,
+                        "assigned_to": supervisor_user,
+                        "scheduled_date": now.date() - timedelta(days=days_ago),
+                        "completed_date": now.date() - timedelta(days=days_ago),
+                        "findings": "فشار در محدوده سبز؛ پلمب و شیلنگ سالم.",
+                        "result": "بازرسی انجام و برگه PM تکمیل شد.",
+                    },
+                )
+
+        gas_fa = seed_equipment(
+            org_foolad,
+            "FA-GAS-001",
+            {
+                "name": "گازسنج چندگانه چهارکاره ایستگاه ریخته‌گری",
+                "category": Equipment.Category.GAS_DETECTION,
+                "workplace": wp_cast,
+                "manufacturer": "Dräger",
+                "model_number": "X-am 5000",
+                "serial_number": "DR-X5000-9912",
+                "status": Equipment.Status.READY,
+                "description": "دستگاه قابل حمل سنجش O2، LEL، H2S و CO.",
+                "calibration_required": True,
+            },
+        )
+        if gas_fa is not None:
+            gas_fa.related_hazards.set([haz_slag, haz_gas])
+            seed_calibration(
+                gas_fa,
+                "CAL-FA-GAS-1404-03",
+                {
+                    "performed_on": now.date() - timedelta(days=250),
+                    "next_due_on": now.date() - timedelta(days=180),
+                    "provider": "آزمایشگاه معتمد فن‌گاز",
+                    "result": CalibrationRecord.Result.PASSED,
+                    "notes": "کالیبراسیون دوره قبلی.",
+                },
+            )
+            seed_calibration(
+                gas_fa,
+                "CAL-FA-GAS-1405-01",
+                {
+                    "performed_on": now.date() - timedelta(days=20),
+                    "next_due_on": now.date() + timedelta(days=160),
+                    "provider": "آزمایشگاه معتمد فن‌گاز",
+                    "result": CalibrationRecord.Result.PASSED,
+                    "notes": "گازهای مرجع معتبر؛ خطای مجاز در محدوده استاندارد.",
+                },
+            )
+
+        gas_expired_fa = seed_equipment(
+            org_foolad,
+            "FA-GAS-002",
+            {
+                "name": "گازسنج قابل حمل واحد ترابری",
+                "category": Equipment.Category.GAS_DETECTION,
+                "workplace": wp_trans,
+                "manufacturer": "Honeywell",
+                "model_number": "BW-Multi",
+                "serial_number": "HW-BW-1187",
+                "status": Equipment.Status.OUT_OF_SERVICE,
+                "description": "گازسنج یدکی؛ کالیبراسیون آن منقضی شده است.",
+                "calibration_required": True,
+            },
+        )
+        if gas_expired_fa is not None:
+            seed_calibration(
+                gas_expired_fa,
+                "CAL-FA-GAS-1404-11",
+                {
+                    "performed_on": now.date() - timedelta(days=390),
+                    "next_due_on": now.date() - timedelta(days=25),
+                    "provider": "آزمایشگاه معتمد فن‌گاز",
+                    "result": CalibrationRecord.Result.PASSED,
+                    "notes": "کالیبراسیون منقضی؛ تجهیز تا انجام مجدد خارج از سرویس است.",
+                },
+            )
+
+        harness_fa = seed_equipment(
+            org_foolad,
+            "FA-LIFT-001",
+            {
+                "name": "تسمه بارگیری دو رشته‌ای ۵ تن",
+                "category": Equipment.Category.LIFTING,
+                "workplace": wp_roll,
+                "manufacturer": "Kito",
+                "model_number": "SL-5T",
+                "serial_number": "KT-5T-441",
+                "status": Equipment.Status.READY,
+                "description": "تسمه متناسب با بارهای نورد؛ نیازمند بازرسی و کالیبراسیون بار.",
+                "calibration_required": True,
+            },
+        )
+        if harness_fa is not None:
+            seed_calibration(
+                harness_fa,
+                "CAL-FA-LIFT-1405-02",
+                {
+                    "performed_on": now.date() - timedelta(days=170),
+                    "next_due_on": now.date() + timedelta(days=15),
+                    "provider": "شرکت بازرسی فنی ایمن‌سنج",
+                    "result": CalibrationRecord.Result.PASSED,
+                    "notes": "بازرسی بار و برچسب ظرفیت تأیید شد.",
+                },
+            )
+            seed_plan(
+                harness_fa,
+                "بازرسی سالانه تسمه و برچسب ظرفیت",
+                {
+                    "interval_days": 365,
+                    "instructions": "بازرسی بصری بافت، خوردگی، تغییر شکل قلاب و خوانا بودن برچسب ظرفیت.",
+                    "responsible": inspector_user,
+                    "start_date": now.date() - timedelta(days=170),
+                    "next_due_date": now.date() + timedelta(days=15),
+                    "is_active": True,
+                },
+            )
+
+        compressor_fa = seed_equipment(
+            org_foolad,
+            "FA-COMP-001",
+            {
+                "name": "کمپرسور هوای تنفسی کارگاه ریخته‌گری",
+                "category": Equipment.Category.ELECTRICAL,
+                "workplace": wp_cast,
+                "manufacturer": "Atlas Copco",
+                "model_number": "GA-30",
+                "serial_number": "AC-GA30-7781",
+                "status": Equipment.Status.UNDER_MAINTENANCE,
+                "description": "کمپرسور تغذیه خط هوای تنفسی؛ سرویس پیشگیرانه عقب‌افتاده دارد.",
+                "calibration_required": False,
+            },
+        )
+        if compressor_fa is not None:
+            plan_comp = seed_plan(
+                compressor_fa,
+                "سرویس ۵۰۰ ساعته کمپرسور",
+                {
+                    "interval_days": 90,
+                    "instructions": "تعویض فیلتر روغن و هوا، کنترل نشتی و ثبت فشار خروجی.",
+                    "responsible": supervisor_user,
+                    "start_date": now.date() - timedelta(days=120),
+                    "next_due_date": now.date() - timedelta(days=30),
+                    "is_active": True,
+                },
+            )
+            seed_work_order(
+                compressor_fa,
+                "سرویس عقب‌افتاده کمپرسور هوای تنفسی",
+                {
+                    "plan": plan_comp,
+                    "work_type": MaintenanceWorkOrder.WorkType.PREVENTIVE,
+                    "status": MaintenanceWorkOrder.Status.PLANNED,
+                    "assigned_to": supervisor_user,
+                    "scheduled_date": now.date() - timedelta(days=30),
+                    "description": "سرویس ۵۰۰ ساعته به دلیل تأخیر قطعه یدکی انجام نشده است.",
+                },
+            )
+
+        # Sepehr Petro assets
+        gas_sp = seed_equipment(
+            org_petro,
+            "SP-GAS-001",
+            {
+                "name": "گازسنج چهارکاره واحد الفین",
+                "category": Equipment.Category.GAS_DETECTION,
+                "workplace": wp_olefin,
+                "manufacturer": "Dräger",
+                "model_number": "X-am 8000",
+                "serial_number": "DR-X8000-2201",
+                "status": Equipment.Status.READY,
+                "description": "گازسنج عملیاتی تیم ورود به فضای بسته.",
+                "calibration_required": True,
+            },
+        )
+        if gas_sp is not None:
+            gas_sp.related_hazards.set([haz_gas])
+            if ptw5 is not None:
+                gas_sp.related_permits.set([ptw5])
+            seed_calibration(
+                gas_sp,
+                "CAL-SP-GAS-1405-07",
+                {
+                    "performed_on": now.date() - timedelta(days=10),
+                    "next_due_on": now.date() + timedelta(days=170),
+                    "provider": "آزمایشگاه مرکزی پتروشیمی سپهر",
+                    "result": CalibrationRecord.Result.PASSED,
+                    "notes": "کالیبراسیون با گاز مرجع و تأیید افسر HSE.",
+                },
+            )
+            seed_plan(
+                gas_sp,
+                "کالیبراسیون و تست ضربه روزانه",
+                {
+                    "interval_days": 180,
+                    "instructions": "تست ضربه روزانه و کالیبراسیون تخصصی هر ۱۸۰ روز.",
+                    "responsible": petro_supervisor_user,
+                    "start_date": now.date() - timedelta(days=10),
+                    "next_due_date": now.date() + timedelta(days=170),
+                    "is_active": True,
+                },
+            )
+
+        rescue_sp = seed_equipment(
+            org_petro,
+            "SP-RESC-001",
+            {
+                "name": "دستگاه تنفسی هوارسان امداد و نجات",
+                "category": Equipment.Category.RESCUE,
+                "workplace": wp_maint,
+                "manufacturer": "MSA",
+                "model_number": "AirHawk II",
+                "serial_number": "MSA-AH2-093",
+                "status": Equipment.Status.OUT_OF_SERVICE,
+                "description": "کالیبراسیون ناموفق؛ تا بررسی فنی و تعمیر، خارج از سرویس است.",
+                "calibration_required": True,
+            },
+        )
+        if rescue_sp is not None:
+            seed_calibration(
+                rescue_sp,
+                "CAL-SP-RESC-1405-02",
+                {
+                    "performed_on": now.date() - timedelta(days=5),
+                    "next_due_on": now.date() + timedelta(days=175),
+                    "provider": "شرکت ایمن‌سازان صنعتی",
+                    "result": CalibrationRecord.Result.FAILED,
+                    "notes": "نشتی در مدار هوارسان؛ تجهیز خارج از سرویس شد و نیازمند تعمیر است.",
+                },
+            )
+
+        extinguisher_sp = seed_equipment(
+            org_petro,
+            "SP-EXT-001",
+            {
+                "name": "کپسول آتش‌نشانی پودری ۱۲ کیلوگرمی",
+                "category": Equipment.Category.FIRE_EXTINGUISHER,
+                "workplace": wp_spheres,
+                "manufacturer": "Sepahan Fire",
+                "model_number": "P12",
+                "serial_number": "SF-P12-552",
+                "status": Equipment.Status.READY,
+                "description": "کپسول پودری مزرعه مخازن کروی.",
+                "calibration_required": False,
+            },
+        )
+        if extinguisher_sp is not None:
+            seed_plan(
+                extinguisher_sp,
+                "بازرسی ماهانه کپسول پودری",
+                {
+                    "interval_days": 30,
+                    "instructions": "کنترل فشار، پلمب، سلامت شیلنگ و نازل.",
+                    "responsible": petro_supervisor_user,
+                    "start_date": now.date() - timedelta(days=20),
+                    "next_due_date": now.date() + timedelta(days=10),
+                    "is_active": True,
+                },
+            )
 
         self.stdout.write(self.style.SUCCESS("All synthetic demo data seeded successfully with is_synthetic=True."))

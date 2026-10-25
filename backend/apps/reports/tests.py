@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 from django.test import TestCase
 from django.urls import reverse
 from apps.accounts.models import User
+from apps.assets.models import CalibrationRecord, Equipment
 from apps.capa.models import CorrectiveAction
 from apps.checklists.models import Checklist
 from apps.findings.models import NonConformity
@@ -34,15 +37,35 @@ class ReportTests(TestCase):
         CorrectiveAction.objects.create(
             organization=self.org_a, non_conformity=nc, description="اقدام تست", status="open"
         )
+        self.equipment = Equipment.objects.create(
+            organization=self.org_a,
+            workplace=self.wp,
+            code="REPORT-EQ-001",
+            name="تجهیز گزارش",
+            category=Equipment.Category.GAS_DETECTION,
+            status=Equipment.Status.READY,
+            calibration_required=True,
+        )
+        CalibrationRecord.objects.create(
+            organization=self.org_a,
+            equipment=self.equipment,
+            performed_on=self.equipment.created_at.date(),
+            next_due_on=self.equipment.created_at.date() + timedelta(days=100),
+            provider="آزمایشگاه گزارش",
+            result=CalibrationRecord.Result.PASSED,
+        )
 
     def test_csv_export_all_types(self):
         self.client.force_login(self.user_a)
-        for r_type in ["inspections", "risks", "non-conformities", "corrective-actions"]:
+        for r_type in ["inspections", "risks", "non-conformities", "corrective-actions", "assets"]:
             res = self.client.get(reverse("report-export", args=[r_type]))
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res["Content-Type"], "text/csv; charset=utf-8-sig")
             content = res.content.decode("utf-8-sig")
             self.assertIn("سازمان الف", content)
+            if r_type == "assets":
+                self.assertIn("REPORT-EQ-001", content)
+                self.assertIn("معتبر", content)
 
     def test_csv_filter_by_workplace_and_status(self):
         self.client.force_login(self.user_a)
@@ -64,6 +87,14 @@ class ReportTests(TestCase):
         res = self.client.get(reverse("report-export", args=["inspections"]))
         self.assertEqual(res.status_code, 200)
         self.assertNotIn("سازمان الف", res.content.decode("utf-8-sig"))
+
+        assets_forbidden = self.client.get(
+            reverse("report-export", args=["assets"]), {"organization": self.org_a.id}
+        )
+        self.assertEqual(assets_forbidden.status_code, 404)
+        assets_res = self.client.get(reverse("report-export", args=["assets"]))
+        self.assertEqual(assets_res.status_code, 200)
+        self.assertNotIn("REPORT-EQ-001", assets_res.content.decode("utf-8-sig"))
 
     def test_invalid_report_type(self):
         self.client.force_login(self.user_a)

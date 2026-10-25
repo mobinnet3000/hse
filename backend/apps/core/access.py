@@ -199,3 +199,48 @@ def can_conduct_shift_handover(user, organization_id):
     return membership_role(user, organization_id) in SHIFT_HANDOVER_ROLES
 
 
+
+EQUIPMENT_MANAGER_ROLES = {
+    Membership.Roles.ORG_ADMIN,
+    Membership.Roles.HSE_MANAGER,
+}
+
+ASSET_OPERATOR_ROLES = {
+    Membership.Roles.ORG_ADMIN,
+    Membership.Roles.HSE_MANAGER,
+    Membership.Roles.HSE_INSPECTOR,
+    Membership.Roles.WORKSHOP_SUPERVISOR,
+}
+
+CALIBRATION_ROLES = {
+    Membership.Roles.ORG_ADMIN,
+    Membership.Roles.HSE_MANAGER,
+    Membership.Roles.HSE_INSPECTOR,
+}
+
+
+def can_manage_equipment(user, organization_id):
+    """Create/edit equipment and maintenance plans, change equipment status."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    return membership_role(user, organization_id) in EQUIPMENT_MANAGER_ROLES
+
+
+def can_conduct_asset_work(user, organization_id):
+    """Create and execute maintenance work orders."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    return membership_role(user, organization_id) in ASSET_OPERATOR_ROLES
+
+
+def can_calibrate_equipment(user, organization_id):
+    """Record calibration results and view calibration history."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    return membership_role(user, organization_id) in CALIBRATION_ROLES

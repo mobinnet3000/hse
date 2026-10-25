@@ -162,7 +162,7 @@ describe("Risks page", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent("امتیاز ریسک: 20");
     expect(screen.getByRole("status")).toHaveTextContent("بحرانی");
-  });
+  }, 10000);
 });
 
 

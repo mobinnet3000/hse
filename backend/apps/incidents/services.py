@@ -18,6 +18,7 @@ def report_incident(*, organization, reported_by, data):
         status=Incident.Status.REPORTED,
         occurred_at=data["occurred_at"],
         workplace=data.get("workplace"),
+        equipment=data.get("equipment"),
         location_details=data.get("location_details", "").strip(),
         description=data.get("description", "").strip(),
         immediate_actions_taken=data.get("immediate_actions_taken", "").strip(),

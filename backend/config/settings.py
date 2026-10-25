@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.ai_assistant",
     "apps.incidents",
     "apps.permits",
+    "apps.assets",
 ]
 
 MIDDLEWARE = [

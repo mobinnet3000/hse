@@ -20,6 +20,13 @@ class Inspection(models.Model):
         null=True,
         blank=True,
     )
+    equipment = models.ForeignKey(
+        "assets.Equipment",
+        on_delete=models.SET_NULL,
+        related_name="inspections",
+        null=True,
+        blank=True,
+    )
     checklist = models.ForeignKey(
         "checklists.Checklist",
         on_delete=models.PROTECT,
@@ -56,6 +63,14 @@ class Inspection(models.Model):
 
     def __str__(self):
         return self.title or f"بازرسی #{self.pk}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.equipment_id and self.equipment.organization_id != self.organization_id:
+            raise ValidationError({"equipment": "تجهیز مرتبط باید متعلق به همان سازمان باشد."})
+        if self.workplace_id and self.workplace.organization_id != self.organization_id:
+            raise ValidationError({"workplace": "محل کار باید متعلق به همان سازمان باشد."})
 
 
 class InspectionResponse(models.Model):

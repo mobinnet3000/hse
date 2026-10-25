@@ -7,6 +7,7 @@ export type NavTab =
   | "all"
   | "dashboard"
   | "permits"
+  | "assets"
   | "incidents"
   | "risks"
   | "inspections"
@@ -42,6 +43,7 @@ export function AppLayout({
   const navItems: Array<{ id: NavTab; label: string }> = [
     { id: "dashboard", label: "داشبورد" },
     { id: "permits", label: "مجوزهای کار و تحویل شیفت" },
+    { id: "assets", label: "تجهیزات و کالیبراسیون" },
     { id: "incidents", label: "حوادث و شبه‌حوادث" },
     { id: "risks", label: "ریسک‌ها" },
     { id: "inspections", label: "بازرسی‌ها و اقدامات" },

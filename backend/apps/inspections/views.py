@@ -35,7 +35,7 @@ class InspectionListCreateView(APIView):
     def get(self, request):
         queryset = Inspection.objects.filter(
             organization_id__in=accessible_organization_ids(request.user)
-        ).select_related("checklist", "workplace", "organization")
+        ).select_related("checklist", "workplace", "equipment", "organization")
         organization_id = request.query_params.get("organization")
         if organization_id:
             try:
@@ -110,10 +110,23 @@ class InspectionListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        equipment = serializer.validated_data.get("equipment")
+        if equipment is not None and equipment.organization_id != organization_id:
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_equipment",
+                        "message": "تجهیز باید متعلق به همان سازمان باشد.",
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         inspection = Inspection.objects.create(
             organization=Organization.objects.get(pk=organization_id),
             checklist=checklist,
             workplace=workplace,
+            equipment=equipment,
             title=serializer.validated_data.get("title") or checklist.title,
             inspector=inspector or request.user,
             scheduled_at=serializer.validated_data.get("scheduled_at"),
@@ -150,7 +163,7 @@ class InspectionDetailView(APIView):
 
     def get_object(self, request, pk):
         inspection = (
-            Inspection.objects.select_related("checklist", "workplace", "organization")
+            Inspection.objects.select_related("checklist", "workplace", "equipment", "organization")
             .prefetch_related("responses")
             .filter(pk=pk)
             .first()
@@ -218,6 +231,17 @@ class InspectionDetailView(APIView):
                     "error": {
                         "code": "invalid_workplace",
                         "message": "محل کار باید متعلق به همان سازمان باشد.",
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        equipment = serializer.validated_data.get("equipment")
+        if equipment is not None and equipment.organization_id != inspection.organization_id:
+            return Response(
+                {
+                    "error": {
+                        "code": "invalid_equipment",
+                        "message": "تجهیز باید متعلق به همان سازمان باشد.",
                     }
                 },
                 status=status.HTTP_400_BAD_REQUEST,

@@ -40,6 +40,7 @@ class IncidentListSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     organization_name = serializers.CharField(source="organization.name", read_only=True)
     workplace_name = serializers.CharField(source="workplace.name", read_only=True, default=None)
+    equipment_name = serializers.CharField(source="equipment.name", read_only=True, default=None)
     reported_by_name = serializers.SerializerMethodField()
     assigned_investigator_name = serializers.SerializerMethodField()
     capa_count = serializers.IntegerField(source="related_corrective_actions.count", read_only=True)
@@ -52,6 +53,8 @@ class IncidentListSerializer(serializers.ModelSerializer):
             "organization_name",
             "workplace",
             "workplace_name",
+            "equipment",
+            "equipment_name",
             "title",
             "incident_type",
             "incident_type_display",
@@ -89,6 +92,7 @@ class IncidentDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     organization_name = serializers.CharField(source="organization.name", read_only=True)
     workplace_name = serializers.CharField(source="workplace.name", read_only=True, default=None)
+    equipment_name = serializers.CharField(source="equipment.name", read_only=True, default=None)
     reported_by_name = serializers.SerializerMethodField()
     assigned_investigator_name = serializers.SerializerMethodField()
     related_hazard_title = serializers.CharField(source="related_hazard.title", read_only=True, default=None)
@@ -107,6 +111,8 @@ class IncidentDetailSerializer(serializers.ModelSerializer):
             "organization_name",
             "workplace",
             "workplace_name",
+            "equipment",
+            "equipment_name",
             "title",
             "incident_type",
             "incident_type_display",
@@ -176,6 +182,7 @@ class IncidentCreateSerializer(serializers.ModelSerializer):
             "id",
             "organization",
             "workplace",
+            "equipment",
             "title",
             "incident_type",
             "severity",
@@ -211,6 +218,12 @@ class IncidentCreateSerializer(serializers.ModelSerializer):
         hazard = attrs.get("related_hazard")
         if hazard and hazard.organization_id != org.id:
             raise serializers.ValidationError({"related_hazard": "مخاطره انتخاب‌شده متعلق به این سازمان نیست."})
+
+        equipment = attrs.get("equipment")
+        if equipment and equipment.organization_id != org.id:
+            raise serializers.ValidationError({"equipment": "تجهیز انتخاب‌شده متعلق به این سازمان نیست."})
+        if equipment and workplace and equipment.workplace_id and equipment.workplace_id != workplace.id:
+            raise serializers.ValidationError({"equipment": "تجهیز انتخاب‌شده در این محل استقرار ندارد."})
 
         title = attrs.get("title", "").strip()
         if not title:

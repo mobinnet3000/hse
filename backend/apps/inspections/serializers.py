@@ -25,6 +25,7 @@ class InspectionResponseSerializer(serializers.ModelSerializer):
 class InspectionSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     checklist_title = serializers.CharField(source="checklist.title", read_only=True)
+    equipment_name = serializers.CharField(source="equipment.name", read_only=True, default=None)
     total_responses = serializers.SerializerMethodField()
     answered_responses = serializers.SerializerMethodField()
 
@@ -34,6 +35,8 @@ class InspectionSerializer(serializers.ModelSerializer):
             "id",
             "organization",
             "workplace",
+            "equipment",
+            "equipment_name",
             "checklist",
             "checklist_title",
             "title",

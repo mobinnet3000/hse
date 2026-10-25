@@ -32,6 +32,13 @@ class NonConformity(models.Model):
         null=True,
         blank=True,
     )
+    equipment = models.ForeignKey(
+        "assets.Equipment",
+        on_delete=models.SET_NULL,
+        related_name="non_conformities",
+        null=True,
+        blank=True,
+    )
     inspection = models.ForeignKey(
         "inspections.Inspection",
         on_delete=models.SET_NULL,
@@ -91,6 +98,15 @@ class NonConformity(models.Model):
             )
         if self.inspection_id and self.inspection.organization_id != self.organization_id:
             raise ValidationError({"inspection": "بازرسی باید متعلق به همان سازمان باشد."})
+        if self.equipment_id and self.equipment.organization_id != self.organization_id:
+            raise ValidationError({"equipment": "تجهیز مرتبط باید متعلق به همان سازمان باشد."})
+        if (
+            self.equipment_id
+            and self.workplace_id
+            and self.equipment.workplace_id
+            and self.equipment.workplace_id != self.workplace_id
+        ):
+            raise ValidationError({"equipment": "محل استقرار تجهیز با محل عدم‌انطباق هم‌خوان نیست."})
 
     def __str__(self):
         return f"عدم‌انطباق #{self.pk}"

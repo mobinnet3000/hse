@@ -36,6 +36,13 @@ class Incident(models.Model):
         null=True,
         blank=True,
     )
+    equipment = models.ForeignKey(
+        "assets.Equipment",
+        on_delete=models.SET_NULL,
+        related_name="incidents",
+        null=True,
+        blank=True,
+    )
     title = models.CharField(max_length=200)
     incident_type = models.CharField(
         max_length=32, choices=IncidentType.choices, default=IncidentType.INCIDENT
@@ -120,6 +127,15 @@ class Incident(models.Model):
             raise ValidationError({"workplace": "محل کار باید متعلق به همان سازمان باشد."})
         if self.related_hazard_id and self.related_hazard.organization_id != self.organization_id:
             raise ValidationError({"related_hazard": "مخاطره مرتبط باید متعلق به همان سازمان باشد."})
+        if self.equipment_id and self.equipment.organization_id != self.organization_id:
+            raise ValidationError({"equipment": "تجهیز مرتبط باید متعلق به همان سازمان باشد."})
+        if (
+            self.equipment_id
+            and self.workplace_id
+            and self.equipment.workplace_id
+            and self.equipment.workplace_id != self.workplace_id
+        ):
+            raise ValidationError({"equipment": "محل استقرار تجهیز با محل حادثه هم‌خوان نیست."})
 
 
 class IncidentAttachment(models.Model):

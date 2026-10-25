@@ -19,6 +19,7 @@ urlpatterns = [
     path("api/v1/ai/", include("apps.ai_assistant.urls")),
     path("api/v1/incidents/", include("apps.incidents.urls")),
     path("api/v1/permits/", include("apps.permits.urls")),
+    path("api/v1/assets/", include("apps.assets.urls")),
     path("api/v1/", include("apps.core.urls")),
 ]
 

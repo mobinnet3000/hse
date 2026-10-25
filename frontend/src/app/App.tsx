@@ -4,6 +4,7 @@ import { AuthProvider } from "../features/auth/AuthContext";
 import { HealthStatus } from "../features/health/HealthStatus";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { PermitsPage } from "../features/permits/PermitsPage";
+import { AssetsPage } from "../features/assets/AssetsPage";
 import { IncidentsPage } from "../features/incidents/IncidentsPage";
 import { RisksPage } from "../features/risks/RisksPage";
 import { InspectionsPage } from "../features/inspections/InspectionsPage";
@@ -45,6 +46,12 @@ function AppContent() {
       {(activeTab === "all" || activeTab === "permits") && (
         <section id="permits" className="section-container" style={{ marginBottom: "2rem" }}>
           <PermitsPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "assets") && (
+        <section id="assets" className="section-container" style={{ marginBottom: "2rem" }}>
+          <AssetsPage />
         </section>
       )}
 

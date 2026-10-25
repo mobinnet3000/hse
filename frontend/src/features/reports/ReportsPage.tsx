@@ -49,6 +49,17 @@ const REPORTS: ReportDefinition[] = [
     ],
   },
   {
+    id: "assets",
+    name: "گزارش تجهیزات و کالیبراسیون",
+    description: "کد و وضعیت تجهیزات، وضعیت و سررسید کالیبراسیون، موعد نگهداری و دستورکارهای باز",
+    statusOptions: [
+      { value: "ready", label: "آماده به کار" },
+      { value: "under_maintenance", label: "در حال سرویس/تعمیر" },
+      { value: "out_of_service", label: "خارج از سرویس" },
+      { value: "retired", label: "بازنشسته" },
+    ],
+  },
+  {
     id: "corrective-actions",
     name: "گزارش اقدامات اصلاحی (CAPA)",
     description: "اقدامات اصلاحی تعریف‌شده، مسئول اجرا، مهلت و نتیجه اثربخشی",
