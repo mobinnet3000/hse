@@ -64,13 +64,19 @@ def check_deadline_notifications():
                 f"مهلت اقدام اصلاحی شماره {action.id} "
                 f"(«{action.description[:35]}») در تاریخ {action.due_date} به پایان رسیده است."
             )
-            # Avoid duplicate for overdue within last 24 hours
+            # Avoid duplicate overdue notifications within the current local
+            # day. Comparing created_at__date used the UTC date and broke near
+            # the Tehran midnight boundary, so compare against the aware start
+            # of the local day instead.
+            start_of_local_day = timezone.localtime().replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
             recent_notif = Notification.objects.filter(
                 user=action.responsible,
                 organization=action.organization,
                 title=title,
                 message=message,
-                created_at__date=today,
+                created_at__gte=start_of_local_day,
             ).exists()
             if not recent_notif:
                 notify_user(

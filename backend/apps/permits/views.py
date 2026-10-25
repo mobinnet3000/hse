@@ -9,8 +9,6 @@ from rest_framework.views import APIView
 
 from apps.core.access import (
     accessible_organization_ids,
-    can_approve_permits,
-    can_control_permits,
     is_active_member,
 )
 from .models import Permit, ShiftHandover
@@ -118,7 +116,30 @@ class PermitListCreateView(generics.ListCreateAPIView):
 
         status_param = self.request.query_params.get("status")
         if status_param:
-            qs = qs.filter(status=status_param)
+            now = timezone.now()
+            open_expirable_statuses = [
+                Permit.Status.REQUESTED,
+                Permit.Status.UNDER_REVIEW,
+                Permit.Status.APPROVED,
+                Permit.Status.ACTIVE,
+                Permit.Status.SUSPENDED,
+            ]
+            if status_param == Permit.Status.ACTIVE:
+                qs = qs.filter(status=Permit.Status.ACTIVE, valid_until__gt=now)
+            elif status_param == Permit.Status.APPROVED:
+                qs = qs.filter(status=Permit.Status.APPROVED, valid_until__gt=now)
+            elif status_param == Permit.Status.SUSPENDED:
+                qs = qs.filter(status=Permit.Status.SUSPENDED, valid_until__gt=now)
+            elif status_param == Permit.Status.EXPIRED:
+                qs = qs.filter(
+                    Q(status=Permit.Status.EXPIRED)
+                    | Q(
+                        status__in=open_expirable_statuses,
+                        valid_until__lte=now,
+                    )
+                )
+            else:
+                qs = qs.filter(status=status_param)
 
         permit_type = self.request.query_params.get("permit_type")
         if permit_type:
@@ -161,7 +182,14 @@ class PermitListCreateView(generics.ListCreateAPIView):
             raise ValidationError(exc.message if hasattr(exc, "message") else exc.messages)
 
 
-class PermitDetailView(generics.RetrieveUpdateDestroyAPIView):
+class PermitDetailView(generics.RetrieveAPIView):
+    """Read-only permit detail.
+
+    All state changes must go through the explicit workflow action endpoints so
+    that role checks, control verification, separation of duties and audit
+    logging cannot be bypassed with a PATCH/PUT request.
+    """
+
     permission_classes = [IsAuthenticated]
     serializer_class = PermitDetailSerializer
 
@@ -171,12 +199,6 @@ class PermitDetailView(generics.RetrieveUpdateDestroyAPIView):
             return Permit.objects.all()
         org_ids = accessible_organization_ids(user)
         return Permit.objects.filter(organization_id__in=org_ids)
-
-    def perform_destroy(self, instance):
-        user = self.request.user
-        if not can_approve_permits(user, instance.organization_id):
-            raise PermissionDenied("تنها مدیران سازمان مجاز به حذف پرونده مجوز هستند.")
-        instance.delete()
 
 
 class PermitReviewView(APIView):
@@ -352,14 +374,24 @@ class PermitSummaryStatsView(APIView):
 
         now = timezone.now()
         total = qs.count()
-        active = qs.filter(status=Permit.Status.ACTIVE).count()
-        suspended = qs.filter(status=Permit.Status.SUSPENDED).count()
-        requested = qs.filter(status=Permit.Status.REQUESTED).count()
-        approved = qs.filter(status=Permit.Status.APPROVED).count()
+        active = qs.filter(status=Permit.Status.ACTIVE, valid_until__gt=now).count()
+        suspended = qs.filter(status=Permit.Status.SUSPENDED, valid_until__gt=now).count()
+        requested = qs.filter(status=Permit.Status.REQUESTED, valid_until__gt=now).count()
+        approved = qs.filter(status=Permit.Status.APPROVED, valid_until__gt=now).count()
         closed = qs.filter(status=Permit.Status.CLOSED).count()
         expired = qs.filter(
-            valid_until__lt=now
-        ).exclude(status__in=[Permit.Status.CLOSED, Permit.Status.COMPLETED]).count()
+            Q(status=Permit.Status.EXPIRED)
+            | Q(
+                status__in=[
+                    Permit.Status.REQUESTED,
+                    Permit.Status.UNDER_REVIEW,
+                    Permit.Status.APPROVED,
+                    Permit.Status.ACTIVE,
+                    Permit.Status.SUSPENDED,
+                ],
+                valid_until__lte=now,
+            )
+        ).count()
 
         by_type_qs = qs.values("permit_type").annotate(count=Count("id"))
         by_type = {item["permit_type"]: item["count"] for item in by_type_qs}

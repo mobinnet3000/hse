@@ -86,24 +86,27 @@ class OrganizationDetailView(APIView):
 class MembershipListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def _organization(self, request, pk):
+    def _organization_for_manager(self, request, pk):
         organization = Organization.objects.filter(pk=pk).first()
         if organization is None or not can_manage_organization(request.user, organization.pk):
             return None
         return organization
 
     def get(self, request, pk):
-        organization = self._organization(request, pk)
-        if organization is None:
+        # Any active member may discover colleagues for operational workflows
+        # such as assigning an incoming shift supervisor. Only managers may
+        # create or change memberships (see post()).
+        organization = Organization.objects.filter(pk=pk).first()
+        if organization is None or not can_view_organization(request.user, organization.pk):
             return Response(
                 {"error": {"code": "not_found", "message": "سازمان یافت نشد."}},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        memberships = organization.memberships.select_related("user")
+        memberships = organization.memberships.filter(is_active=True).select_related("user")
         return Response(MembershipSerializer(memberships, many=True).data)
 
     def post(self, request, pk):
-        organization = self._organization(request, pk)
+        organization = self._organization_for_manager(request, pk)
         if organization is None:
             return Response(
                 {"error": {"code": "not_found", "message": "سازمان یافت نشد."}},

@@ -1,7 +1,12 @@
 from rest_framework import serializers
 
 from apps.accounts.models import User
-from apps.core.access import can_approve_permits, can_control_permits, is_active_member
+from apps.core.access import (
+    can_approve_permits,
+    can_conduct_shift_handover,
+    can_control_permits,
+    is_active_member,
+)
 from apps.organizations.models import Organization
 from apps.risks.models import Hazard
 from apps.risks.serializers import HazardSerializer
@@ -35,7 +40,8 @@ class PermitAttachmentSerializer(serializers.ModelSerializer):
 
 class PermitListSerializer(serializers.ModelSerializer):
     permit_type_display = serializers.CharField(source="get_permit_type_display", read_only=True)
-    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    status = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
     organization_name = serializers.CharField(source="organization.name", read_only=True)
     workplace_name = serializers.CharField(source="workplace.name", read_only=True, default=None)
     requester_name = serializers.SerializerMethodField()
@@ -82,9 +88,14 @@ class PermitListSerializer(serializers.ModelSerializer):
             return None
         return f"{obj.approver.first_name} {obj.approver.last_name}".strip() or obj.approver.username
 
+    def get_status(self, obj):
+        return obj.effective_status
+
+    def get_status_display(self, obj):
+        return Permit.Status(obj.effective_status).label
+
     def get_is_expired(self, obj):
-        from django.utils import timezone
-        return timezone.now() > obj.valid_until and obj.status not in {Permit.Status.CLOSED, Permit.Status.COMPLETED}
+        return obj.is_expired
 
 
 class PermitDetailSerializer(PermitListSerializer):
@@ -95,6 +106,7 @@ class PermitDetailSerializer(PermitListSerializer):
     closed_by_name = serializers.SerializerMethodField()
     can_approve = serializers.SerializerMethodField()
     can_control = serializers.SerializerMethodField()
+    can_cancel = serializers.SerializerMethodField()
 
     class Meta(PermitListSerializer.Meta):
         fields = PermitListSerializer.Meta.fields + [
@@ -122,6 +134,7 @@ class PermitDetailSerializer(PermitListSerializer):
             "attachments",
             "can_approve",
             "can_control",
+            "can_cancel",
             "updated_at",
         ]
 
@@ -142,11 +155,38 @@ class PermitDetailSerializer(PermitListSerializer):
 
     def get_can_approve(self, obj):
         user = self.context.get("request", None) and self.context["request"].user
-        return bool(user and can_approve_permits(user, obj.organization_id))
+        if not user or not user.is_authenticated:
+            return False
+        if obj.requester_id == user.id or obj.is_expired:
+            return False
+        if obj.status not in {Permit.Status.REQUESTED, Permit.Status.UNDER_REVIEW}:
+            return False
+        return bool(can_approve_permits(user, obj.organization_id))
 
     def get_can_control(self, obj):
         user = self.context.get("request", None) and self.context["request"].user
         return bool(user and can_control_permits(user, obj.organization_id))
+
+    def get_can_cancel(self, obj):
+        user = self.context.get("request", None) and self.context["request"].user
+        if not user or not user.is_authenticated:
+            return False
+        if obj.status in {
+            Permit.Status.COMPLETED,
+            Permit.Status.REJECTED,
+            Permit.Status.CLOSED,
+            Permit.Status.CANCELLED,
+        }:
+            return False
+        if can_control_permits(user, obj.organization_id):
+            return True
+        if obj.requester_id == user.id:
+            return obj.status in {
+                Permit.Status.REQUESTED,
+                Permit.Status.UNDER_REVIEW,
+                Permit.Status.APPROVED,
+            }
+        return False
 
 
 class PermitCreateSerializer(serializers.ModelSerializer):
@@ -250,6 +290,7 @@ class ShiftHandoverSerializer(serializers.ModelSerializer):
     incoming_supervisor_name = serializers.SerializerMethodField()
     acknowledged_by_name = serializers.SerializerMethodField()
     active_permits = PermitListSerializer(many=True, read_only=True)
+    can_acknowledge = serializers.SerializerMethodField()
 
     class Meta:
         model = ShiftHandover
@@ -278,6 +319,7 @@ class ShiftHandoverSerializer(serializers.ModelSerializer):
             "acknowledged_by_name",
             "acknowledged_at",
             "acknowledgement_notes",
+            "can_acknowledge",
             "is_synthetic",
             "created_at",
             "updated_at",
@@ -297,6 +339,20 @@ class ShiftHandoverSerializer(serializers.ModelSerializer):
         if not obj.acknowledged_by:
             return None
         return f"{obj.acknowledged_by.first_name} {obj.acknowledged_by.last_name}".strip() or obj.acknowledged_by.username
+
+    def get_can_acknowledge(self, obj):
+        user = self.context.get("request", None) and self.context["request"].user
+        if not user or not user.is_authenticated:
+            return False
+        if obj.status == ShiftHandover.Status.ACKNOWLEDGED:
+            return False
+        if obj.outgoing_supervisor_id == user.id:
+            return False
+        if not can_conduct_shift_handover(user, obj.organization_id):
+            return False
+        if obj.incoming_supervisor_id:
+            return obj.incoming_supervisor_id == user.id
+        return True
 
 
 class ShiftHandoverCreateSerializer(serializers.ModelSerializer):

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { useAuth } from "../auth/AuthContext";
 import {
   activatePermit,
   acknowledgeShiftHandover,
@@ -8,6 +9,7 @@ import {
   completePermit,
   createPermit,
   createShiftHandover,
+  fetchMemberships,
   fetchOrganizations,
   fetchPermitDetail,
   fetchPermits,
@@ -19,6 +21,7 @@ import {
   resumePermit,
   reviewPermit,
   suspendPermit,
+  type Membership,
   type Organization,
   type PermitDetail,
   type PermitListItem,
@@ -41,6 +44,28 @@ function errorMessage(error: unknown): string {
   }
   return "خطای نامشخص در ارتباط با سرور";
 }
+
+/** Format a Date for a <input type="datetime-local"> using local time (not UTC). */
+function toLocalDateTimeInput(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+}
+
+/** Convert a local datetime-local value to an ISO timestamp for the API. */
+function localInputToIso(value: FormDataEntryValue | null): string | null {
+  if (typeof value !== "string" || !value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+}
+
+const SHIFT_HANDOVER_ROLES = new Set([
+  "org_admin",
+  "hse_manager",
+  "workshop_supervisor",
+  "hse_inspector",
+]);
 
 const PERMIT_TYPE_LABELS: Record<PermitType, string> = {
   hot_work: "کار گرم و شعله",
@@ -71,12 +96,14 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
 };
 
 export function PermitsPage() {
+  const { user } = useAuth();
   const [activeMainTab, setActiveMainTab] = useState<"ptw" | "handover">("ptw");
 
   // Organizations & Workplaces
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
   const [workplaces, setWorkplaces] = useState<Workplace[]>([]);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
 
   // Permits state
   const [permits, setPermits] = useState<PermitListItem[]>([]);
@@ -136,6 +163,22 @@ export function PermitsPage() {
       .then(setWorkplaces)
       .catch(() => setWorkplaces([]));
   }, [selectedOrgId]);
+
+  // Load organization members (used for incoming shift supervisor selection)
+  useEffect(() => {
+    if (!selectedOrgId) {
+      setMemberships([]);
+      return;
+    }
+    fetchMemberships(selectedOrgId)
+      .then(setMemberships)
+      .catch(() => setMemberships([]));
+  }, [selectedOrgId]);
+
+  const currentMembership = memberships.find((m) => m.user === user?.id && m.is_active);
+  const canConductHandover =
+    user?.global_role === "platform_admin" ||
+    (currentMembership ? SHIFT_HANDOVER_ROLES.has(currentMembership.role) : false);
 
   // Load permits and stats
   const reloadPermits = () => {
@@ -479,14 +522,16 @@ export function PermitsPage() {
                 <h4 style={{ margin: 0, color: "#92400e", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   ⚠️ خلاصه وضعیت ایمنی شیفت در کارگاه جاری (Safety Handover Snapshot)
                 </h4>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => setIsCreateHandoverModalOpen(true)}
-                  style={{ padding: "0.4rem 1rem", fontSize: "0.9rem" }}
-                >
-                  + ثبت تحویل شیفت جدید
-                </button>
+                {canConductHandover && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => setIsCreateHandoverModalOpen(true)}
+                    style={{ padding: "0.4rem 1rem", fontSize: "0.9rem" }}
+                  >
+                    + ثبت تحویل شیفت جدید
+                  </button>
+                )}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
                 <div style={{ background: "white", padding: "0.75rem", borderRadius: "6px", border: "1px solid #fef08a" }}>
@@ -533,13 +578,17 @@ export function PermitsPage() {
           ) : handovers.length === 0 ? (
             <div className="empty-box" style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
               <p className="muted" style={{ fontSize: "1.1rem", margin: "0 0 1rem" }}>هیچ گزارش تحویل شیفتی در این سازمان ثبت نشده است.</p>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setIsCreateHandoverModalOpen(true)}
-              >
-                ثبت اولین تحویل شیفت
-              </button>
+              {canConductHandover ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setIsCreateHandoverModalOpen(true)}
+                >
+                  ثبت اولین تحویل شیفت
+                </button>
+              ) : (
+                <span className="muted">برای ثبت تحویل شیفت باید نقش سرپرست کارگاه، بازرس HSE یا مدیر HSE داشته باشید.</span>
+              )}
             </div>
           ) : (
             <div className="handover-list" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -607,7 +656,7 @@ export function PermitsPage() {
                       ✓ در تاریخ {new Date(sh.acknowledged_at!).toLocaleString("fa-IR")} توسط <strong>{sh.acknowledged_by_name}</strong> تحویل گرفته شد.
                       {sh.acknowledgement_notes && <span style={{ marginRight: "0.5rem" }}>ملاحظات: {sh.acknowledgement_notes}</span>}
                     </div>
-                  ) : (
+                  ) : sh.can_acknowledge ? (
                     <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: "0.5rem", display: "flex", justifyContent: "flex-end" }}>
                       <button
                         type="button"
@@ -617,6 +666,10 @@ export function PermitsPage() {
                       >
                         ✓ تأیید و تحویل‌گیری این شیفت
                       </button>
+                    </div>
+                  ) : (
+                    <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: "0.5rem", fontSize: "0.85rem", color: "#92400e" }}>
+                      ⏳ در انتظار تأیید {sh.incoming_supervisor_name || "سرپرست تحویل‌گیرنده"}؛ فقط تحویل‌گیرنده تعیین‌شده می‌تواند این گزارش را تأیید کند.
                     </div>
                   )}
                 </div>
@@ -735,8 +788,14 @@ export function PermitsPage() {
 
             {/* Action Buttons */}
             <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem", justifyContent: "flex-end" }}>
+              {selectedPermit.status === "expired" && (
+                <div style={{ width: "100%", background: "#fef2f2", color: "#991b1b", padding: "0.65rem", borderRadius: "6px", fontSize: "0.85rem", marginBottom: "0.25rem" }}>
+                  ⚠️ اعتبار زمانی این مجوز پایان یافته است. فعال‌سازی، تعلیق یا ازسرگیری مجاز نیست؛ فقط مختومه‌سازی نهایی یا لغو پرونده امکان‌پذیر است.
+                </div>
+              )}
               {/* Requested / Under Review */}
-              {(selectedPermit.status === "requested" || selectedPermit.status === "under_review") && (
+              {selectedPermit.can_approve &&
+                (selectedPermit.status === "requested" || selectedPermit.status === "under_review") && (
                 <>
                   <button
                     type="button"
@@ -763,7 +822,7 @@ export function PermitsPage() {
               )}
 
               {/* Approved -> Activate */}
-              {selectedPermit.status === "approved" && (
+              {selectedPermit.status === "approved" && selectedPermit.can_control && (
                 <button
                   type="button"
                   className="btn btn-success"
@@ -774,7 +833,7 @@ export function PermitsPage() {
               )}
 
               {/* Active -> Suspend or Complete */}
-              {selectedPermit.status === "active" && (
+              {selectedPermit.status === "active" && selectedPermit.can_control && (
                 <>
                   <button
                     type="button"
@@ -806,7 +865,7 @@ export function PermitsPage() {
               )}
 
               {/* Suspended -> Resume */}
-              {selectedPermit.status === "suspended" && (
+              {selectedPermit.status === "suspended" && selectedPermit.can_control && (
                 <button
                   type="button"
                   className="btn btn-success"
@@ -829,7 +888,10 @@ export function PermitsPage() {
               )}
 
               {/* Completed or Expired -> Close */}
-              {(selectedPermit.status === "completed" || selectedPermit.status === "expired" || selectedPermit.status === "active") && (
+              {selectedPermit.can_control &&
+                (selectedPermit.status === "completed" ||
+                  selectedPermit.status === "expired" ||
+                  selectedPermit.status === "active") && (
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -840,7 +902,7 @@ export function PermitsPage() {
               )}
 
               {/* Cancel (if not closed/cancelled) */}
-              {selectedPermit.status !== "closed" && selectedPermit.status !== "cancelled" && (
+              {selectedPermit.can_cancel && (
                 <button
                   type="button"
                   className="btn btn-outline"
@@ -850,6 +912,16 @@ export function PermitsPage() {
                   لغو مجوز
                 </button>
               )}
+
+              {!selectedPermit.can_approve &&
+                !selectedPermit.can_control &&
+                !selectedPermit.can_cancel &&
+                selectedPermit.status !== "closed" &&
+                selectedPermit.status !== "cancelled" && (
+                  <span className="muted" style={{ fontSize: "0.85rem", alignSelf: "center" }}>
+                    شما برای این وضعیت اقدام عملیاتی مجاز ندارید.
+                  </span>
+                )}
 
               <button
                 type="button"
@@ -1223,6 +1295,8 @@ export function PermitsPage() {
         <CreateShiftHandoverModal
           organizationId={selectedOrgId!}
           workplaces={workplaces}
+          memberships={memberships}
+          currentUserId={user?.id ?? null}
           activePermits={permits.filter((p) => p.status === "active" || p.status === "suspended")}
           onClose={() => setIsCreateHandoverModalOpen(false)}
           onSuccess={() => {
@@ -1309,8 +1383,8 @@ function CreatePermitModal({ organizationId, workplaces, onClose, onSuccess }: C
       description: fd.get("description"),
       work_area: fd.get("work_area"),
       equipment_involved: fd.get("equipment_involved"),
-      valid_from: fd.get("valid_from"),
-      valid_until: fd.get("valid_until"),
+      valid_from: localInputToIso(fd.get("valid_from")),
+      valid_until: localInputToIso(fd.get("valid_until")),
       assigned_workers: fd.get("assigned_workers"),
       precautions_taken: fd.get("precautions_taken"),
       required_ppe: fd.get("required_ppe"),
@@ -1329,8 +1403,8 @@ function CreatePermitModal({ organizationId, workplaces, onClose, onSuccess }: C
   };
 
   const now = new Date();
-  const defaultFrom = new Date(now.getTime() + 30 * 60000).toISOString().slice(0, 16);
-  const defaultUntil = new Date(now.getTime() + 8 * 3600000).toISOString().slice(0, 16);
+  const defaultFrom = toLocalDateTimeInput(new Date(now.getTime() + 30 * 60000));
+  const defaultUntil = toLocalDateTimeInput(new Date(now.getTime() + 8 * 3600000));
 
   return (
     <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
@@ -1441,6 +1515,8 @@ function CreatePermitModal({ organizationId, workplaces, onClose, onSuccess }: C
 interface CreateShiftHandoverModalProps {
   organizationId: number;
   workplaces: Workplace[];
+  memberships: Membership[];
+  currentUserId: number | null;
   activePermits: PermitListItem[];
   onClose: () => void;
   onSuccess: () => void;
@@ -1449,6 +1525,8 @@ interface CreateShiftHandoverModalProps {
 function CreateShiftHandoverModal({
   organizationId,
   workplaces,
+  memberships,
+  currentUserId,
   activePermits,
   onClose,
   onSuccess,
@@ -1457,17 +1535,26 @@ function CreateShiftHandoverModal({
   const [error, setError] = useState<string | null>(null);
   const [selectedPermits, setSelectedPermits] = useState<number[]>(activePermits.map((p) => p.id));
 
+  const incomingCandidates = memberships.filter(
+    (membership) =>
+      membership.is_active &&
+      membership.user !== currentUserId &&
+      SHIFT_HANDOVER_ROLES.has(membership.role)
+  );
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
 
     const fd = new FormData(e.currentTarget);
+    const incomingSupervisor = fd.get("incoming_supervisor");
     const payload = {
       organization: organizationId,
       workplace: Number(fd.get("workplace")),
       shift_date: fd.get("shift_date"),
       shift_type: fd.get("shift_type"),
+      incoming_supervisor: incomingSupervisor ? Number(incomingSupervisor) : null,
       handover_notes: fd.get("handover_notes"),
       safety_concerns: fd.get("safety_concerns"),
       equipment_status: fd.get("equipment_status"),
@@ -1519,6 +1606,26 @@ function CreateShiftHandoverModal({
           <div style={{ marginBottom: "1rem" }}>
             <label><strong>تاریخ شیفت:</strong></label>
             <input type="date" name="shift_date" defaultValue={today} required style={{ width: "100%", padding: "0.5rem" }} />
+          </div>
+
+          <div style={{ marginBottom: "1rem" }}>
+            <label htmlFor="handover-incoming-supervisor"><strong>سرپرست تحویل‌گیرنده (اختیاری):</strong></label>
+            <select
+              id="handover-incoming-supervisor"
+              name="incoming_supervisor"
+              defaultValue=""
+              style={{ width: "100%", padding: "0.5rem" }}
+            >
+              <option value="">بدون تعیین شخص خاص</option>
+              {incomingCandidates.map((membership) => (
+                <option key={membership.id} value={membership.user}>
+                  {membership.full_name || membership.username} — {membership.role_display}
+                </option>
+              ))}
+            </select>
+            <small className="muted">
+              در صورت تعیین، فقط همین شخص می‌تواند گزارش تحویل شیفت را تأیید کند.
+            </small>
           </div>
 
           <div style={{ marginBottom: "1rem" }}>

@@ -119,6 +119,26 @@ export type Workplace = {
   code: string;
 };
 
+export type MembershipRole =
+  | "org_admin"
+  | "hse_manager"
+  | "hse_inspector"
+  | "workshop_supervisor"
+  | "action_owner"
+  | "executive_viewer"
+  | "read_only_auditor";
+
+export type Membership = {
+  id: number;
+  user: number;
+  username: string;
+  full_name?: string;
+  organization: number;
+  role: MembershipRole;
+  role_display: string;
+  is_active: boolean;
+};
+
 export type Hazard = {
   id: number;
   organization: number;
@@ -179,6 +199,10 @@ export function fetchWorkplaces(organizationId: number, signal?: AbortSignal) {
   return request<Workplace[]>(`/workplaces/?${query({ organization: organizationId })}`, {
     signal,
   });
+}
+
+export function fetchMemberships(organizationId: number, signal?: AbortSignal) {
+  return request<Membership[]>(`/organizations/${organizationId}/memberships/`, { signal });
 }
 
 export function fetchHazards(
@@ -885,6 +909,7 @@ export interface PermitListItem {
   title: string;
   status: PermitStatus;
   status_display: string;
+  is_expired?: boolean;
   valid_from: string;
   valid_until: string;
   actual_start?: string | null;
@@ -932,6 +957,7 @@ export interface PermitDetail extends PermitListItem {
   }>;
   can_approve: boolean;
   can_control: boolean;
+  can_cancel: boolean;
   updated_at: string;
 }
 
@@ -980,6 +1006,7 @@ export interface ShiftHandoverItem {
   acknowledged_by_name?: string | null;
   acknowledged_at?: string | null;
   acknowledgement_notes: string;
+  can_acknowledge: boolean;
   is_synthetic: boolean;
   created_at: string;
   updated_at: string;

@@ -5,7 +5,12 @@ from django.utils import timezone
 
 from apps.auditlog.services import log_event
 from apps.capa.models import CorrectiveAction
-from apps.core.access import can_approve_permits, can_control_permits, can_conduct_shift_handover
+from apps.core.access import (
+    can_approve_permits,
+    can_conduct_shift_handover,
+    can_control_permits,
+    is_active_member,
+)
 from apps.incidents.models import Incident
 from apps.organizations.models import Organization
 from apps.risks.models import Hazard, RiskAssessment
@@ -39,6 +44,15 @@ def request_permit(organization: Organization, requester, data: dict) -> Permit:
     if workplace and workplace.organization_id != organization.id:
         raise ValidationError("کارگاه انتخابی متعلق به این سازمان نیست.")
 
+    responsible_supervisor = data.get("responsible_supervisor")
+    if responsible_supervisor and not is_active_member(responsible_supervisor, organization.id):
+        raise ValidationError("سرپرست اجرایی باید عضو فعال همین سازمان باشد.")
+
+    hazards = data.get("related_hazards") or data.get("related_hazard_ids") or []
+    hazards = list(hazards)
+    if any(hazard.organization_id != organization.id for hazard in hazards):
+        raise ValidationError("خطرهای مرتبط باید متعلق به همین سازمان باشند.")
+
     valid_from = data.get("valid_from")
     valid_until = data.get("valid_until")
     if not valid_from or not valid_until:
@@ -61,7 +75,7 @@ def request_permit(organization: Organization, requester, data: dict) -> Permit:
         valid_from=valid_from,
         valid_until=valid_until,
         requester=requester,
-        responsible_supervisor=data.get("responsible_supervisor"),
+        responsible_supervisor=responsible_supervisor,
         assigned_workers=data.get("assigned_workers", ""),
         precautions_taken=data.get("precautions_taken", ""),
         required_ppe=data.get("required_ppe", ""),
@@ -75,7 +89,6 @@ def request_permit(organization: Organization, requester, data: dict) -> Permit:
     permit.full_clean()
     permit.save()
 
-    hazards = data.get("related_hazards") or data.get("related_hazard_ids")
     if hazards:
         permit.related_hazards.set(hazards)
 
@@ -94,8 +107,14 @@ def review_permit(permit: Permit, user, status_choice: str, review_notes: str = 
     if not can_approve_permits(user, permit.organization_id):
         raise ValidationError("شما اجازه بررسی مجوزهای کار در این سازمان را ندارید.")
 
+    if status_choice != Permit.Status.UNDER_REVIEW:
+        raise ValidationError("عملیات بررسی فقط می‌تواند مجوز را به وضعیت «در حال بررسی» منتقل کند.")
+
     if permit.status not in {Permit.Status.REQUESTED, Permit.Status.UNDER_REVIEW}:
         raise ValidationError("این مجوز در وضعیت قابل بررسی قرار ندارد.")
+
+    if permit.is_expired:
+        raise ValidationError("زمان اعتبار مجوز به پایان رسیده و امکان بررسی آن وجود ندارد.")
 
     permit.status = Permit.Status.UNDER_REVIEW
     permit.review_notes = review_notes
@@ -120,8 +139,8 @@ def approve_permit(permit: Permit, user, notes: str = "") -> Permit:
     if permit.requester_id == user.id:
         raise ValidationError("درخواست‌دهنده مجوز به دلیل رعایت اصل تفکیک وظایف (Separation of Duties) مجاز به تأیید مجوز خود نیست.")
 
-    if permit.status not in {Permit.Status.REQUESTED, Permit.Status.UNDER_REVIEW}:
-        raise ValidationError("تنها مجوزهای در انتظار بررسی قابل تأیید هستند.")
+    if permit.status != Permit.Status.UNDER_REVIEW:
+        raise ValidationError("تنها مجوزهای در حال بررسی قابل تأیید هستند؛ ابتدا مجوز را بررسی کنید.")
 
     if timezone.now() > permit.valid_until:
         raise ValidationError("زمان اعتبار مجوز به پایان رسیده و امکان تأیید آن وجود ندارد.")
@@ -195,6 +214,9 @@ def suspend_permit(permit: Permit, user, reason: str) -> Permit:
     if permit.status != Permit.Status.ACTIVE:
         raise ValidationError("تنها مجوزهای فعال قابل تعلیق موقت هستند.")
 
+    if permit.is_expired:
+        raise ValidationError("زمان اعتبار مجوز به پایان رسیده و امکان تعلیق آن وجود ندارد.")
+
     if not reason or not reason.strip():
         raise ValidationError("درج دلیل تعلیق کار الزامی است.")
 
@@ -244,6 +266,9 @@ def complete_work(permit: Permit, user) -> Permit:
     if permit.status != Permit.Status.ACTIVE:
         raise ValidationError("تنها مجوزهای در حال اجرا قابل اعلام اتمام کار هستند.")
 
+    if permit.is_expired:
+        raise ValidationError("زمان اعتبار مجوز به پایان رسیده و امکان اعلام اتمام کار وجود ندارد.")
+
     permit.status = Permit.Status.COMPLETED
     permit.actual_completion = timezone.now()
     permit.save(update_fields=["status", "actual_completion", "updated_at"])
@@ -263,8 +288,14 @@ def close_permit(permit: Permit, user, closure_summary: str = "") -> Permit:
     if not can_control_permits(user, permit.organization_id):
         raise ValidationError("شما مجوز مختومه‌سازی پروانه کار را ندارید.")
 
-    if permit.status not in {Permit.Status.COMPLETED, Permit.Status.ACTIVE, Permit.Status.EXPIRED}:
-        raise ValidationError("مجوز برای مختومه‌سازی باید در وضعیت اتمام، فعال یا منقضی باشد.")
+    if permit.status in {Permit.Status.REJECTED, Permit.Status.CLOSED, Permit.Status.CANCELLED}:
+        raise ValidationError("مجوزهای ردشده، مختومه یا لغوشده قابل مختومه‌سازی مجدد نیستند.")
+
+    # Completed/active permits are closable. Any other non-terminal status is
+    # closable only after its validity window has elapsed; this matches the UI,
+    # which exposes closure for the effective "expired" status.
+    if permit.status not in {Permit.Status.COMPLETED, Permit.Status.ACTIVE, Permit.Status.EXPIRED} and not permit.is_expired:
+        raise ValidationError("مجوز برای مختومه‌سازی باید اتمام‌یافته، فعال یا منقضی باشد.")
 
     permit.status = Permit.Status.CLOSED
     permit.closed_by = user
@@ -309,11 +340,28 @@ def reject_permit(permit: Permit, user, reason: str) -> Permit:
 
 
 def cancel_permit(permit: Permit, user, reason: str = "") -> Permit:
-    if not (can_control_permits(user, permit.organization_id) or permit.requester_id == user.id):
+    is_controller = can_control_permits(user, permit.organization_id)
+    is_requester = permit.requester_id == user.id
+    if not (is_controller or is_requester):
         raise ValidationError("شما اجازه لغو این مجوز را ندارید.")
 
-    if permit.status in {Permit.Status.CLOSED, Permit.Status.CANCELLED}:
-        raise ValidationError("این مجوز قبلاً مختومه یا لغو شده است.")
+    if permit.status in {
+        Permit.Status.COMPLETED,
+        Permit.Status.REJECTED,
+        Permit.Status.CLOSED,
+        Permit.Status.CANCELLED,
+    }:
+        raise ValidationError("مجوزهای اتمام‌یافته، ردشده، مختومه یا لغوشده قابل لغو نیستند.")
+
+    # A requester may withdraw a permit before field work starts. Once the
+    # permit is active, only a controller may cancel it; active work must be
+    # suspended first so the safety decision stays with the field controller.
+    if not is_controller and permit.status not in {
+        Permit.Status.REQUESTED,
+        Permit.Status.UNDER_REVIEW,
+        Permit.Status.APPROVED,
+    }:
+        raise ValidationError("پس از فعال‌شدن کار، لغو مجوز فقط توسط کنترل‌کننده میدانی مجاز است.")
 
     permit.status = Permit.Status.CANCELLED
     if reason:
@@ -337,11 +385,17 @@ def cancel_permit(permit: Permit, user, reason: str = "") -> Permit:
 
 def get_outstanding_safety_summary(organization_id: int, workplace_id: int = None) -> dict:
     """Collects real-time safety metrics for shift handover."""
+    now = timezone.now()
     permits_qs = Permit.objects.filter(organization_id=organization_id)
     if workplace_id:
         permits_qs = permits_qs.filter(workplace_id=workplace_id)
 
-    active_permits = list(permits_qs.filter(status__in=[Permit.Status.ACTIVE, Permit.Status.SUSPENDED]))
+    active_permits = list(
+        permits_qs.filter(
+            status__in=[Permit.Status.ACTIVE, Permit.Status.SUSPENDED],
+            valid_until__gt=now,
+        )
+    )
     active_count = len(active_permits)
 
     hazards_qs = Hazard.objects.filter(organization_id=organization_id)
@@ -374,6 +428,7 @@ def get_outstanding_safety_summary(organization_id: int, workplace_id: int = Non
     }
 
 
+@transaction.atomic
 def create_shift_handover(organization: Organization, user, data: dict) -> ShiftHandover:
     if not can_conduct_shift_handover(user, organization.id):
         raise ValidationError("شما مجوز ثبت تحویل و تحول شیفت را ندارید.")
@@ -382,13 +437,22 @@ def create_shift_handover(organization: Organization, user, data: dict) -> Shift
     if not workplace or workplace.organization_id != organization.id:
         raise ValidationError("کارگاه انتخابی نامعتبر است.")
 
+    incoming_supervisor = data.get("incoming_supervisor")
+    if incoming_supervisor:
+        if not is_active_member(incoming_supervisor, organization.id):
+            raise ValidationError("سرپرست تحویل‌گیرنده باید عضو فعال همین سازمان باشد.")
+        if not can_conduct_shift_handover(incoming_supervisor, organization.id):
+            raise ValidationError("سرپرست تحویل‌گیرنده باید نقش مجاز برای تحویل شیفت داشته باشد.")
+        if incoming_supervisor.id == user.id:
+            raise ValidationError("سرپرست تحویل‌دهنده و تحویل‌گیرنده نمی‌توانند یک نفر باشند.")
+
     handover = ShiftHandover(
         organization=organization,
         workplace=workplace,
         shift_type=data["shift_type"],
         shift_date=data["shift_date"],
         outgoing_supervisor=user,
-        incoming_supervisor=data.get("incoming_supervisor"),
+        incoming_supervisor=incoming_supervisor,
         handover_notes=data["handover_notes"],
         safety_concerns=data.get("safety_concerns", ""),
         equipment_status=data.get("equipment_status", ""),
@@ -402,6 +466,20 @@ def create_shift_handover(organization: Organization, user, data: dict) -> Shift
 
     active_permits = data.get("active_permits") or data.get("active_permit_ids")
     if active_permits is not None:
+        active_permits = list(active_permits)
+        if any(permit.organization_id != organization.id for permit in active_permits):
+            raise ValidationError("مجوزهای الصاق‌شده باید متعلق به همین سازمان باشند.")
+        if any(
+            permit.workplace_id is not None and permit.workplace_id != workplace.id
+            for permit in active_permits
+        ):
+            raise ValidationError("مجوزهای الصاق‌شده باید متعلق به همان کارگاه تحویل شیفت باشند.")
+        if any(
+            permit.status not in {Permit.Status.ACTIVE, Permit.Status.SUSPENDED}
+            or permit.is_expired
+            for permit in active_permits
+        ):
+            raise ValidationError("تنها مجوزهای فعال یا معلق و معتبر قابل الصاق به تحویل شیفت هستند.")
         handover.active_permits.set(active_permits)
     else:
         # Auto-attach active permits in that workplace
@@ -409,6 +487,7 @@ def create_shift_handover(organization: Organization, user, data: dict) -> Shift
             organization=organization,
             workplace=workplace,
             status__in=[Permit.Status.ACTIVE, Permit.Status.SUSPENDED],
+            valid_until__gt=timezone.now(),
         )
         handover.active_permits.set(auto_permits)
 
@@ -432,6 +511,9 @@ def acknowledge_shift_handover(handover: ShiftHandover, user, notes: str = "") -
 
     if handover.outgoing_supervisor_id == user.id:
         raise ValidationError("سرپرست تحویل‌دهنده نمی‌تواند خودش گزارش تحویل را تأیید کند.")
+
+    if handover.incoming_supervisor_id and handover.incoming_supervisor_id != user.id:
+        raise ValidationError("تنها سرپرست تحویل‌گیرنده تعیین‌شده می‌تواند این تحویل شیفت را تأیید کند.")
 
     handover.status = ShiftHandover.Status.ACKNOWLEDGED
     handover.acknowledged_by = user

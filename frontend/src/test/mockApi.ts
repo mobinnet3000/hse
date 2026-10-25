@@ -40,6 +40,19 @@ export function riskRoutes(overrides: Routes = {}): Routes {
     "/auth/me/": () => jsonResponse(testUser),
     "/health/": () => jsonResponse({ status: "ok", database: "ok" }),
     "/organizations/": () => jsonResponse([testOrganization]),
+    "/organizations/1/memberships/": () =>
+      jsonResponse([
+        {
+          id: 1,
+          user: 1,
+          username: "ali",
+          full_name: "علی",
+          organization: 1,
+          role: "workshop_supervisor",
+          role_display: "سرپرست کارگاه",
+          is_active: true,
+        },
+      ]),
     "/workplaces/": () => jsonResponse([]),
     "/risks/": () => jsonResponse([]),
     "/risks/assessments/": () => jsonResponse([]),

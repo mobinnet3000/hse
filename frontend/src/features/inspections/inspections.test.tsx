@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import App from "../../app/App";
+import { InspectionsPage } from "./InspectionsPage";
 import {
   jsonResponse,
   mockApi,
@@ -89,9 +89,12 @@ describe("Inspections and Checklists Flow", () => {
     );
 
     const user = userEvent.setup();
-    render(<App />);
+    render(<InspectionsPage />);
 
-    expect(await screen.findByRole("heading", { name: "قالب‌های چک‌لیست" })).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "قالب‌ها" }, { timeout: 5000 }));
+    expect(
+      await screen.findByRole("heading", { name: "قالب‌های چک‌لیست" }, { timeout: 5000 })
+    ).toBeInTheDocument();
     await user.type(screen.getByLabelText("عنوان قالب"), "قالب جدید");
     await user.click(screen.getByRole("button", { name: "ثبت قالب" }));
 
@@ -132,7 +135,7 @@ describe("Inspections and Checklists Flow", () => {
     );
 
     const user = userEvent.setup();
-    render(<App />);
+    render(<InspectionsPage />);
 
     const tabBtn = await screen.findByRole("button", { name: "بازرسی‌ها" });
     await user.click(tabBtn);
@@ -224,7 +227,7 @@ describe("Inspections and Checklists Flow", () => {
     );
 
     const user = userEvent.setup();
-    render(<App />);
+    render(<InspectionsPage />);
 
     const tabBtn = await screen.findByRole("button", { name: "بازرسی‌ها" });
     await user.click(tabBtn);

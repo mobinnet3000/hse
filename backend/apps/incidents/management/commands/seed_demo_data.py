@@ -1,5 +1,5 @@
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from datetime import timedelta
 
@@ -15,11 +15,23 @@ from apps.risks.models import Hazard, RiskAssessment
 from apps.workplaces.models import Workplace
 
 
+DEMO_PASSWORD = "Pass-12345-abc"
+DEMO_EMAIL_DOMAIN = "@hseguard.local"
+
+
 class Command(BaseCommand):
     help = "Seeds realistic, idempotent synthetic demo data for HSE Guard (Multi-tenant, Incidents, Hazards, CAPA)."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--reset-demo-passwords",
+            action="store_true",
+            help="Deliberately reset passwords of existing demo-prefixed accounts only.",
+        )
+
     def handle(self, *args, **options):
         self.stdout.write("Starting HSE Guard synthetic demo data seeding...")
+        self.reset_demo_passwords = options.get("reset_demo_passwords", False)
 
         # 1. Seed Knowledge Base regulations
         try:
@@ -29,42 +41,75 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"Knowledge base seed skipped: {e}"))
 
         # 2. Organizations
-        org_foolad, _ = Organization.objects.update_or_create(
-            code="foolad-alborz",
-            defaults={"name": "مجتمع فولاد البرز", "is_active": True},
-        )
-        org_petro, _ = Organization.objects.update_or_create(
-            code="sepehr-petro",
-            defaults={"name": "پتروشیمی سپهر", "is_active": True},
-        )
+        def seed_organization(code, name):
+            """Create the demo organization, or refresh it only if it is demo-owned.
+
+            A real organization may legitimately use one of these codes. Refuse
+            to overwrite it unless demo accounts are already attached, which is
+            the marker left by a previous seed run.
+            """
+            existing = Organization.objects.filter(code=code).first()
+            if existing is not None:
+                is_demo_owned = Membership.objects.filter(
+                    organization=existing, user__username__startswith="demo_"
+                ).exists()
+                if not is_demo_owned:
+                    raise CommandError(
+                        f"سازمان «{code}» از قبل وجود دارد و نشانه‌ای از داده دمو ندارد؛ "
+                        "برای جلوگیری از بازنویسی داده واقعی، عملیات متوقف شد."
+                    )
+                existing.name = name
+                existing.is_active = True
+                existing.save(update_fields=["name", "is_active", "updated_at"])
+                return existing
+            return Organization.objects.create(code=code, name=name, is_active=True)
+
+        org_foolad = seed_organization("foolad-alborz", "مجتمع فولاد البرز")
+        org_petro = seed_organization("sepehr-petro", "پتروشیمی سپهر")
         self.stdout.write(self.style.SUCCESS("Organizations verified: foolad-alborz, sepehr-petro."))
 
         # 3. Users
-        def get_or_create_user(username, email, first_name, last_name, is_platform_admin=False):
+        def get_or_create_demo_user(username, email, first_name, last_name, is_platform_admin=False):
             role = User.GlobalRoles.PLATFORM_ADMIN if is_platform_admin else User.GlobalRoles.STANDARD
-            user, created = User.objects.get_or_create(
-                username=username,
-                defaults={
-                    "email": email,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "global_role": role,
-                    "is_staff": is_platform_admin,
-                    "is_superuser": is_platform_admin,
-                },
-            )
-            user.set_password("Pass-12345-abc")
+            user = User.objects.filter(username=username).first()
+            if user is not None and not user.email.endswith(DEMO_EMAIL_DOMAIN):
+                raise CommandError(
+                    f"نام کاربری دمو «{username}» قبلاً توسط یک حساب غیردمو استفاده شده است؛ "
+                    "برای جلوگیری از تغییر داده واقعی، عملیات متوقف شد."
+                )
+
+            if user is None:
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    password=DEMO_PASSWORD,
+                )
+            else:
+                # Never reset an existing account's password implicitly. The
+                # demo password is applied only on first creation, unless the
+                # operator explicitly opts in with --reset-demo-passwords.
+                user.email = email
+                user.first_name = first_name
+                user.last_name = last_name
+                if self.reset_demo_passwords:
+                    user.set_password(DEMO_PASSWORD)
+
             user.global_role = role
             user.is_staff = is_platform_admin
             user.is_superuser = is_platform_admin
             user.save()
             return user
 
-        admin_user = get_or_create_user("admin", "admin@hseguard.local", "مدیر", "سامانه", is_platform_admin=True)
-        hse_mgr_user = get_or_create_user("hse_manager", "hse@hseguard.local", "رضا", "حسینی")
-        inspector_user = get_or_create_user("inspector", "inspector@hseguard.local", "محمد", "کاظمی")
-        supervisor_user = get_or_create_user("supervisor", "supervisor@hseguard.local", "علی", "رستمی")
-        viewer_user = get_or_create_user("viewer", "viewer@hseguard.local", "سارا", "تهرانی")
+        admin_user = get_or_create_demo_user("demo_admin", "demo_admin@hseguard.local", "مدیر", "سامانه", is_platform_admin=True)
+        hse_mgr_user = get_or_create_demo_user("demo_hse_manager", "demo_hse_manager@hseguard.local", "رضا", "حسینی")
+        inspector_user = get_or_create_demo_user("demo_inspector", "demo_inspector@hseguard.local", "محمد", "کاظمی")
+        supervisor_user = get_or_create_demo_user("demo_supervisor", "demo_supervisor@hseguard.local", "علی", "رستمی")
+        petro_supervisor_user = get_or_create_demo_user(
+            "demo_petro_supervisor", "demo_petro_supervisor@hseguard.local", "سعید", "کریمی"
+        )
+        viewer_user = get_or_create_demo_user("demo_viewer", "demo_viewer@hseguard.local", "سارا", "تهرانی")
 
         # Memberships
         # Foolad Alborz
@@ -85,6 +130,10 @@ class Command(BaseCommand):
         Membership.objects.update_or_create(
             user=hse_mgr_user, organization=org_petro,
             defaults={"role": Membership.Roles.HSE_MANAGER, "is_active": True}
+        )
+        Membership.objects.update_or_create(
+            user=petro_supervisor_user, organization=org_petro,
+            defaults={"role": Membership.Roles.WORKSHOP_SUPERVISOR, "is_active": True}
         )
         Membership.objects.update_or_create(
             user=viewer_user, organization=org_petro,
@@ -348,9 +397,38 @@ class Command(BaseCommand):
         )
 
         # 9. Permits to Work (PTW) & Shift Handover
-        ptw1, _ = Permit.objects.update_or_create(
-            reference_code="PTW-202610-0101",
-            defaults={
+        def seed_permit(reference_code, defaults):
+            """Create or refresh a synthetic permit without touching real data."""
+            existing = Permit.objects.filter(reference_code=reference_code).first()
+            if existing is not None and not existing.is_synthetic:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipped demo permit {reference_code}: reference code belongs to a real permit."
+                    )
+                )
+                return None
+            payload = {**defaults, "is_synthetic": True}
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.save()
+                return existing
+            return Permit.objects.create(reference_code=reference_code, **payload)
+
+        def seed_handover(lookup, defaults):
+            """Create or refresh only synthetic handovers; real records are untouched."""
+            payload = {**defaults, "is_synthetic": True}
+            existing = ShiftHandover.objects.filter(is_synthetic=True, **lookup).first()
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.save()
+                return existing
+            return ShiftHandover.objects.create(**lookup, **payload)
+
+        ptw1 = seed_permit(
+            "PTW-202610-0101",
+            {
                 "organization": org_foolad,
                 "workplace": wp_roll,
                 "permit_type": Permit.PermitType.HOT_WORK,
@@ -377,11 +455,12 @@ class Command(BaseCommand):
                 "is_synthetic": True,
             }
         )
-        ptw1.related_hazards.set([haz_hydro])
+        if ptw1 is not None:
+            ptw1.related_hazards.set([haz_hydro])
 
-        ptw2, _ = Permit.objects.update_or_create(
-            reference_code="PTW-202610-0102",
-            defaults={
+        ptw2 = seed_permit(
+            "PTW-202610-0102",
+            {
                 "organization": org_foolad,
                 "workplace": wp_cast,
                 "permit_type": Permit.PermitType.WORK_AT_HEIGHT,
@@ -405,9 +484,9 @@ class Command(BaseCommand):
             }
         )
 
-        ptw3, _ = Permit.objects.update_or_create(
-            reference_code="PTW-202610-0103",
-            defaults={
+        ptw3 = seed_permit(
+            "PTW-202610-0103",
+            {
                 "organization": org_foolad,
                 "workplace": wp_trans,
                 "permit_type": Permit.PermitType.EXCAVATION,
@@ -430,9 +509,9 @@ class Command(BaseCommand):
             }
         )
 
-        ptw4, _ = Permit.objects.update_or_create(
-            reference_code="PTW-202610-0104",
-            defaults={
+        ptw4 = seed_permit(
+            "PTW-202610-0104",
+            {
                 "organization": org_foolad,
                 "workplace": wp_roll,
                 "permit_type": Permit.PermitType.HOT_WORK,
@@ -454,9 +533,9 @@ class Command(BaseCommand):
             }
         )
 
-        ptw5, _ = Permit.objects.update_or_create(
-            reference_code="PTW-202610-0201",
-            defaults={
+        ptw5 = seed_permit(
+            "PTW-202610-0201",
+            {
                 "organization": org_petro,
                 "workplace": wp_spheres,
                 "permit_type": Permit.PermitType.CONFINED_SPACE,
@@ -467,8 +546,8 @@ class Command(BaseCommand):
                 "valid_from": now - timedelta(hours=3),
                 "valid_until": now + timedelta(hours=5),
                 "actual_start": now - timedelta(hours=2),
-                "requester": supervisor_user,
-                "responsible_supervisor": supervisor_user,
+                "requester": petro_supervisor_user,
+                "responsible_supervisor": petro_supervisor_user,
                 "approver": hse_mgr_user,
                 "status": Permit.Status.ACTIVE,
                 "assigned_workers": "امیر قاسمی (کارشناس NDT)، داوود کیانی (مراقب منهول)",
@@ -485,33 +564,37 @@ class Command(BaseCommand):
             }
         )
 
-        PermitAttachment.objects.get_or_create(
-            permit=ptw1,
-            title="چک‌لیست کنترل شرایط پیش از کار گرم و ایمنی حریق",
-            defaults={
-                "attachment_type": "checklist",
-                "file_url": "https://storage.hseguard.local/attachments/permits/ptw-101-hotwork-check.pdf",
-                "description": "بررسی فاصله‌گذاری کپسول‌ها و عایق‌کاری نسوز",
-                "uploaded_by": supervisor_user,
-            }
-        )
-        PermitAttachment.objects.get_or_create(
-            permit=ptw5,
-            title="گواهی نتایج گازسنجی چندگانه مخزن کروی",
-            defaults={
-                "attachment_type": "gas_test",
-                "file_url": "https://storage.hseguard.local/attachments/permits/ptw-201-gas-cert.pdf",
-                "description": "گزارش دستگاه سنجش Drager با امضای افسر گازسنجی",
-                "uploaded_by": hse_mgr_user,
-            }
-        )
+        if ptw1 is not None:
+            PermitAttachment.objects.get_or_create(
+                permit=ptw1,
+                title="چک‌لیست کنترل شرایط پیش از کار گرم و ایمنی حریق",
+                defaults={
+                    "attachment_type": "checklist",
+                    "file_url": "https://storage.hseguard.local/attachments/permits/ptw-101-hotwork-check.pdf",
+                    "description": "بررسی فاصله‌گذاری کپسول‌ها و عایق‌کاری نسوز",
+                    "uploaded_by": supervisor_user,
+                }
+            )
+        if ptw5 is not None:
+            PermitAttachment.objects.get_or_create(
+                permit=ptw5,
+                title="گواهی نتایج گازسنجی چندگانه مخزن کروی",
+                defaults={
+                    "attachment_type": "gas_test",
+                    "file_url": "https://storage.hseguard.local/attachments/permits/ptw-201-gas-cert.pdf",
+                    "description": "گزارش دستگاه سنجش Drager با امضای افسر گازسنجی",
+                    "uploaded_by": hse_mgr_user,
+                }
+            )
 
-        sh1, _ = ShiftHandover.objects.update_or_create(
-            organization=org_foolad,
-            workplace=wp_roll,
-            shift_date=now.date() - timedelta(days=1),
-            shift_type=ShiftHandover.ShiftType.EVENING,
-            defaults={
+        sh1 = seed_handover(
+            {
+                "organization": org_foolad,
+                "workplace": wp_roll,
+                "shift_date": now.date() - timedelta(days=1),
+                "shift_type": ShiftHandover.ShiftType.EVENING,
+            },
+            {
                 "outgoing_supervisor": supervisor_user,
                 "incoming_supervisor": inspector_user,
                 "status": ShiftHandover.Status.ACKNOWLEDGED,
@@ -526,12 +609,14 @@ class Command(BaseCommand):
             }
         )
 
-        sh2, _ = ShiftHandover.objects.update_or_create(
-            organization=org_foolad,
-            workplace=wp_roll,
-            shift_date=now.date(),
-            shift_type=ShiftHandover.ShiftType.MORNING,
-            defaults={
+        sh2 = seed_handover(
+            {
+                "organization": org_foolad,
+                "workplace": wp_roll,
+                "shift_date": now.date(),
+                "shift_type": ShiftHandover.ShiftType.MORNING,
+            },
+            {
                 "outgoing_supervisor": supervisor_user,
                 "incoming_supervisor": inspector_user,
                 "status": ShiftHandover.Status.SUBMITTED,
@@ -542,6 +627,7 @@ class Command(BaseCommand):
                 "is_synthetic": True,
             }
         )
-        sh2.active_permits.set([ptw1])
+        if ptw1 is not None:
+            sh2.active_permits.set([ptw1])
 
         self.stdout.write(self.style.SUCCESS("All synthetic demo data seeded successfully with is_synthetic=True."))

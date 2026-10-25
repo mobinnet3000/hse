@@ -97,6 +97,7 @@ const mockDetail: PermitDetail = {
   attachments: [],
   can_approve: true,
   can_control: true,
+  can_cancel: true,
   updated_at: "2026-10-19T08:00:00Z",
 };
 
@@ -123,6 +124,7 @@ const mockHandovers: ShiftHandoverItem[] = [
     unresolved_hazards_summary: "",
     active_permits: [{ id: 1, reference_code: "PTW-202610-0001", title: "جوشکاری تقویتی شاسی نقاله", status: "active" }],
     acknowledgement_notes: "",
+    can_acknowledge: true,
     is_synthetic: true,
     created_at: "2026-10-19T14:45:00Z",
     updated_at: "2026-10-19T14:45:00Z",
@@ -246,6 +248,128 @@ describe("PermitsPage", () => {
     expect(screen.getByText(/سوئیچ اصلی تابلوی MCC قطع و قفل شد/i)).toBeInTheDocument();
     expect(screen.getByText("تمهیدات ایمنی الزامی:")).toBeInTheDocument();
     expect(screen.getByText("عایق‌کاری با چادر نسوز")).toBeInTheDocument();
+  });
+
+  it("respects server action capabilities and exposes expired permits read-only", async () => {
+    const user = userEvent.setup();
+
+    mockApi(
+      riskRoutes({
+        "/permits/": () => jsonResponse(mockPermits),
+        "/permits/stats/": () => jsonResponse(mockStats),
+        "/permits/1/": () =>
+          jsonResponse({
+            ...mockDetail,
+            status: "expired",
+            status_display: "منقضی‌شده",
+            is_expired: true,
+            can_approve: false,
+            can_control: false,
+            can_cancel: true,
+          }),
+        "/workplaces/": () => jsonResponse([{ id: 1, name: "سوله نورد", code: "fa-roll", organization: 1 }]),
+      })
+    );
+
+    render(
+      <AuthProvider>
+        <PermitsPage />
+      </AuthProvider>
+    );
+
+    const actionButtons = await screen.findAllByRole("button", { name: /مشاهده و اقدامات/i });
+    await user.click(actionButtons[0]);
+
+    expect(await screen.findByText(/اعتبار زمانی این مجوز پایان یافته است/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /تأیید مجوز/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /فعال‌سازی و تأیید کنترل‌های میدانی/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /مختومه‌سازی نهایی/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^لغو مجوز$/i })).toBeInTheDocument();
+  });
+
+  it("shows acknowledgement only when the server marks the handover acknowledgeable", async () => {
+    const user = userEvent.setup();
+
+    mockApi(
+      riskRoutes({
+        "/permits/": () => jsonResponse(mockPermits),
+        "/permits/stats/": () => jsonResponse(mockStats),
+        "/permits/handovers/": () =>
+          jsonResponse([
+            {
+              ...mockHandovers[0],
+              can_acknowledge: false,
+            },
+          ]),
+        "/permits/handovers/safety-summary/": () => jsonResponse(mockSafetySummary),
+        "/workplaces/": () => jsonResponse([{ id: 1, name: "سوله نورد", code: "fa-roll", organization: 1 }]),
+      })
+    );
+
+    render(
+      <AuthProvider>
+        <PermitsPage />
+      </AuthProvider>
+    );
+
+    const handoverTabBtn = await screen.findByRole("button", { name: /تحویل و تحول شیفت/i });
+    await user.click(handoverTabBtn);
+
+    expect(await screen.findByText(/در انتظار تأیید محمد کاظمی/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /تأیید و تحویل‌گیری این شیفت/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("lets the outgoing supervisor designate an incoming supervisor", async () => {
+    const user = userEvent.setup();
+
+    mockApi(
+      riskRoutes({
+        "/permits/": () => jsonResponse(mockPermits),
+        "/permits/stats/": () => jsonResponse(mockStats),
+        "/permits/handovers/": () => jsonResponse(mockHandovers),
+        "/permits/handovers/safety-summary/": () => jsonResponse(mockSafetySummary),
+        "/organizations/1/memberships/": () =>
+          jsonResponse([
+            {
+              id: 1,
+              user: 1,
+              username: "ali",
+              full_name: "علی",
+              organization: 1,
+              role: "workshop_supervisor",
+              role_display: "سرپرست کارگاه",
+              is_active: true,
+            },
+            {
+              id: 2,
+              user: 2,
+              username: "mohammad",
+              full_name: "محمد کاظمی",
+              organization: 1,
+              role: "hse_manager",
+              role_display: "مدیر HSE",
+              is_active: true,
+            },
+          ]),
+        "/workplaces/": () => jsonResponse([{ id: 1, name: "سوله نورد", code: "fa-roll", organization: 1 }]),
+      })
+    );
+
+    render(
+      <AuthProvider>
+        <PermitsPage />
+      </AuthProvider>
+    );
+
+    await user.click(await screen.findByRole("button", { name: /تحویل و تحول شیفت/i }));
+    await user.click(await screen.findByRole("button", { name: /ثبت تحویل شیفت جدید/i }));
+
+    const incomingSelect = await screen.findByLabelText(/سرپرست تحویل‌گیرنده/i);
+    expect(incomingSelect).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /محمد کاظمی/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /^علی —/ })).not.toBeInTheDocument();
   });
 
   it("switches to shift handover tab and acknowledges a submitted shift", async () => {

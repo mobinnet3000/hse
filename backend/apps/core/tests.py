@@ -196,12 +196,31 @@ class OrganizationAccessTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_membership_list_requires_org_admin(self):
+    def test_membership_list_readable_by_member_but_posting_requires_admin(self):
         self.client.force_login(self.member_a)
         response = self.client.get(
             reverse("organization-memberships", args=[self.org_a.pk])
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload)
+        self.assertIn("full_name", payload[0])
+
+        post_response = self.client.post(
+            reverse("organization-memberships", args=[self.org_a.pk]),
+            {
+                "user": self.outsider.pk,
+                "role": Membership.Roles.HSE_INSPECTOR,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(post_response.status_code, 404)
+
+        self.client.force_login(self.outsider)
+        denied = self.client.get(
+            reverse("organization-memberships", args=[self.org_a.pk])
+        )
+        self.assertEqual(denied.status_code, 404)
 
     def test_org_admin_can_add_membership_but_org_is_forced(self):
         new_user = User.objects.create_user(username="new", password="Pass-12345-abc")

@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 
 class Permit(models.Model):
@@ -164,6 +165,35 @@ class Permit(models.Model):
 
     def __str__(self):
         return f"[{self.reference_code}] {self.title} ({self.get_status_display()})"
+
+    @property
+    def is_expired(self):
+        """Return True when the permit's validity window has elapsed.
+
+        Closed, completed, rejected and cancelled permits are final states and
+        are not re-classified as expired.
+        """
+        if self.status in {
+            self.Status.CLOSED,
+            self.Status.COMPLETED,
+            self.Status.REJECTED,
+            self.Status.CANCELLED,
+        }:
+            return False
+        if self.status == self.Status.EXPIRED:
+            return True
+        return bool(self.valid_until and timezone.now() > self.valid_until)
+
+    @property
+    def effective_status(self):
+        """Status exposed by the API after applying lazy expiry.
+
+        No background scheduler exists in this phase, so an elapsed permit must
+        not keep appearing as active/approved/suspended.
+        """
+        if self.is_expired and self.status != self.Status.EXPIRED:
+            return self.Status.EXPIRED
+        return self.status
 
     def clean(self):
         if self.valid_until and self.valid_from and self.valid_until <= self.valid_from:

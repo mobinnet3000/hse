@@ -1,4 +1,8 @@
 from datetime import timedelta
+from io import StringIO
+
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework import status
@@ -140,8 +144,15 @@ class PermitManagementTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("تفکیک وظایف", str(response.data))
 
-        # Distinct authorized user (HSE Manager) can approve successfully
+        # Distinct authorized user (HSE Manager) reviews and then approves
         self.client.force_authenticate(user=self.hse_manager_a)
+        review_resp = self.client.post(
+            f"/api/v1/permits/{self.permit_a.id}/review/",
+            {"status": "under_review", "review_notes": "بررسی اولیه انجام شد."},
+            format="json",
+        )
+        self.assertEqual(review_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(review_resp.data["status"], "under_review")
         approve_resp = self.client.post(
             f"/api/v1/permits/{self.permit_a.id}/approve/",
             {"notes": "تمامی جوانب بررسی و تایید شد."},
@@ -295,6 +306,54 @@ class PermitManagementTests(TestCase):
         self.assertEqual(resp_cancel.status_code, status.HTTP_200_OK)
         self.assertEqual(resp_cancel.data["status"], "cancelled")
 
+    def test_requester_cannot_cancel_active_permit(self):
+        """Withdrawing is allowed before work starts; active work needs a controller."""
+        self.permit_a.status = Permit.Status.ACTIVE
+        self.permit_a.save(update_fields=["status", "updated_at"])
+
+        self.client.force_authenticate(user=self.worker_a)
+        denied = self.client.post(
+            f"/api/v1/permits/{self.permit_a.id}/cancel/",
+            {"reason": "لغو توسط درخواست‌دهنده"},
+            format="json",
+        )
+        self.assertEqual(denied.status_code, status.HTTP_400_BAD_REQUEST)
+        self.permit_a.refresh_from_db()
+        self.assertEqual(self.permit_a.status, Permit.Status.ACTIVE)
+
+        self.client.force_authenticate(user=self.supervisor_a)
+        allowed = self.client.post(
+            f"/api/v1/permits/{self.permit_a.id}/cancel/",
+            {"reason": "توقف کار توسط کنترل‌کننده میدانی"},
+            format="json",
+        )
+        self.assertEqual(allowed.status_code, status.HTTP_200_OK)
+        self.assertEqual(allowed.data["status"], Permit.Status.CANCELLED)
+
+    def test_terminal_permits_cannot_be_cancelled(self):
+        """Completed, rejected and closed permits are terminal for cancellation."""
+        self.client.force_authenticate(user=self.supervisor_a)
+        for terminal_status in (
+            Permit.Status.COMPLETED,
+            Permit.Status.REJECTED,
+            Permit.Status.CLOSED,
+        ):
+            self.permit_a.status = terminal_status
+            self.permit_a.save(update_fields=["status", "updated_at"])
+
+            detail = self.client.get(f"/api/v1/permits/{self.permit_a.id}/")
+            self.assertEqual(detail.status_code, status.HTTP_200_OK)
+            self.assertFalse(detail.data["can_cancel"])
+
+            resp = self.client.post(
+                f"/api/v1/permits/{self.permit_a.id}/cancel/",
+                {"reason": "تلاش برای لغو وضعیت نهایی"},
+                format="json",
+            )
+            self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+            self.permit_a.refresh_from_db()
+            self.assertEqual(self.permit_a.status, terminal_status)
+
     def test_permit_summary_stats(self):
         """Permit summary statistics returns valid aggregation."""
         self.client.force_authenticate(user=self.supervisor_a)
@@ -308,6 +367,8 @@ class PermitManagementTests(TestCase):
 
     def test_shift_handover_flow(self):
         """Shift handover creation and acknowledgement workflow."""
+        self.permit_a.status = Permit.Status.ACTIVE
+        self.permit_a.save(update_fields=["status", "updated_at"])
         self.client.force_authenticate(user=self.supervisor_a)
 
         now = timezone.now()
@@ -355,6 +416,14 @@ class PermitManagementTests(TestCase):
         )
         self.assertEqual(resp_dup.status_code, status.HTTP_400_BAD_REQUEST)
 
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                entity_type="ShiftHandover",
+                entity_id=handover_id,
+                action="shift_handover.acknowledged",
+            ).exists()
+        )
+
     def test_shift_handover_safety_summary(self):
         """Shift handover safety summary accurately collects active hazards, CAPAs, and permits."""
         # Create an incident and a hazard
@@ -386,3 +455,370 @@ class PermitManagementTests(TestCase):
         self.assertIn("active_permits", resp.data)
         self.assertEqual(len(resp.data["unresolved_hazards"]), 1)
         self.assertEqual(len(resp.data["recent_incidents"]), 1)
+
+    def test_permit_detail_is_read_only(self):
+        """Detail endpoint must not allow bypassing workflow/audit with PATCH or DELETE."""
+        self.client.force_authenticate(user=self.hse_manager_a)
+
+        patch_resp = self.client.patch(
+            f"/api/v1/permits/{self.permit_a.id}/",
+            {"status": Permit.Status.ACTIVE},
+            format="json",
+        )
+        self.assertEqual(patch_resp.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        delete_resp = self.client.delete(f"/api/v1/permits/{self.permit_a.id}/")
+        self.assertEqual(delete_resp.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        self.permit_a.refresh_from_db()
+        self.assertEqual(self.permit_a.status, Permit.Status.REQUESTED)
+
+    def test_review_cannot_jump_directly_to_approved(self):
+        """Review action only moves a permit to under_review."""
+        self.client.force_authenticate(user=self.hse_manager_a)
+        resp = self.client.post(
+            f"/api/v1/permits/{self.permit_a.id}/review/",
+            {"status": "approved", "review_notes": "دور زدن گردش کار"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.permit_a.refresh_from_db()
+        self.assertEqual(self.permit_a.status, Permit.Status.REQUESTED)
+
+    def test_approve_requires_review_first(self):
+        """Direct approval from requested is rejected; review is mandatory."""
+        self.client.force_authenticate(user=self.hse_manager_a)
+        resp = self.client.post(
+            f"/api/v1/permits/{self.permit_a.id}/approve/",
+            {"notes": "تأیید بدون بررسی"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.permit_a.refresh_from_db()
+        self.assertEqual(self.permit_a.status, Permit.Status.REQUESTED)
+        self.assertIsNone(self.permit_a.approver)
+
+    def test_cross_tenant_workflow_action_is_denied(self):
+        """Workflow endpoints must not act on another organization's permit."""
+        self.client.force_authenticate(user=self.org_admin_b)
+
+        for action, payload in [
+            ("review", {"status": "under_review", "review_notes": "دسترسی غیرمجاز"}),
+            ("approve", {"notes": "دسترسی غیرمجاز"}),
+            ("activate", {}),
+            ("cancel", {"reason": "دسترسی غیرمجاز"}),
+        ]:
+            response = self.client.post(
+                f"/api/v1/permits/{self.permit_a.id}/{action}/", payload, format="json"
+            )
+            self.assertIn(
+                response.status_code,
+                (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
+                f"{action}: {response.data}",
+            )
+
+        self.permit_a.refresh_from_db()
+        self.assertEqual(self.permit_a.status, Permit.Status.REQUESTED)
+
+    def test_request_rejects_cross_tenant_hazard_and_supervisor(self):
+        """Create payload cannot reference hazards or supervisors from another organization."""
+        self.client.force_authenticate(user=self.supervisor_a)
+        other_hazard = Hazard.objects.create(
+            organization=self.org_b,
+            workplace=self.workplace_b,
+            title="خطر سازمان دیگر",
+            category=Hazard.Category.SAFETY,
+            status=Hazard.Status.ACTIVE,
+        )
+        now = timezone.now()
+        base_payload = {
+            "organization": self.org_a.id,
+            "workplace": self.workplace_a.id,
+            "permit_type": "hot_work",
+            "title": "درخواست آزمایشی",
+            "description": "بررسی اعتبارسنجی سازمانی",
+            "valid_from": (now + timedelta(hours=1)).isoformat(),
+            "valid_until": (now + timedelta(hours=4)).isoformat(),
+        }
+
+        before = Permit.objects.count()
+        resp_hazard = self.client.post(
+            "/api/v1/permits/",
+            {**base_payload, "related_hazard_ids": [other_hazard.id]},
+            format="json",
+        )
+        self.assertEqual(resp_hazard.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("خطرهای مرتبط", str(resp_hazard.data))
+
+        resp_supervisor = self.client.post(
+            "/api/v1/permits/",
+            {**base_payload, "responsible_supervisor": self.org_admin_b.id},
+            format="json",
+        )
+        self.assertEqual(resp_supervisor.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("سرپرست اجرایی", str(resp_supervisor.data))
+        self.assertEqual(Permit.objects.count(), before)
+
+    def test_shift_handover_rejects_cross_tenant_links(self):
+        """Handover cannot attach another tenant's permit or incoming supervisor."""
+        self.client.force_authenticate(user=self.supervisor_a)
+        payload = {
+            "organization": self.org_a.id,
+            "workplace": self.workplace_a.id,
+            "shift_type": "morning",
+            "shift_date": timezone.now().date().isoformat(),
+            "incoming_supervisor": self.hse_manager_a.id,
+            "handover_notes": "گزارش آزمایشی",
+            "active_permit_ids": [self.permit_b.id],
+        }
+        before = ShiftHandover.objects.count()
+        resp_permit = self.client.post("/api/v1/permits/handovers/", payload, format="json")
+        self.assertEqual(resp_permit.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("همین سازمان", str(resp_permit.data))
+
+        payload["active_permit_ids"] = []
+        payload["incoming_supervisor"] = self.org_admin_b.id
+        resp_supervisor = self.client.post("/api/v1/permits/handovers/", payload, format="json")
+        self.assertEqual(resp_supervisor.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("همین سازمان", str(resp_supervisor.data))
+        self.assertEqual(ShiftHandover.objects.count(), before)
+
+    def test_incoming_supervisor_requires_handover_role(self):
+        """A member without a handover role cannot be designated as incoming supervisor."""
+        self.client.force_authenticate(user=self.supervisor_a)
+        payload = {
+            "organization": self.org_a.id,
+            "workplace": self.workplace_a.id,
+            "shift_type": "morning",
+            "shift_date": timezone.now().date().isoformat(),
+            "incoming_supervisor": self.worker_a.id,
+            "handover_notes": "گزارش آزمایشی برای بررسی نقش تحویل‌گیرنده",
+            "active_permit_ids": [],
+        }
+        before = ShiftHandover.objects.count()
+        resp = self.client.post("/api/v1/permits/handovers/", payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("نقش مجاز", str(resp.data))
+        self.assertEqual(ShiftHandover.objects.count(), before)
+
+    def test_only_designated_incoming_supervisor_can_acknowledge(self):
+        """Acknowledgement is limited to the designated incoming supervisor."""
+        self.client.force_authenticate(user=self.supervisor_a)
+        payload = {
+            "organization": self.org_a.id,
+            "workplace": self.workplace_a.id,
+            "shift_type": "evening",
+            "shift_date": timezone.now().date().isoformat(),
+            "incoming_supervisor": self.hse_manager_a.id,
+            "handover_notes": "تحویل شیفت عصر برای آزمون پذیرش",
+            "active_permit_ids": [],
+        }
+        resp = self.client.post("/api/v1/permits/handovers/", payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        handover_id = resp.data["id"]
+
+        # Outgoing supervisor cannot self-acknowledge.
+        self.client.force_authenticate(user=self.supervisor_a)
+        self.assertEqual(
+            self.client.post(
+                f"/api/v1/permits/handovers/{handover_id}/acknowledge/", {}, format="json"
+            ).status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+        # Another authorized controller who is not the designated incoming supervisor is denied.
+        self.client.force_authenticate(user=self.org_admin_a)
+        denied = self.client.post(
+            f"/api/v1/permits/handovers/{handover_id}/acknowledge/", {}, format="json"
+        )
+        self.assertEqual(denied.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("تنها سرپرست", str(denied.data))
+
+        # The designated incoming supervisor succeeds.
+        self.client.force_authenticate(user=self.hse_manager_a)
+        accepted = self.client.post(
+            f"/api/v1/permits/handovers/{handover_id}/acknowledge/",
+            {"acknowledgement_notes": "تحویل گرفته شد."},
+            format="json",
+        )
+        self.assertEqual(accepted.status_code, status.HTTP_200_OK)
+        self.assertEqual(accepted.data["status"], "acknowledged")
+        self.assertTrue(accepted.data["can_acknowledge"] is False)
+
+    def test_expired_active_permit_is_not_reported_as_active(self):
+        """Expired permits must not appear in active lists, stats or safety snapshots."""
+        self.permit_a.status = Permit.Status.ACTIVE
+        self.permit_a.valid_from = timezone.now() - timedelta(days=2)
+        self.permit_a.valid_until = timezone.now() - timedelta(hours=1)
+        self.permit_a.save(update_fields=["status", "valid_from", "valid_until", "updated_at"])
+
+        self.client.force_authenticate(user=self.hse_manager_a)
+        detail = self.client.get(f"/api/v1/permits/{self.permit_a.id}/")
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail.data["status"], Permit.Status.EXPIRED)
+        self.assertTrue(detail.data["is_expired"])
+
+        active_list = self.client.get("/api/v1/permits/", {"status": "active"})
+        active_ids = [item["id"] for item in active_list.data.get("results", active_list.data)]
+        self.assertNotIn(self.permit_a.id, active_ids)
+
+        expired_list = self.client.get("/api/v1/permits/", {"status": "expired"})
+        expired_ids = [item["id"] for item in expired_list.data.get("results", expired_list.data)]
+        self.assertIn(self.permit_a.id, expired_ids)
+
+        stats_resp = self.client.get("/api/v1/permits/stats/")
+        self.assertEqual(stats_resp.data["active_count"], 0)
+        self.assertEqual(stats_resp.data["expired_count"], 1)
+
+        summary = self.client.get(
+            f"/api/v1/permits/handovers/safety-summary/?organization={self.org_a.id}"
+        )
+        self.assertEqual(summary.data["active_permits_count"], 0)
+
+        suspend_resp = self.client.post(
+            f"/api/v1/permits/{self.permit_a.id}/suspend/",
+            {"reason": "آزمون مجوز منقضی"},
+            format="json",
+        )
+        self.assertEqual(suspend_resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+        complete_resp = self.client.post(
+            f"/api/v1/permits/{self.permit_a.id}/complete/", {}, format="json"
+        )
+        self.assertEqual(complete_resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_expired_requested_permit_can_be_closed_with_audit(self):
+        """A never-activated expired permit can be administratively closed."""
+        self.permit_a.status = Permit.Status.REQUESTED
+        self.permit_a.valid_from = timezone.now() - timedelta(days=2)
+        self.permit_a.valid_until = timezone.now() - timedelta(hours=1)
+        self.permit_a.save(update_fields=["status", "valid_from", "valid_until", "updated_at"])
+
+        self.client.force_authenticate(user=self.supervisor_a)
+        detail = self.client.get(f"/api/v1/permits/{self.permit_a.id}/")
+        self.assertEqual(detail.data["status"], Permit.Status.EXPIRED)
+
+        resp = self.client.post(
+            f"/api/v1/permits/{self.permit_a.id}/close/",
+            {"closure_summary": "درخواست منقضی بدون شروع کار بایگانی شد."},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["status"], Permit.Status.CLOSED)
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                entity_type="Permit",
+                entity_id=self.permit_a.id,
+                action="permit.closed",
+            ).exists()
+        )
+
+        again = self.client.post(
+            f"/api/v1/permits/{self.permit_a.id}/close/",
+            {"closure_summary": "تلاش مجدد"},
+            format="json",
+        )
+        self.assertEqual(again.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class DemoSeedSafetyTests(TestCase):
+    """Regression tests for the destructive side effects reported in the audit."""
+
+    def test_seed_is_idempotent_and_does_not_reset_passwords(self):
+        real_user = User.objects.create_user(
+            username="real_operator", password="Real-Pass-12345"
+        )
+        real_password_hash = real_user.password
+
+        call_command("seed_demo_data", stdout=StringIO())
+
+        demo_manager = User.objects.get(username="demo_hse_manager")
+        self.assertTrue(demo_manager.check_password("Pass-12345-abc"))
+        self.assertTrue(
+            self.client.login(username="demo_hse_manager", password="Pass-12345-abc")
+        )
+        self.client.logout()
+
+        permit_count = Permit.objects.count()
+        synthetic_permit_count = Permit.objects.filter(is_synthetic=True).count()
+        handover_count = ShiftHandover.objects.count()
+        user_count = User.objects.count()
+        self.assertEqual(synthetic_permit_count, 5)
+        self.assertEqual(ShiftHandover.objects.filter(is_synthetic=True).count(), 2)
+
+        # A deliberate password change by the operator must survive re-seeding.
+        demo_supervisor = User.objects.get(username="demo_supervisor")
+        demo_supervisor.set_password("Changed-Pass-98765")
+        demo_supervisor.save(update_fields=["password"])
+
+        call_command("seed_demo_data", stdout=StringIO())
+
+        demo_supervisor.refresh_from_db()
+        real_user.refresh_from_db()
+        self.assertTrue(demo_supervisor.check_password("Changed-Pass-98765"))
+        self.assertFalse(demo_supervisor.check_password("Pass-12345-abc"))
+        self.assertEqual(real_user.password, real_password_hash)
+        self.assertTrue(real_user.check_password("Real-Pass-12345"))
+        self.assertEqual(Permit.objects.count(), permit_count)
+        self.assertEqual(ShiftHandover.objects.count(), handover_count)
+        self.assertEqual(User.objects.count(), user_count)
+        self.assertEqual(
+            Permit.objects.filter(is_synthetic=True).count(), synthetic_permit_count
+        )
+        self.assertEqual(
+            ShiftHandover.objects.filter(is_synthetic=True).count(), handover_count
+        )
+
+    def test_seed_refuses_to_repurpose_or_repassword_a_real_account(self):
+        real_admin = User.objects.create_user(
+            username="demo_admin",
+            email="real.admin@example.com",
+            password="Real-Admin-Pass-123",
+        )
+        with self.assertRaises(CommandError):
+            call_command("seed_demo_data", stdout=StringIO())
+
+        real_admin.refresh_from_db()
+        self.assertTrue(real_admin.check_password("Real-Admin-Pass-123"))
+        self.assertFalse(User.objects.filter(username="demo_hse_manager").exists())
+
+    def test_seed_refuses_to_overwrite_a_real_organization_with_demo_code(self):
+        real_org = Organization.objects.create(
+            name="سازمان واقعی با کد دمو", code="foolad-alborz"
+        )
+
+        with self.assertRaises(CommandError):
+            call_command("seed_demo_data", stdout=StringIO())
+
+        real_org.refresh_from_db()
+        self.assertEqual(real_org.name, "سازمان واقعی با کد دمو")
+        self.assertFalse(User.objects.filter(username__startswith="demo_").exists())
+
+    def test_seed_does_not_overwrite_a_real_permit_with_demo_reference(self):
+        real_org = Organization.objects.create(name="سازمان واقعی", code="real-org")
+        real_user = User.objects.create_user(username="real_owner", password="Real-Pass-12345")
+        real_workplace = Workplace.objects.create(organization=real_org, name="کارگاه واقعی")
+        now = timezone.now()
+        real_permit = Permit.objects.create(
+            organization=real_org,
+            workplace=real_workplace,
+            reference_code="PTW-202610-0101",
+            permit_type=Permit.PermitType.HOT_WORK,
+            title="مجوز واقعی که نباید تغییر کند",
+            description="داده واقعی",
+            valid_from=now,
+            valid_until=now + timedelta(hours=4),
+            requester=real_user,
+            status=Permit.Status.REQUESTED,
+            is_synthetic=False,
+        )
+
+        call_command("seed_demo_data", stdout=StringIO())
+
+        real_permit.refresh_from_db()
+        self.assertEqual(real_permit.title, "مجوز واقعی که نباید تغییر کند")
+        self.assertFalse(real_permit.is_synthetic)
+        self.assertEqual(real_permit.organization_id, real_org.id)
+        # One of the five fixed demo references was reserved by real data, so
+        # only the other four synthetic permits are created.
+        self.assertEqual(Permit.objects.filter(is_synthetic=True).count(), 4)
