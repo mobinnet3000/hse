@@ -15,6 +15,7 @@ import { NotificationsPage } from "../features/notifications/NotificationsPage";
 import { AuditLogPage } from "../features/auditlog/AuditLogPage";
 import { KnowledgeBasePage } from "../features/knowledge/KnowledgeBasePage";
 import { AiAssistantPage } from "../features/ai/AiAssistantPage";
+import { EnvironmentPage } from "../features/environment/EnvironmentPage";
 import { fetchNotifications } from "../services/api";
 
 function AppContent() {
@@ -66,6 +67,12 @@ function AppContent() {
       {(activeTab === "all" || activeTab === "incidents") && (
         <section id="incidents" className="section-container" style={{ marginBottom: "2rem" }}>
           <IncidentsPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "environment") && (
+        <section id="environment" className="section-container" style={{ marginBottom: "2rem" }}>
+          <EnvironmentPage />
         </section>
       )}
 

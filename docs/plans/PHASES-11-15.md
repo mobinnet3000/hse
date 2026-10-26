@@ -127,6 +127,6 @@ graph TD
 |---|---|---|---|---|---|---|
 | **Phase 11** | Advanced Risk, BowTie & HCMS | **VERIFIED** | 30/30 Pass | Clean (0 errors) | Verified | `11_advanced_risk_bowtie_hcms.md` |
 | **Phase 12** | Workforce, Contractors & Attendance | **VERIFIED** | 22/22 Pass | Clean (0 errors) | Verified | `12_workforce_contractors_attendance.md` |
-| **Phase 13** | Advanced PTW & SIMOPS | IN PROGRESS | Pending | Pending | Pending | Pending |
-| **Phase 14** | Environmental & Occupational Hygiene | PLANNED | Pending | Pending | Pending | Pending |
+| **Phase 13** | Advanced PTW & SIMOPS | **VERIFIED** | 31/31 Pass | Clean (0 errors) | Verified | `13_advanced_ptw_and_simops.md` |
+| **Phase 14** | Environmental & Occupational Hygiene | IN PROGRESS | Pending | Pending | Pending | Pending |
 | **Phase 15** | Scaffold Tag Management | PLANNED | Pending | Pending | Pending | Pending |

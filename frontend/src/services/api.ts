@@ -1140,8 +1140,115 @@ export interface PermitListItem {
   gas_testing_required: boolean;
   isolation_loto_required: boolean;
   controls_verified: boolean;
+  contractor?: number | null;
+  contractor_name?: string | null;
+  weather_condition_ok?: boolean;
   is_synthetic: boolean;
   created_at: string;
+}
+
+export interface GatekeeperCheckResult {
+  is_ready_for_activation: boolean;
+  blockers: string[];
+  warnings: string[];
+  contractor: {
+    status: "ok" | "fail" | "warning";
+    message: string;
+  };
+  competency: {
+    status: "ok" | "fail" | "warning";
+    message: string;
+    details?: any;
+  };
+  loto: {
+    status: "ok" | "fail" | "warning";
+    message: string;
+  };
+  gas_testing: {
+    status: "ok" | "fail" | "warning";
+    message: string;
+  };
+  weather: {
+    status: "ok" | "fail" | "warning";
+    message: string;
+  };
+  simops: {
+    status: "ok" | "fail" | "warning";
+    conflicts_count: number;
+    blocking_count: number;
+    conflicts: Array<{
+      id: number;
+      other_permit_code: string;
+      other_permit_title: string;
+      severity: string;
+      conflict_type: string;
+      description: string;
+      is_resolved: boolean;
+    }>;
+  };
+}
+
+export interface SIMOPSConflictItem {
+  id: number;
+  organization: number;
+  permit_a: number;
+  permit_a_code: string;
+  permit_a_title: string;
+  permit_b: number;
+  permit_b_code: string;
+  permit_b_title: string;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  conflict_type: "incompatible_types" | "spatial_overlap" | "height_overhead" | "isolation_conflict";
+  conflict_type_display: string;
+  severity: "info" | "warning" | "critical_block";
+  severity_display: string;
+  description: string;
+  is_resolved: boolean;
+  override_approved: boolean;
+  override_by?: number | null;
+  override_by_name?: string | null;
+  override_reason?: string;
+  override_at?: string | null;
+  is_synthetic: boolean;
+  created_at: string;
+}
+
+export interface SIMOPSRadarWorkplace {
+  workplace_id: number;
+  workplace_name: string;
+  active_permits_count: number;
+  conflicts_count: number;
+  has_critical_block: boolean;
+  permits: Array<{
+    id: number;
+    reference_code: string;
+    title: string;
+    permit_type: string;
+    permit_type_display: string;
+    status: string;
+    status_display: string;
+    valid_from: string;
+    valid_until: string;
+    contractor_name?: string | null;
+  }>;
+  conflicts: Array<{
+    id: number;
+    severity: string;
+    conflict_type: string;
+    conflict_type_display: string;
+    description: string;
+    permit_a_code: string;
+    permit_b_code: string;
+    is_resolved: boolean;
+  }>;
+}
+
+export interface SIMOPSRadarData {
+  organization: number;
+  total_active_planned_permits: number;
+  active_conflicts: number;
+  workplaces: SIMOPSRadarWorkplace[];
 }
 
 export interface PermitDetail extends PermitListItem {
@@ -1153,6 +1260,14 @@ export interface PermitDetail extends PermitListItem {
   responsible_supervisor_name?: string | null;
   precautions_taken: string;
   required_ppe: string;
+  weather_notes?: string;
+  resumption_notes?: string;
+  simops_override_approved?: boolean;
+  simops_override_reason?: string;
+  simops_override_by?: number | null;
+  simops_override_by_name?: string | null;
+  simops_override_at?: string | null;
+  gatekeeper_checks?: GatekeeperCheckResult;
   gas_testing_results: string;
   isolation_loto_details: string;
   controls_verified_by?: number | null;
@@ -1307,11 +1422,38 @@ export function suspendPermit(id: number, data: { reason: string }) {
   });
 }
 
-export function resumePermit(id: number) {
+export function resumePermit(id: number, data?: { resumption_notes?: string }) {
   return request<PermitDetail>(`/permits/${id}/resume/`, {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify(data || {}),
   });
+}
+
+export function fetchSIMOPSRadar(organizationId?: number, signal?: AbortSignal) {
+  const query = organizationId ? `?organization=${organizationId}` : "";
+  return request<SIMOPSRadarData>(`/permits/simops-radar/${query}`, { signal });
+}
+
+export function fetchSIMOPSConflicts(params?: Record<string, string | number>, signal?: AbortSignal) {
+  const query = params
+    ? "?" +
+      Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== "")
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join("&")
+    : "";
+  return request<SIMOPSConflictItem[]>(`/permits/simops-conflicts/${query}`, { signal });
+}
+
+export function overrideSIMOPSConflict(id: number, data: { reason: string }) {
+  return request<SIMOPSConflictItem>(`/permits/simops-conflicts/${id}/override/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchPermitGatekeeperCheck(id: number, signal?: AbortSignal) {
+  return request<GatekeeperCheckResult>(`/permits/${id}/gatekeeper-check/`, { signal });
 }
 
 export function completePermit(id: number) {
@@ -2481,6 +2623,7 @@ export function fetchContractors(
 ) {
   return request<ContractorCompany[]>(`/workforce/contractors/${workforceQuery(params)}`, { signal });
 }
+export const fetchContractorCompanies = fetchContractors;
 
 export function createContractor(data: Record<string, unknown>) {
   return request<ContractorCompany>("/workforce/contractors/", {
@@ -2562,5 +2705,216 @@ export function fetchAttendanceRoster(
   if (organizationId) p.organization = organizationId;
   return request<AttendanceRoster>(`/workforce/attendance/roster/${workforceQuery(p)}`, { signal });
 }
+
+// ==========================================
+// Phase 14: Environmental & Occupational Hygiene
+// ==========================================
+
+export type EnvironmentalThreshold = {
+  id: number;
+  name: string;
+  category: "wastewater" | "stack_emission" | "noise" | "heat_stress" | "dust" | "toxic_gas";
+  category_display: string;
+  parameter: string;
+  limit_type: "max_limit" | "min_limit" | "range";
+  limit_type_display: string;
+  limit_value: number;
+  min_value?: number | null;
+  unit: string;
+  standard_reference: string;
+  is_active: boolean;
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EnvironmentalAspect = {
+  id: number;
+  workplace: number;
+  workplace_name?: string;
+  activity_or_process: string;
+  aspect: string;
+  impact: string;
+  condition: "normal" | "abnormal" | "emergency";
+  condition_display?: string;
+  severity_score: number;
+  probability_score: number;
+  significance_score: number;
+  is_significant: boolean;
+  control_measures: string;
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WasteRecord = {
+  id: number;
+  workplace: number;
+  workplace_name?: string;
+  waste_name: string;
+  waste_type: "hazardous" | "non_hazardous" | "recyclable";
+  waste_type_display?: string;
+  quantity: number;
+  unit: "kg" | "ton" | "liter" | "drum";
+  unit_display?: string;
+  storage_location: string;
+  generation_date: string;
+  status: "stored" | "transferred" | "disposed";
+  status_display?: string;
+  consignment_number?: string;
+  contractor?: number | null;
+  contractor_name?: string;
+  disposal_facility?: string;
+  disposal_method?: string;
+  disposal_date?: string | null;
+  notes?: string;
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WastewaterEmissionRecord = {
+  id: number;
+  workplace: number;
+  workplace_name?: string;
+  sampling_point: string;
+  category: "wastewater" | "stack_emission" | "ambient_air";
+  category_display?: string;
+  sample_date: string;
+  parameter: string;
+  measured_value: number;
+  unit: string;
+  threshold?: number | null;
+  threshold_name?: string;
+  standard_limit?: number | null;
+  is_exceedance: boolean;
+  laboratory_name?: string;
+  test_report_number?: string;
+  non_conformity?: number | null;
+  non_conformity_desc?: string;
+  notes?: string;
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OccupationalHygieneRecord = {
+  id: number;
+  workplace: number;
+  workplace_name?: string;
+  category: "noise" | "heat_stress" | "lighting" | "dust_particulate" | "chemical_vapor";
+  category_display?: string;
+  location_details: string;
+  survey_date: string;
+  surveyor_name: string;
+  measured_value: number;
+  unit: string;
+  threshold?: number | null;
+  threshold_name?: string;
+  standard_limit?: number | null;
+  is_exceedance: boolean;
+  assessment_result: "acceptable" | "warning" | "unacceptable";
+  assessment_result_display?: string;
+  control_recommendation?: string;
+  non_conformity?: number | null;
+  non_conformity_desc?: string;
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EnvironmentalSummary = {
+  aspects_total: number;
+  aspects_significant: number;
+  waste_records_count: number;
+  hazardous_waste_kg: number;
+  non_hazardous_waste_kg: number;
+  active_stored_waste_count: number;
+  emission_records_count: number;
+  emission_exceedances_count: number;
+  hygiene_surveys_count: number;
+  hygiene_exceedances_count: number;
+};
+
+function envQuery(params?: Record<string, string | number | undefined>): string {
+  if (!params) return "";
+  const filtered = Object.entries(params).filter(([, v]) => v !== undefined && v !== "");
+  if (!filtered.length) return "";
+  return `?${new URLSearchParams(filtered.map(([k, v]) => [k, String(v)])).toString()}`;
+}
+
+export function fetchEnvironmentalSummary(organizationId?: number, signal?: AbortSignal) {
+  const p: Record<string, string | number | undefined> = {};
+  if (organizationId) p.organization = organizationId;
+  return request<EnvironmentalSummary>(`/environment/summary/${envQuery(p)}`, { signal });
+}
+
+export function fetchEnvironmentalThresholds(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<EnvironmentalThreshold[] | { results: EnvironmentalThreshold[] }>(`/environment/thresholds/${envQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createEnvironmentalThreshold(data: Record<string, unknown>) {
+  return request<EnvironmentalThreshold>("/environment/thresholds/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchEnvironmentalAspects(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<EnvironmentalAspect[] | { results: EnvironmentalAspect[] }>(`/environment/aspects/${envQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createEnvironmentalAspect(data: Record<string, unknown>) {
+  return request<EnvironmentalAspect>("/environment/aspects/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchWasteRecords(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<WasteRecord[] | { results: WasteRecord[] }>(`/environment/waste/${envQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createWasteRecord(data: Record<string, unknown>) {
+  return request<WasteRecord>("/environment/waste/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateWasteStatus(id: number, data: { status: string; consignment_number?: string; contractor?: number; disposal_facility?: string; disposal_method?: string; disposal_date?: string }) {
+  return request<WasteRecord>(`/environment/waste/${id}/update-status/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchWastewaterEmissions(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<WastewaterEmissionRecord[] | { results: WastewaterEmissionRecord[] }>(`/environment/emissions/${envQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createWastewaterEmission(data: Record<string, unknown>) {
+  return request<WastewaterEmissionRecord>("/environment/emissions/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchOccupationalHygienes(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<OccupationalHygieneRecord[] | { results: OccupationalHygieneRecord[] }>(`/environment/hygiene/${envQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createOccupationalHygiene(data: Record<string, unknown>) {
+  return request<OccupationalHygieneRecord>("/environment/hygiene/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 
 

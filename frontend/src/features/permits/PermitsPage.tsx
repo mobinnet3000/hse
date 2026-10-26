@@ -1,4 +1,4 @@
-import { FileCheck, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileCheck, Radio, RefreshCw, ShieldAlert, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
@@ -10,18 +10,24 @@ import {
   completePermit,
   createPermit,
   createShiftHandover,
+  fetchContractors,
   fetchMemberships,
   fetchOrganizations,
   fetchPermitDetail,
+  fetchPermitGatekeeperCheck,
   fetchPermits,
   fetchPermitStats,
   fetchShiftHandovers,
   fetchShiftSafetySummary,
+  fetchSIMOPSRadar,
   fetchWorkplaces,
+  overrideSIMOPSConflict,
   rejectPermit,
   resumePermit,
   reviewPermit,
   suspendPermit,
+  type ContractorCompany,
+  type GatekeeperCheckResult,
   type Membership,
   type Organization,
   type PermitDetail,
@@ -32,6 +38,8 @@ import {
   type ShiftHandoverItem,
   type ShiftSafetySummary,
   type ShiftType,
+  type SIMOPSConflictItem,
+  type SIMOPSRadarData,
   type Workplace,
   ApiRequestError,
 } from "../../services/api";
@@ -98,12 +106,13 @@ const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
 
 export function PermitsPage() {
   const { user } = useAuth();
-  const [activeMainTab, setActiveMainTab] = useState<"ptw" | "handover">("ptw");
+  const [activeMainTab, setActiveMainTab] = useState<"ptw" | "simops_radar" | "handover">("ptw");
 
   // Organizations & Workplaces
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
   const [workplaces, setWorkplaces] = useState<Workplace[]>([]);
+  const [contractors, setContractors] = useState<ContractorCompany[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);
 
   // Permits state
@@ -111,6 +120,13 @@ export function PermitsPage() {
   const [stats, setStats] = useState<PermitSummaryStats | null>(null);
   const [permitsLoading, setPermitsLoading] = useState(true);
   const [permitsError, setPermitsError] = useState<string | null>(null);
+
+  // SIMOPS Radar state
+  const [simopsRadar, setSimopsRadar] = useState<SIMOPSRadarData | null>(null);
+  const [simopsRadarLoading, setSimopsRadarLoading] = useState(false);
+  const [simopsRadarError, setSimopsRadarError] = useState<string | null>(null);
+  const [selectedConflictForOverride, setSelectedConflictForOverride] = useState<SIMOPSConflictItem | any | null>(null);
+  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
 
   // Permit Filters
   const [search, setSearch] = useState("");
@@ -122,6 +138,8 @@ export function PermitsPage() {
   const [selectedPermit, setSelectedPermit] = useState<PermitDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [gatekeeperResult, setGatekeeperResult] = useState<GatekeeperCheckResult | null>(null);
+  const [gatekeeperLoading, setGatekeeperLoading] = useState(false);
 
   // Action Modals for Permits
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -129,6 +147,7 @@ export function PermitsPage() {
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [isActivateModalOpen, setIsActivateModalOpen] = useState(false);
   const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -176,10 +195,42 @@ export function PermitsPage() {
       .catch(() => setMemberships([]));
   }, [selectedOrgId]);
 
+  // Load contractors for contractor assignment and gatekeeper inspection
+  useEffect(() => {
+    if (!selectedOrgId) {
+      setContractors([]);
+      return;
+    }
+    fetchContractors({ organization: selectedOrgId })
+      .then(setContractors)
+      .catch(() => setContractors([]));
+  }, [selectedOrgId]);
+
   const currentMembership = memberships.find((m) => m.user === user?.id && m.is_active);
   const canConductHandover =
     user?.global_role === "platform_admin" ||
     (currentMembership ? SHIFT_HANDOVER_ROLES.has(currentMembership.role) : false);
+
+  const canOverrideSIMOPS =
+    user?.global_role === "platform_admin" ||
+    (currentMembership ? ["org_admin", "hse_manager"].includes(currentMembership.role) : false);
+
+  // Load SIMOPS Radar
+  const reloadSIMOPSRadar = () => {
+    if (!selectedOrgId) return;
+    setSimopsRadarLoading(true);
+    setSimopsRadarError(null);
+    fetchSIMOPSRadar(selectedOrgId)
+      .then(setSimopsRadar)
+      .catch((err) => setSimopsRadarError(errorMessage(err)))
+      .finally(() => setSimopsRadarLoading(false));
+  };
+
+  useEffect(() => {
+    if (activeMainTab === "simops_radar") {
+      reloadSIMOPSRadar();
+    }
+  }, [activeMainTab, selectedOrgId]);
 
   // Load permits and stats
   const reloadPermits = () => {
@@ -234,9 +285,20 @@ export function PermitsPage() {
   const openPermitDetail = (id: number) => {
     setDetailLoading(true);
     setDetailError(null);
+    setGatekeeperResult(null);
+    setGatekeeperLoading(true);
     fetchPermitDetail(id)
-      .then((detail) => setSelectedPermit(detail))
-      .catch((err) => setDetailError(errorMessage(err)))
+      .then((detail) => {
+        setSelectedPermit(detail);
+        fetchPermitGatekeeperCheck(id)
+          .then(setGatekeeperResult)
+          .catch(() => setGatekeeperResult(null))
+          .finally(() => setGatekeeperLoading(false));
+      })
+      .catch((err) => {
+        setDetailError(errorMessage(err));
+        setGatekeeperLoading(false);
+      })
       .finally(() => setDetailLoading(false));
   };
 
@@ -300,6 +362,14 @@ export function PermitsPage() {
         >
           <FileCheck size={16} style={{ display: "inline-block", verticalAlign: "middle", marginLeft: "0.4rem" }} />
           پروانه‌های کار (Permit to Work)
+        </button>
+        <button
+          type="button"
+          className={`tab-btn ${activeMainTab === "simops_radar" ? "active" : ""}`}
+          onClick={() => setActiveMainTab("simops_radar")}
+        >
+          <Radio size={16} style={{ display: "inline-block", verticalAlign: "middle", marginLeft: "0.4rem" }} />
+          رادار همزمانی عملیات (SIMOPS Radar)
         </button>
         <button
           type="button"
@@ -490,6 +560,217 @@ export function PermitsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB: SIMOPS CONFLICT RADAR (PHASE 13)                    */}
+      {/* ======================================================== */}
+      {activeMainTab === "simops_radar" && (
+        <div className="simops-radar-content">
+          {/* Header & KPI Bar */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+              <div className="card" style={{ padding: "1rem 1.5rem", margin: 0, borderRight: "4px solid var(--primary)" }}>
+                <span className="muted" style={{ fontSize: "0.85rem" }}>مجوزهای فعال و برنامه‌ریزی‌شده</span>
+                <h3 style={{ margin: "0.2rem 0 0" }}>{simopsRadar?.total_active_planned_permits ?? 0}</h3>
+              </div>
+              <div className="card" style={{ padding: "1rem 1.5rem", margin: 0, borderRight: `4px solid ${(simopsRadar?.active_conflicts ?? 0) > 0 ? "var(--danger)" : "var(--success)"}` }}>
+                <span className="muted" style={{ fontSize: "0.85rem" }}>تعارضات همزمانی شناسایی‌شده (SIMOPS)</span>
+                <h3 style={{ margin: "0.2rem 0 0", color: (simopsRadar?.active_conflicts ?? 0) > 0 ? "var(--danger)" : "var(--success)" }}>
+                  {simopsRadar?.active_conflicts ?? 0}
+                </h3>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={reloadSIMOPSRadar}
+              disabled={simopsRadarLoading}
+              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+            >
+              <RefreshCw size={16} />
+              به‌روزرسانی رادار
+            </button>
+          </div>
+
+          {simopsRadarLoading ? (
+            <p className="centered muted">در حال پایش و محاسبه تعارضات فضایی-زمانی کارگاه‌ها…</p>
+          ) : simopsRadarError ? (
+            <div className="error-box" style={{ padding: "1rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px" }}>
+              {simopsRadarError}
+            </div>
+          ) : !simopsRadar || simopsRadar.workplaces.length === 0 ? (
+            <div className="empty-box" style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
+              <p className="muted" style={{ fontSize: "1.1rem", margin: 0 }}>هیچ کارگاه فعالی برای مانیتورینگ همزمانی یافت نشد.</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              {simopsRadar.workplaces.map((wp) => (
+                <div
+                  key={wp.workplace_id}
+                  className="card"
+                  style={{
+                    background: "white",
+                    borderRadius: "8px",
+                    border: "1px solid",
+                    borderColor: wp.has_critical_block ? "#f87171" : wp.conflicts_count > 0 ? "#fde68a" : "#e2e8f0",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                    overflow: "hidden",
+                    margin: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      background: wp.has_critical_block ? "#fef2f2" : wp.conflicts_count > 0 ? "#fffbeb" : "#f8fafc",
+                      padding: "1rem 1.25rem",
+                      borderBottom: "1px solid",
+                      borderColor: wp.has_critical_block ? "#fecaca" : wp.conflicts_count > 0 ? "#fef08a" : "#e2e8f0",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                      <h4 style={{ margin: 0, color: "var(--text-primary)" }}>{wp.workplace_name}</h4>
+                      <span className="muted" style={{ fontSize: "0.85rem" }}>
+                        ({wp.active_permits_count} مجوز فعال / در جریان)
+                      </span>
+                    </div>
+                    <div>
+                      {wp.has_critical_block ? (
+                        <span className="badge badge-danger" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                          <ShieldAlert size={14} /> ⛔ تعارض بحرانی و بلاک‌کننده کارگاه
+                        </span>
+                      ) : wp.conflicts_count > 0 ? (
+                        <span className="badge badge-warning" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                          <AlertTriangle size={14} /> ⚠️ تداخل همزمانی نیازمند تمهیدات
+                        </span>
+                      ) : (
+                        <span className="badge badge-success" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                          <CheckCircle2 size={14} /> ✓ عملیات ایمن و بدون تداخل
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: "1.25rem" }}>
+                    {/* Active Permits in this workplace */}
+                    <div style={{ marginBottom: "1rem" }}>
+                      <strong style={{ fontSize: "0.9rem", color: "var(--text-primary)" }}>مجوزهای فعال و برنامه‌ریزی‌شده در کارگاه:</strong>
+                      {wp.permits.length === 0 ? (
+                        <p className="muted" style={{ margin: "0.3rem 0 0", fontSize: "0.85rem" }}>مجوز فعالی در این کارگاه وجود ندارد.</p>
+                      ) : (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "0.75rem", marginTop: "0.5rem" }}>
+                          {wp.permits.map((p) => (
+                            <div
+                              key={p.id}
+                              style={{
+                                background: "#f8fafc",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "6px",
+                                padding: "0.75rem",
+                                fontSize: "0.85rem",
+                              }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                                <span style={{ fontFamily: "monospace", fontWeight: "bold" }}>{p.reference_code}</span>
+                                <span className={`badge ${getStatusBadgeClass(p.status as PermitStatus)}`}>{p.status_display}</span>
+                              </div>
+                              <div style={{ fontWeight: 600, marginBottom: "0.25rem" }}>{p.title}</div>
+                              <div className="muted" style={{ fontSize: "0.8rem" }}>
+                                نوع: {p.permit_type_display} | پیمانکار: {p.contractor_name || "پرسنل داخلی"}
+                              </div>
+                              <div className="muted" style={{ fontSize: "0.75rem", marginTop: "0.25rem" }}>
+                                اعتبار: {new Date(p.valid_from).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })} الی {new Date(p.valid_until).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                style={{ marginTop: "0.5rem", width: "100%", padding: "0.25rem 0.5rem", fontSize: "0.8rem" }}
+                                onClick={() => openPermitDetail(p.id)}
+                              >
+                                مشاهده پرونده مجوز
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Detected Conflicts */}
+                    <div>
+                      <strong style={{ fontSize: "0.9rem", color: wp.has_critical_block ? "#b91c1c" : "var(--text-primary)" }}>
+                        ماتریس تعارضات و ریسک‌های همزمانی (SIMOPS Matrix):
+                      </strong>
+                      {wp.conflicts.length === 0 ? (
+                        <p className="muted" style={{ margin: "0.3rem 0 0", fontSize: "0.85rem" }}>
+                          ✓ بر اساس قوانین ماتریس عدم تجانس، هیچ تعارضی بین فعالیت‌های این کارگاه شناسایی نشده است.
+                        </p>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem" }}>
+                          {wp.conflicts.map((c) => (
+                            <div
+                              key={c.id}
+                              style={{
+                                background: c.severity === "critical_block" ? "#fef2f2" : "#fffbeb",
+                                border: "1px solid",
+                                borderColor: c.severity === "critical_block" ? "#f87171" : "#fde68a",
+                                borderRadius: "6px",
+                                padding: "0.75rem",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: "1rem",
+                              }}
+                            >
+                              <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                                  <span
+                                    className={`badge ${c.severity === "critical_block" ? "badge-danger" : "badge-warning"}`}
+                                  >
+                                    {c.severity === "critical_block" ? "⛔ تعارض بحرانی (بلاک)" : "⚠️ هشدار همزمانی"}
+                                  </span>
+                                  <span style={{ fontWeight: "bold", fontSize: "0.85rem" }}>{c.conflict_type_display}</span>
+                                  <span className="muted" style={{ fontSize: "0.8rem" }}>
+                                    (تداخل [{c.permit_a_code}] با [{c.permit_b_code}])
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: "0.85rem", color: "#334155" }}>{c.description}</div>
+                              </div>
+                              <div style={{ flexShrink: 0 }}>
+                                {c.is_resolved ? (
+                                  <span style={{ color: "#15803d", fontWeight: "bold", fontSize: "0.85rem" }}>
+                                    ✓ استثنا تایید و برطرف شده
+                                  </span>
+                                ) : canOverrideSIMOPS ? (
+                                  <button
+                                    type="button"
+                                    className="btn btn-warning"
+                                    style={{ padding: "0.35rem 0.8rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
+                                    onClick={() => {
+                                      setSelectedConflictForOverride(c);
+                                      setIsOverrideModalOpen(true);
+                                    }}
+                                  >
+                                    تأیید استثنا (Override)
+                                  </button>
+                                ) : (
+                                  <span style={{ color: "#b91c1c", fontSize: "0.8rem" }}>
+                                    نیازمند مجوز مدیر HSE
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -703,6 +984,13 @@ export function PermitsPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem", fontSize: "0.9rem" }}>
               <div><span className="muted">نوع مجوز:</span> <strong>{PERMIT_TYPE_LABELS[selectedPermit.permit_type]}</strong></div>
               <div><span className="muted">کارگاه:</span> <strong>{selectedPermit.workplace_name || "—"}</strong></div>
+              <div><span className="muted">پیمانکار مجری:</span> <strong>{selectedPermit.contractor_name || "پرسنل داخلی"}</strong></div>
+              <div>
+                <span className="muted">وضعیت جوی:</span>{" "}
+                <strong style={{ color: selectedPermit.weather_condition_ok !== false ? "#16a34a" : "#dc2626" }}>
+                  {selectedPermit.weather_condition_ok !== false ? "✓ مساعد و پایدار" : `⚠️ نامساعد (${selectedPermit.weather_notes || "هشدار"})`}
+                </strong>
+              </div>
               <div><span className="muted">موقعیت دقیق:</span> <strong>{selectedPermit.work_area || "—"}</strong></div>
               <div><span className="muted">تجهیزات درگیر:</span> <strong>{selectedPermit.equipment_involved || "—"}</strong></div>
               <div><span className="muted">درخواست‌کننده:</span> <strong>{selectedPermit.requester_name}</strong></div>
@@ -717,6 +1005,123 @@ export function PermitsPage() {
             <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem", fontSize: "0.9rem" }}>
               <strong>شرح فعالیت:</strong>
               <p style={{ margin: "0.3rem 0 0" }}>{selectedPermit.description}</p>
+            </div>
+
+            {/* Pre-Job Gatekeeper Safety Panel (Phase 13) */}
+            <div style={{ border: "2px solid", borderColor: gatekeeperResult ? (gatekeeperResult.is_ready_for_activation ? "#bbf7d0" : "#fecaca") : "#e2e8f0", borderRadius: "8px", padding: "1rem", marginBottom: "1rem", background: gatekeeperResult ? (gatekeeperResult.is_ready_for_activation ? "#f0fdf4" : "#fff5f5") : "#f8fafc" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                <strong style={{ fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  🛡️ چک‌لیست ایمنی گیت‌کیپر پیش از شروع کار (Safety Gatekeeper)
+                </strong>
+                {gatekeeperLoading ? (
+                  <span className="muted" style={{ fontSize: "0.8rem" }}>در حال ارزیابی گیت‌کیپر...</span>
+                ) : gatekeeperResult ? (
+                  <span
+                    style={{
+                      padding: "0.25rem 0.6rem",
+                      borderRadius: "4px",
+                      fontSize: "0.8rem",
+                      fontWeight: "bold",
+                      backgroundColor: gatekeeperResult.is_ready_for_activation ? "#dcfce7" : "#fee2e2",
+                      color: gatekeeperResult.is_ready_for_activation ? "#15803d" : "#b91c1c",
+                    }}
+                  >
+                    {gatekeeperResult.is_ready_for_activation ? "✓ آماده فعال‌سازی و شروع کار" : "⛔ عدم احراز شرایط ایمنی گیت‌کیپر"}
+                  </span>
+                ) : null}
+              </div>
+
+              {gatekeeperResult && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem", fontSize: "0.85rem", marginTop: "0.5rem" }}>
+                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                    <span className="muted">صلاحیت پیمانکار:</span>{" "}
+                    <strong>{gatekeeperResult.contractor.message}</strong>
+                  </div>
+                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                    <span className="muted">صلاحیت کارکنان:</span>{" "}
+                    <strong>{gatekeeperResult.competency.message}</strong>
+                  </div>
+                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                    <span className="muted">گازسنجی:</span>{" "}
+                    <strong>{gatekeeperResult.gas_testing.message}</strong>
+                  </div>
+                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                    <span className="muted">ایزولاسیون LOTO:</span>{" "}
+                    <strong>{gatekeeperResult.loto.message}</strong>
+                  </div>
+                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                    <span className="muted">وضعیت جوی:</span>{" "}
+                    <strong>{gatekeeperResult.weather.message}</strong>
+                  </div>
+                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                    <span className="muted">تعارض همزمانی (SIMOPS):</span>{" "}
+                    <strong style={{ color: gatekeeperResult.simops.blocking_count > 0 ? "#b91c1c" : (gatekeeperResult.simops.conflicts_count > 0 ? "#d97706" : "#15803d") }}>
+                      {gatekeeperResult.simops.blocking_count > 0
+                        ? `⛔ ${gatekeeperResult.simops.blocking_count} تعارض بحرانی و بلاک‌کننده`
+                        : (gatekeeperResult.simops.conflicts_count > 0 ? `⚠️ ${gatekeeperResult.simops.conflicts_count} هشدار تداخل` : "✓ بدون تعارض")}
+                    </strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Blocking conflicts list */}
+              {gatekeeperResult && gatekeeperResult.simops.conflicts && gatekeeperResult.simops.conflicts.length > 0 && (
+                <div style={{ marginTop: "0.75rem", borderTop: "1px dashed #cbd5e1", paddingTop: "0.5rem" }}>
+                  <div style={{ fontSize: "0.85rem", fontWeight: "bold", marginBottom: "0.4rem", color: "#991b1b" }}>
+                    تعارضات همزمانی کشف‌شده برای این مجوز:
+                  </div>
+                  {gatekeeperResult.simops.conflicts.map((c) => (
+                    <div
+                      key={c.id}
+                      style={{
+                        background: c.severity === "critical_block" ? "#fef2f2" : "#fffbeb",
+                        border: "1px solid",
+                        borderColor: c.severity === "critical_block" ? "#f87171" : "#fde68a",
+                        borderRadius: "4px",
+                        padding: "0.5rem",
+                        marginBottom: "0.4rem",
+                        fontSize: "0.85rem",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <span style={{ fontWeight: "bold", color: c.severity === "critical_block" ? "#b91c1c" : "#92400e" }}>
+                          [{c.other_permit_code}] {c.other_permit_title}:
+                        </span>{" "}
+                        <span>{c.description}</span>
+                      </div>
+                      <div>
+                        {c.is_resolved ? (
+                          <span style={{ color: "#15803d", fontSize: "0.8rem", fontWeight: "bold" }}>✓ رفع تعارض شده</span>
+                        ) : canOverrideSIMOPS ? (
+                          <button
+                            type="button"
+                            className="btn btn-warning"
+                            style={{ padding: "0.2rem 0.6rem", fontSize: "0.75rem" }}
+                            onClick={() => {
+                              setSelectedConflictForOverride(c);
+                              setIsOverrideModalOpen(true);
+                            }}
+                          >
+                            تأیید استثنا (Override)
+                          </button>
+                        ) : (
+                          <span style={{ color: "#b91c1c", fontSize: "0.8rem" }}>⛔ مسدودکننده شروع کار</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Override Banner */}
+              {selectedPermit.simops_override_approved && (
+                <div style={{ marginTop: "0.5rem", background: "#f0fdf4", border: "1px solid #86efac", color: "#166534", padding: "0.5rem", borderRadius: "4px", fontSize: "0.85rem" }}>
+                  ✓ تأیید استثنای همزمانی عملیات (SIMOPS Override) توسط <strong>{selectedPermit.simops_override_by_name}</strong> در تاریخ {new Date(selectedPermit.simops_override_at!).toLocaleString("fa-IR")} با علت «{selectedPermit.simops_override_reason}» ثبت شده است.
+                </div>
+              )}
             </div>
 
             {/* Personnel & Competency Verification (Phase 10) */}
@@ -819,6 +1224,11 @@ export function PermitsPage() {
                 <strong>خلاصه ترخیص و مختومه‌سازی:</strong> {selectedPermit.closure_summary}
               </div>
             )}
+            {selectedPermit.resumption_notes && (
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.85rem", color: "#166534" }}>
+                <strong>شرح اقدامات رفع نقص و ازسرگیری کار:</strong> {selectedPermit.resumption_notes}
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem", justifyContent: "flex-end" }}>
@@ -903,18 +1313,9 @@ export function PermitsPage() {
                 <button
                   type="button"
                   className="btn btn-success"
-                  onClick={async () => {
-                    if (!confirm("آیا شرایط رفع نقص گردیده و مجوز آماده ازسرگیری است؟")) return;
-                    setActionSubmitting(true);
-                    try {
-                      const updated = await resumePermit(selectedPermit.id);
-                      setSelectedPermit(updated);
-                      reloadPermits();
-                    } catch (err) {
-                      alert(errorMessage(err));
-                    } finally {
-                      setActionSubmitting(false);
-                    }
+                  onClick={() => {
+                    setActionError(null);
+                    setIsResumeModalOpen(true);
                   }}
                 >
                   ▶ ازسرگیری مجدد کار
@@ -976,6 +1377,7 @@ export function PermitsPage() {
         <CreatePermitModal
           organizationId={selectedOrgId!}
           workplaces={workplaces}
+          contractors={contractors}
           onClose={() => setIsCreateModalOpen(false)}
           onSuccess={(newPermit) => {
             setIsCreateModalOpen(false);
@@ -1188,6 +1590,59 @@ export function PermitsPage() {
       )}
 
       {/* ======================================================== */}
+      {/* MODAL: RESUME PERMIT (PHASE 13)                          */}
+      {/* ======================================================== */}
+      {isResumeModalOpen && selectedPermit && (
+        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
+          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "520px", width: "90%" }}>
+            <h4>ازسرگیری مجدد مجوز کار معلق‌شده</h4>
+            <p className="muted" style={{ fontSize: "0.85rem" }}>
+              پیش از بازگشت به کار، کلیه اقدامات رفع خطر، بررسی مجدد شرایط جوی و تایید پیش‌نیازهای گیت‌کیپر باید ثبت شوند.
+            </p>
+            {actionError && <div style={{ color: "red", marginBottom: "0.5rem" }}>{actionError}</div>}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setActionSubmitting(true);
+                setActionError(null);
+                const formData = new FormData(e.currentTarget);
+                try {
+                  const updated = await resumePermit(selectedPermit.id, {
+                    resumption_notes: formData.get("resumption_notes") as string,
+                  });
+                  setIsResumeModalOpen(false);
+                  setSelectedPermit(updated);
+                  reloadPermits();
+                } catch (err) {
+                  setActionError(errorMessage(err));
+                } finally {
+                  setActionSubmitting(false);
+                }
+              }}
+            >
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="resume-notes-input"><strong>شرح اقدامات رفع نقص و تایید شرایط ایمنی (الزامی):</strong></label>
+                <textarea
+                  id="resume-notes-input"
+                  name="resumption_notes"
+                  required
+                  rows={3}
+                  style={{ width: "100%", padding: "0.5rem" }}
+                  placeholder="مثال: پاکسازی نشتی روغن، برقراری مجدد تهویه مناسب و تایید گازسنجی مجدد محوطه..."
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsResumeModalOpen(false)}>انصراف</button>
+                <button type="submit" className="btn btn-success" disabled={actionSubmitting}>
+                  {actionSubmitting ? "در حال ارسال…" : "تأیید اقدامات و ازسرگیری کار"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
       {/* MODAL: CLOSE PERMIT                                      */}
       {/* ======================================================== */}
       {isCloseModalOpen && selectedPermit && (
@@ -1323,6 +1778,72 @@ export function PermitsPage() {
       )}
 
       {/* ======================================================== */}
+      {/* MODAL: SIMOPS CONFLICT OVERRIDE (PHASE 13)               */}
+      {/* ======================================================== */}
+      {isOverrideModalOpen && selectedConflictForOverride && (
+        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200 }}>
+          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "560px", width: "90%" }}>
+            <h4 style={{ color: "#b91c1c" }}>تأیید استثنا و مجوز ویژه همزمانی عملیات (SIMOPS Override)</h4>
+            <div style={{ background: "#fef2f2", padding: "0.75rem", borderRadius: "6px", fontSize: "0.85rem", color: "#991b1b", marginBottom: "1rem" }}>
+              <strong>شرح تعارض:</strong> {selectedConflictForOverride.description}
+            </div>
+            {actionError && <div style={{ color: "red", marginBottom: "0.5rem" }}>{actionError}</div>}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setActionSubmitting(true);
+                setActionError(null);
+                const formData = new FormData(e.currentTarget);
+                try {
+                  await overrideSIMOPSConflict(selectedConflictForOverride.id, {
+                    reason: formData.get("reason") as string,
+                  });
+                  setIsOverrideModalOpen(false);
+                  setSelectedConflictForOverride(null);
+                  if (selectedPermit) {
+                    openPermitDetail(selectedPermit.id);
+                  }
+                  reloadPermits();
+                  reloadSIMOPSRadar();
+                } catch (err) {
+                  setActionError(errorMessage(err));
+                } finally {
+                  setActionSubmitting(false);
+                }
+              }}
+            >
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="simops-override-reason"><strong>دلایل فنی، تمهیدات جبرانی و اقدامات ایمنی ویژه (الزامی):</strong></label>
+                <textarea
+                  id="simops-override-reason"
+                  name="reason"
+                  required
+                  rows={3}
+                  style={{ width: "100%", padding: "0.5rem" }}
+                  placeholder="شرح نصب پرده نسوز، استقرار خودروی اطفاء حریق، فاصله‌گذاری ایمن و نظارت مستمر افسر HSE..."
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setIsOverrideModalOpen(false);
+                    setSelectedConflictForOverride(null);
+                  }}
+                >
+                  انصراف
+                </button>
+                <button type="submit" className="btn btn-danger" disabled={actionSubmitting}>
+                  {actionSubmitting ? "در حال ثبت مجوز ویژه…" : "ثبت تأیید استثنا (HSE Manager Override)"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
       {/* MODAL: CREATE SHIFT HANDOVER                             */}
       {/* ======================================================== */}
       {isCreateHandoverModalOpen && (
@@ -1395,11 +1916,12 @@ export function PermitsPage() {
 interface CreatePermitModalProps {
   organizationId: number;
   workplaces: Workplace[];
+  contractors: ContractorCompany[];
   onClose: () => void;
   onSuccess: (permit: PermitDetail) => void;
 }
 
-function CreatePermitModal({ organizationId, workplaces, onClose, onSuccess }: CreatePermitModalProps) {
+function CreatePermitModal({ organizationId, workplaces, contractors, onClose, onSuccess }: CreatePermitModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1412,6 +1934,7 @@ function CreatePermitModal({ organizationId, workplaces, onClose, onSuccess }: C
     const payload = {
       organization: organizationId,
       workplace: fd.get("workplace") ? Number(fd.get("workplace")) : null,
+      contractor: fd.get("contractor") ? Number(fd.get("contractor")) : null,
       permit_type: fd.get("permit_type"),
       title: fd.get("title"),
       description: fd.get("description"),
@@ -1424,6 +1947,8 @@ function CreatePermitModal({ organizationId, workplaces, onClose, onSuccess }: C
       required_ppe: fd.get("required_ppe"),
       gas_testing_required: fd.get("gas_testing_required") === "on",
       isolation_loto_required: fd.get("isolation_loto_required") === "on",
+      weather_condition_ok: fd.get("weather_condition_ok") === "on",
+      weather_notes: (fd.get("weather_notes") as string) || "",
     };
 
     try {
@@ -1472,6 +1997,18 @@ function CreatePermitModal({ organizationId, workplaces, onClose, onSuccess }: C
           </div>
 
           <div style={{ marginBottom: "1rem" }}>
+            <label htmlFor="permit-contractor">شرکت پیمانکار مجری (اختیاری):</label>
+            <select id="permit-contractor" name="contractor" style={{ width: "100%", padding: "0.5rem" }}>
+              <option value="">پرسنل داخلی سازمان (بدون پیمانکار)</option>
+              {contractors.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} (امتیاز ایمنی: {c.safety_score} / {c.status === "approved" ? "تاییدشده" : "معلق یا غیرفعال"})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: "1rem" }}>
             <label htmlFor="permit-title"><strong>عنوان پروانه کار:</strong></label>
             <input id="permit-title" type="text" name="title" required placeholder="مثال: جوشکاری خط لوله هیدرولیک کوره ۳" style={{ width: "100%", padding: "0.5rem" }} />
           </div>
@@ -1517,6 +2054,20 @@ function CreatePermitModal({ organizationId, workplaces, onClose, onSuccess }: C
               <label>تجهیزات حفاظت فردی (PPE):</label>
               <textarea name="required_ppe" rows={2} placeholder="هارنس، شیلد، دستکش عایق..." style={{ width: "100%", padding: "0.5rem" }} />
             </div>
+          </div>
+
+          {/* Weather status */}
+          <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem", border: "1px solid #e2e8f0" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginBottom: "0.4rem" }}>
+              <input type="checkbox" name="weather_condition_ok" defaultChecked />
+              <span><strong>شرایط جوی و هواشناسی برای اجرای کار مساعد و ایمن است</strong></span>
+            </label>
+            <input
+              type="text"
+              name="weather_notes"
+              placeholder="توضیحات تکمیلی شرایط جوی، سرعت باد یا وضعیت بارندگی..."
+              style={{ width: "100%", padding: "0.4rem", fontSize: "0.85rem" }}
+            />
           </div>
 
           <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem", display: "flex", gap: "2rem" }}>

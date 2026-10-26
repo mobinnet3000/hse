@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.permits",
     "apps.assets",
     "apps.workforce",
+    "apps.environment",
 ]
 
 MIDDLEWARE = [

@@ -107,6 +107,14 @@ export function riskRoutes(overrides: Routes = {}): Routes {
         by_type: {},
         by_status: {},
       }),
+    "/permits/simops-radar/": () =>
+      jsonResponse({
+        organization: 1,
+        total_active_planned_permits: 0,
+        active_conflicts: 0,
+        workplaces: [],
+      }),
+    "/permits/simops-conflicts/": () => jsonResponse([]),
     "/permits/handovers/": () => jsonResponse([]),
     "/permits/handovers/safety-summary/": () =>
       jsonResponse({
@@ -201,6 +209,123 @@ export function riskRoutes(overrides: Routes = {}): Routes {
         contractor_worker_count: 0,
         attendance_records: [],
       }),
+    ...overrides,
+  };
+}
+
+export function environmentRoutes(overrides: Routes = {}): Routes {
+  return {
+    "/auth/me/": () => jsonResponse(testUser),
+    "/health/": () => jsonResponse({ status: "ok", database: "ok" }),
+    "/organizations/": () => jsonResponse([testOrganization]),
+    "/workplaces/": () =>
+      jsonResponse([
+        { id: 1, name: "سوله نورد", code: "WP-ROLL", organization: 1 },
+      ]),
+    "/environment/summary/": () =>
+      jsonResponse({
+        aspects_total: 4,
+        aspects_significant: 2,
+        waste_records_count: 5,
+        hazardous_waste_kg: 1250,
+        non_hazardous_waste_kg: 8400,
+        active_stored_waste_count: 2,
+        emission_records_count: 6,
+        emission_exceedances_count: 1,
+        hygiene_surveys_count: 8,
+        hygiene_exceedances_count: 1,
+      }),
+    "/environment/thresholds/": () =>
+      jsonResponse([
+        {
+          id: 1,
+          name: "حداکثر مجاز COD پساب",
+          category: "wastewater",
+          category_display: "پساب و فاضلاب صنعتی",
+          parameter: "COD",
+          limit_type: "max_limit",
+          limit_type_display: "حداکثر مجاز",
+          limit_value: 100,
+          unit: "mg/L",
+          standard_reference: "استاندارد محیط زیست",
+          is_active: true,
+        },
+      ]),
+    "/environment/aspects/": () =>
+      jsonResponse([
+        {
+          id: 1,
+          workplace: 1,
+          workplace_name: "سوله نورد",
+          activity_or_process: "ذوب در کوره قوس",
+          aspect: "انتشار غبار و CO",
+          impact: "آلودگی هوا",
+          condition: "normal",
+          condition_display: "شرایط عادی",
+          severity_score: 4,
+          probability_score: 4,
+          significance_score: 16,
+          is_significant: true,
+          control_measures: "فیلتر بگ‌هاوس صنعتی",
+        },
+      ]),
+    "/environment/waste/": () =>
+      jsonResponse([
+        {
+          id: 1,
+          workplace: 1,
+          workplace_name: "سوله نورد",
+          waste_name: "روغن سوخته هیدرولیک",
+          waste_type: "hazardous",
+          waste_type_display: "پسماند خطرناک و ویژه",
+          quantity: 450,
+          unit: "liter",
+          unit_display: "لیتر",
+          storage_location: "انبار ویژه",
+          generation_date: "2026-10-20",
+          status: "stored",
+          status_display: "انبارش موقت در سایت",
+        },
+      ]),
+    "/environment/emissions/": () =>
+      jsonResponse([
+        {
+          id: 1,
+          workplace: 1,
+          workplace_name: "سوله نورد",
+          sampling_point: "حوضچه خروجی تصفیه‌خانه",
+          category: "wastewater",
+          category_display: "پساب خروجی",
+          sample_date: "2026-10-22",
+          parameter: "COD",
+          measured_value: 165.5,
+          unit: "mg/L",
+          standard_limit: 100,
+          is_exceedance: true,
+          laboratory_name: "آزمایشگاه آب آزما",
+          non_conformity: 101,
+        },
+      ]),
+    "/environment/hygiene/": () =>
+      jsonResponse([
+        {
+          id: 1,
+          workplace: 1,
+          workplace_name: "سوله نورد",
+          category: "noise",
+          category_display: "صدا و ارتعاش",
+          location_details: "ایستگاه اپراتوری نورد",
+          survey_date: "2026-10-25",
+          surveyor_name: "مهندس کاظمی",
+          measured_value: 91.5,
+          unit: "dBA",
+          standard_limit: 85,
+          is_exceedance: true,
+          assessment_result: "unacceptable",
+          assessment_result_display: "غیرمجاز و بحرانی",
+          control_recommendation: "استفاده اجباری از ایرماف ۳۰ دسی‌بل",
+        },
+      ]),
     ...overrides,
   };
 }

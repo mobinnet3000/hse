@@ -10,10 +10,10 @@ from apps.core.access import (
 from apps.organizations.models import Organization
 from apps.risks.models import Hazard
 from apps.risks.serializers import HazardSerializer
-from apps.workforce.models import Employee
+from apps.workforce.models import ContractorCompany, Employee
 from apps.workforce.serializers import EmployeeReferenceSerializer
 from apps.workplaces.models import Workplace
-from .models import Permit, PermitAttachment, ShiftHandover
+from .models import Permit, PermitAttachment, ShiftHandover, SIMOPSConflict
 
 
 class PermitAttachmentSerializer(serializers.ModelSerializer):
@@ -48,6 +48,7 @@ class PermitListSerializer(serializers.ModelSerializer):
     workplace_name = serializers.CharField(source="workplace.name", read_only=True, default=None)
     requester_name = serializers.SerializerMethodField()
     approver_name = serializers.SerializerMethodField()
+    contractor_name = serializers.CharField(source="contractor.name", read_only=True, default=None)
     is_expired = serializers.SerializerMethodField()
 
     class Meta:
@@ -58,6 +59,8 @@ class PermitListSerializer(serializers.ModelSerializer):
             "organization_name",
             "workplace",
             "workplace_name",
+            "contractor",
+            "contractor_name",
             "reference_code",
             "permit_type",
             "permit_type_display",
@@ -68,6 +71,7 @@ class PermitListSerializer(serializers.ModelSerializer):
             "valid_until",
             "actual_start",
             "actual_completion",
+            "weather_condition_ok",
             "requester",
             "requester_name",
             "approver",
@@ -111,6 +115,7 @@ class PermitDetailSerializer(PermitListSerializer):
     can_approve = serializers.SerializerMethodField()
     can_control = serializers.SerializerMethodField()
     can_cancel = serializers.SerializerMethodField()
+    gatekeeper_checks = serializers.SerializerMethodField()
 
     class Meta(PermitListSerializer.Meta):
         fields = PermitListSerializer.Meta.fields + [
@@ -133,10 +138,17 @@ class PermitDetailSerializer(PermitListSerializer):
             "review_notes",
             "rejection_reason",
             "suspension_reason",
+            "resumption_notes",
             "closure_summary",
             "closed_by",
             "closed_by_name",
             "closed_at",
+            "weather_notes",
+            "simops_override_approved",
+            "simops_override_reason",
+            "simops_override_by",
+            "simops_override_at",
+            "gatekeeper_checks",
             "related_hazards",
             "attachments",
             "can_approve",
@@ -144,6 +156,11 @@ class PermitDetailSerializer(PermitListSerializer):
             "can_cancel",
             "updated_at",
         ]
+
+    def get_gatekeeper_checks(self, obj):
+        from .services import check_permit_gatekeeper_prerequisites
+
+        return check_permit_gatekeeper_prerequisites(obj)
 
     def get_assigned_employee_details(self, obj):
         return EmployeeReferenceSerializer(
@@ -227,6 +244,11 @@ class PermitCreateSerializer(serializers.ModelSerializer):
         many=True,
         required=False,
     )
+    contractor = serializers.PrimaryKeyRelatedField(
+        queryset=ContractorCompany.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     reference_code = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
@@ -239,6 +261,9 @@ class PermitCreateSerializer(serializers.ModelSerializer):
             "status",
             "organization",
             "workplace",
+            "contractor",
+            "weather_condition_ok",
+            "weather_notes",
             "permit_type",
             "title",
             "description",
@@ -275,6 +300,10 @@ class PermitCreateSerializer(serializers.ModelSerializer):
         if workplace and workplace.organization_id != org.id:
             raise serializers.ValidationError({"workplace": "محل کار باید متعلق به همان سازمان باشد."})
 
+        contractor = attrs.get("contractor")
+        if contractor and contractor.organization_id != org.id:
+            raise serializers.ValidationError({"contractor": "شرکت پیمانکار باید متعلق به همان سازمان باشد."})
+
         assigned_employees = attrs.get("assigned_employees") or []
         if any(employee.organization_id != org.id for employee in assigned_employees):
             raise serializers.ValidationError(
@@ -303,6 +332,10 @@ class PermitSuspendActionSerializer(serializers.Serializer):
     reason = serializers.CharField(required=True, min_length=3)
 
 
+class PermitResumeActionSerializer(serializers.Serializer):
+    resumption_notes = serializers.CharField(required=False, allow_blank=True)
+
+
 class PermitCloseActionSerializer(serializers.Serializer):
     closure_summary = serializers.CharField(required=True, min_length=3)
 
@@ -313,6 +346,53 @@ class PermitRejectActionSerializer(serializers.Serializer):
 
 class PermitCancelActionSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True)
+
+
+class SIMOPSConflictSerializer(serializers.ModelSerializer):
+    conflict_type_display = serializers.CharField(source="get_conflict_type_display", read_only=True)
+    severity_display = serializers.CharField(source="get_severity_display", read_only=True)
+    permit_a_code = serializers.CharField(source="permit_a.reference_code", read_only=True)
+    permit_a_title = serializers.CharField(source="permit_a.title", read_only=True)
+    permit_b_code = serializers.CharField(source="permit_b.reference_code", read_only=True)
+    permit_b_title = serializers.CharField(source="permit_b.title", read_only=True)
+    workplace_name = serializers.CharField(source="workplace.name", read_only=True)
+    override_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SIMOPSConflict
+        fields = [
+            "id",
+            "organization",
+            "permit_a",
+            "permit_a_code",
+            "permit_a_title",
+            "permit_b",
+            "permit_b_code",
+            "permit_b_title",
+            "workplace",
+            "workplace_name",
+            "conflict_type",
+            "conflict_type_display",
+            "severity",
+            "severity_display",
+            "description",
+            "is_resolved",
+            "override_approved",
+            "override_by",
+            "override_by_name",
+            "override_reason",
+            "override_at",
+            "created_at",
+        ]
+
+    def get_override_by_name(self, obj):
+        if not obj.override_by:
+            return None
+        return f"{obj.override_by.first_name} {obj.override_by.last_name}".strip() or obj.override_by.username
+
+
+class SIMOPSOverrideActionSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=True, min_length=5, error_messages={"required": "درج دلیل بای‌پس الزامی است."})
 
 
 # =========================================================

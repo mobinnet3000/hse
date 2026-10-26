@@ -419,4 +419,182 @@ describe("PermitsPage", () => {
       expect(ackCalled).toBe(true);
     });
   });
+
+  it("switches to SIMOPS radar tab and displays conflicts with override capability", async () => {
+    const user = userEvent.setup();
+    let overrideCalled = false;
+
+    const mockRadarData = {
+      organization: 1,
+      total_active_planned_permits: 2,
+      active_conflicts: 1,
+      workplaces: [
+        {
+          workplace_id: 1,
+          workplace_name: "سوله نورد",
+          active_permits_count: 2,
+          conflicts_count: 1,
+          has_critical_block: true,
+          permits: [
+            {
+              id: 1,
+              reference_code: "PTW-202610-0001",
+              title: "جوشکاری تقویتی شاسی نقاله",
+              permit_type: "hot_work",
+              permit_type_display: "کار گرم و شعله",
+              status: "active",
+              status_display: "فعال و در حال اجرا",
+              valid_from: "2026-10-19T08:00:00Z",
+              valid_until: "2026-10-19T16:00:00Z",
+              contractor_name: "شرکت فنی مهندسی اروند",
+            },
+          ],
+          conflicts: [
+            {
+              id: 101,
+              severity: "critical_block",
+              conflict_type: "incompatible_types",
+              conflict_type_display: "عدم تجانس نوع فعالیت",
+              description: "همزمانی کار گرم با ورود به فضای بسته در یک کارگاه بلاک است.",
+              permit_a_code: "PTW-202610-0001",
+              permit_b_code: "PTW-202610-0003",
+              is_resolved: false,
+            },
+          ],
+        },
+      ],
+    };
+
+    mockApi(
+      riskRoutes({
+        "/permits/": () => jsonResponse(mockPermits),
+        "/permits/stats/": () => jsonResponse(mockStats),
+        "/permits/simops-radar/": () => jsonResponse(mockRadarData),
+        "/permits/simops-conflicts/101/override/": () => {
+          overrideCalled = true;
+          return jsonResponse({
+            id: 101,
+            is_resolved: true,
+            override_approved: true,
+            description: "همزمانی کار گرم با ورود به فضای بسته در یک کارگاه بلاک است.",
+          });
+        },
+        "/organizations/1/memberships/": () =>
+          jsonResponse([
+            {
+              id: 1,
+              user: 1,
+              username: "ali",
+              full_name: "علی",
+              organization: 1,
+              role: "hse_manager",
+              role_display: "مدیر HSE",
+              is_active: true,
+            },
+          ]),
+        "/workplaces/": () => jsonResponse([{ id: 1, name: "سوله نورد", code: "fa-roll", organization: 1 }]),
+      })
+    );
+
+    render(
+      <AuthProvider>
+        <PermitsPage />
+      </AuthProvider>
+    );
+
+    const radarTabBtn = await screen.findByRole("button", { name: /رادار همزمانی عملیات/i });
+    await user.click(radarTabBtn);
+
+    expect(await screen.findByText(/تعارض بحرانی و بلاک‌کننده کارگاه/i)).toBeInTheDocument();
+    expect(screen.getByText(/همزمانی کار گرم با ورود به فضای بسته در یک کارگاه بلاک است/i)).toBeInTheDocument();
+
+    const overrideBtn = await screen.findByRole("button", { name: /تأیید استثنا \(Override\)/i });
+    await user.click(overrideBtn);
+
+    expect(await screen.findByText(/تأیید استثنا و مجوز ویژه همزمانی عملیات/i)).toBeInTheDocument();
+    const reasonInput = screen.getByRole("textbox", { name: /دلایل فنی، تمهیدات جبرانی/i });
+    await user.type(reasonInput, "استقرار پرده نسوز و حضور ماشین آتش‌نشانی");
+
+    const submitOverrideBtn = screen.getByRole("button", { name: /ثبت تأیید استثنا/i });
+    await user.click(submitOverrideBtn);
+
+    await waitFor(() => {
+      expect(overrideCalled).toBe(true);
+    });
+  });
+
+  it("displays Gatekeeper Safety Panel in detail and supports permit resumption with notes", async () => {
+    const user = userEvent.setup();
+    let resumeCalledWithNotes = false;
+
+    const suspendedPermitDetail = {
+      ...mockDetail,
+      id: 5,
+      status: "suspended",
+      status_display: "معلق‌شده",
+      weather_condition_ok: true,
+      weather_notes: "آسمان صاف، دید عالی",
+      contractor_name: "پیمانکار سپهر صنعت",
+    };
+
+    const mockGatekeeperResult = {
+      is_ready_for_activation: true,
+      blockers: [],
+      warnings: [],
+      contractor: { status: "ok", message: "پیمانکار تاییدشده سپهر صنعت (رتبه ۸۲)" },
+      competency: { status: "ok", message: "صلاحیت‌های الزامی احراز شده است" },
+      loto: { status: "ok", message: "ایزولاسیون مکانیکی تایید شده است" },
+      gas_testing: { status: "ok", message: "گازسنجی نرمال است" },
+      weather: { status: "ok", message: "شرایط جوی مساعد است" },
+      simops: { status: "ok", conflicts_count: 0, blocking_count: 0, conflicts: [] },
+    };
+
+    mockApi(
+      riskRoutes({
+        "/permits/": () => jsonResponse([suspendedPermitDetail]),
+        "/permits/stats/": () => jsonResponse(mockStats),
+        "/permits/5/": () => jsonResponse(suspendedPermitDetail),
+        "/permits/5/gatekeeper-check/": () => jsonResponse(mockGatekeeperResult),
+        "/permits/5/resume/": (init) => {
+          const body = JSON.parse(init?.body as string || "{}");
+          if (body.resumption_notes) {
+            resumeCalledWithNotes = true;
+          }
+          return jsonResponse({
+            ...suspendedPermitDetail,
+            status: "active",
+            resumption_notes: body.resumption_notes,
+          });
+        },
+        "/workplaces/": () => jsonResponse([{ id: 1, name: "سوله نورد", code: "fa-roll", organization: 1 }]),
+      })
+    );
+
+    render(
+      <AuthProvider>
+        <PermitsPage />
+      </AuthProvider>
+    );
+
+    const actionButtons = await screen.findAllByRole("button", { name: /مشاهده و اقدامات/i });
+    await user.click(actionButtons[0]);
+
+    expect(await screen.findByText(/چک‌لیست ایمنی گیت‌کیپر پیش از شروع کار/i)).toBeInTheDocument();
+    expect(await screen.findByText(/آماده فعال‌سازی و شروع کار/i)).toBeInTheDocument();
+    expect(screen.getByText(/پیمانکار تاییدشده سپهر صنعت/i)).toBeInTheDocument();
+
+    const resumeBtn = await screen.findByRole("button", { name: /ازسرگیری مجدد کار/i });
+    await user.click(resumeBtn);
+
+    expect(await screen.findByText(/ازسرگیری مجدد مجوز کار معلق‌شده/i)).toBeInTheDocument();
+    const notesInput = screen.getByRole("textbox", { name: /شرح اقدامات رفع نقص/i });
+    await user.type(notesInput, "رفع کامل نشت روغن، هواگیری و تست عملکرد");
+
+    const submitResumeBtn = screen.getByRole("button", { name: /تأیید اقدامات و ازسرگیری کار/i });
+    await user.click(submitResumeBtn);
+
+    await waitFor(() => {
+      expect(resumeCalledWithNotes).toBe(true);
+    });
+  });
 });

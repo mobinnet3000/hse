@@ -11,7 +11,7 @@ from apps.core.access import (
     accessible_organization_ids,
     is_active_member,
 )
-from .models import Permit, ShiftHandover
+from .models import Permit, ShiftHandover, SIMOPSConflict
 from .serializers import (
     PermitActivateActionSerializer,
     PermitCancelActionSerializer,
@@ -20,20 +20,25 @@ from .serializers import (
     PermitDetailSerializer,
     PermitListSerializer,
     PermitRejectActionSerializer,
+    PermitResumeActionSerializer,
     PermitReviewActionSerializer,
     PermitSuspendActionSerializer,
     ShiftHandoverAcknowledgeActionSerializer,
     ShiftHandoverCreateSerializer,
     ShiftHandoverSerializer,
+    SIMOPSConflictSerializer,
+    SIMOPSOverrideActionSerializer,
 )
 from .services import (
     acknowledge_shift_handover,
     approve_permit,
     cancel_permit,
+    check_permit_gatekeeper_prerequisites,
     close_permit,
     complete_work,
     create_shift_handover,
     get_outstanding_safety_summary,
+    override_simops_conflict,
     reject_permit,
     request_permit,
     resume_permit,
@@ -291,12 +296,24 @@ class PermitResumeView(APIView):
 
     def post(self, request, pk):
         permit = get_accessible_permit_or_404(pk, request.user)
+        serializer = PermitResumeActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        resumption_notes = serializer.validated_data.get("resumption_notes", "")
 
         try:
-            updated = resume_permit(permit=permit, user=request.user)
+            updated = resume_permit(permit=permit, user=request.user, resumption_notes=resumption_notes)
             return Response(PermDetailResponse(updated, request))
         except DjangoValidationError as exc:
             raise ValidationError(exc.message if hasattr(exc, "message") else exc.messages)
+
+
+class PermitGatekeeperCheckView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        permit = get_accessible_permit_or_404(pk, request.user)
+        checks = check_permit_gatekeeper_prerequisites(permit)
+        return Response(checks)
 
 
 class PermitCompleteView(APIView):
@@ -421,6 +438,119 @@ class PermitSummaryStatsView(APIView):
             "expired_count": expired,
             "by_type": by_type,
             "by_status": by_status,
+        })
+
+
+class SIMOPSConflictListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = SIMOPSConflictSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_platform_admin:
+            qs = SIMOPSConflict.objects.all()
+        else:
+            org_ids = accessible_organization_ids(user)
+            qs = SIMOPSConflict.objects.filter(organization_id__in=org_ids)
+
+        workplace_id = self.request.query_params.get("workplace")
+        if workplace_id and workplace_id.isdigit():
+            qs = qs.filter(workplace_id=int(workplace_id))
+
+        severity = self.request.query_params.get("severity")
+        if severity:
+            qs = qs.filter(severity=severity)
+
+        return qs.select_related("permit_a", "permit_b", "workplace", "override_by")
+
+
+class SIMOPSConflictOverrideView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            conflict = SIMOPSConflict.objects.select_related("organization", "permit_a", "permit_b").get(pk=pk)
+        except SIMOPSConflict.DoesNotExist:
+            raise NotFound("تعارض همزمانی مورد نظر یافت نشد.")
+
+        if not request.user.is_platform_admin and not is_active_member(request.user, conflict.organization_id):
+            raise PermissionDenied("دسترسی به این تعارض سازمانی ندارید.")
+
+        serializer = SIMOPSOverrideActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            updated = override_simops_conflict(
+                conflict=conflict,
+                user=request.user,
+                reason=serializer.validated_data["reason"],
+            )
+            return Response(SIMOPSConflictSerializer(updated).data)
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message if hasattr(exc, "message") else exc.messages)
+
+
+class SIMOPSRadarView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.is_platform_admin:
+            permits_qs = Permit.objects.all()
+            conflicts_qs = SIMOPSConflict.objects.all()
+        else:
+            org_ids = accessible_organization_ids(user)
+            permits_qs = Permit.objects.filter(organization_id__in=org_ids)
+            conflicts_qs = SIMOPSConflict.objects.filter(organization_id__in=org_ids)
+
+        workplace_id = request.query_params.get("workplace")
+        if workplace_id and workplace_id.isdigit():
+            permits_qs = permits_qs.filter(workplace_id=int(workplace_id))
+            conflicts_qs = conflicts_qs.filter(workplace_id=int(workplace_id))
+
+        now = timezone.now()
+        active_permits = permits_qs.filter(
+            status__in=[Permit.Status.APPROVED, Permit.Status.ACTIVE, Permit.Status.SUSPENDED],
+            valid_until__gt=now,
+        ).select_related("workplace", "requester", "responsible_supervisor", "contractor")
+
+        # Group by workplace
+        radar_by_workplace = {}
+        for p in active_permits:
+            wp_key = p.workplace.name if p.workplace else "نامشخص"
+            if wp_key not in radar_by_workplace:
+                radar_by_workplace[wp_key] = {
+                    "workplace_id": p.workplace_id,
+                    "workplace_name": wp_key,
+                    "permits_count": 0,
+                    "permits": [],
+                }
+            radar_by_workplace[wp_key]["permits_count"] += 1
+            radar_by_workplace[wp_key]["permits"].append({
+                "id": p.id,
+                "reference_code": p.reference_code,
+                "title": p.title,
+                "permit_type": p.permit_type,
+                "permit_type_display": p.get_permit_type_display(),
+                "status": p.effective_status,
+                "status_display": p.get_status_display(),
+                "work_area": p.work_area,
+                "contractor_name": p.contractor.name if p.contractor else None,
+                "valid_from": p.valid_from,
+                "valid_until": p.valid_until,
+                "simops_override_approved": p.simops_override_approved,
+            })
+
+        conflicts = conflicts_qs.filter(is_resolved=False).select_related(
+            "permit_a", "permit_b", "workplace"
+        )[:50]
+
+        return Response({
+            "generated_at": now,
+            "total_active_planned_permits": active_permits.count(),
+            "unresolved_conflicts_count": conflicts.count(),
+            "workplaces": list(radar_by_workplace.values()),
+            "active_conflicts": SIMOPSConflictSerializer(conflicts, many=True).data,
         })
 
 

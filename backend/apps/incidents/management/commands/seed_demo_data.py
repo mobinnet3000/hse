@@ -11,7 +11,7 @@ from apps.findings.models import NonConformity
 from apps.incidents.models import Incident, IncidentAttachment
 from apps.inspections.models import Inspection, InspectionResponse
 from apps.organizations.models import Membership, Organization
-from apps.permits.models import Permit, PermitAttachment, PermitTypeCompetencyRequirement, ShiftHandover
+from apps.permits.models import Permit, PermitAttachment, PermitTypeCompetencyRequirement, ShiftHandover, SIMOPSConflict
 from apps.risks.models import (
     Barrier,
     BarrierAssessment,
@@ -43,6 +43,17 @@ from apps.workforce.models import (
     TrainingSession,
 )
 from apps.workplaces.models import Workplace
+from apps.environment.models import (
+    EnvironmentalAspect,
+    EnvironmentalThreshold,
+    OccupationalHygieneRecord,
+    WasteRecord,
+    WastewaterEmissionRecord,
+)
+from apps.environment.services import (
+    evaluate_and_record_hygiene_survey,
+    evaluate_and_record_wastewater_emission,
+)
 
 
 DEMO_PASSWORD = "Pass-12345-abc"
@@ -2914,10 +2925,390 @@ class Command(BaseCommand):
             },
         )
 
+        # ==========================================
+        # Phase 13: Advanced Permit to Work & SIMOPS Conflicts
+        # ==========================================
+        if ptw1 is not None and cont_paydar is not None:
+            ptw1.contractor = cont_paydar
+            ptw1.weather_condition_ok = True
+            ptw1.weather_notes = "وضعیت جوی کاملاً آرام، سرعت باد ۸ کیلومتر بر ساعت، دمای ۲۲ درجه، تهویه مطلوب سوله نورد."
+            ptw1.save(update_fields=["contractor", "weather_condition_ok", "weather_notes"])
+
+        ptw_hot_sp = seed_permit(
+            "PTW-202610-0202",
+            {
+                "organization": org_petro,
+                "workplace": wp_spheres,
+                "permit_type": Permit.PermitType.HOT_WORK,
+                "title": "جوشکاری فلنج منیفولد خروجی مجاور مخزن کروی TK-201",
+                "description": "برشکاری و تعویض فلنج ۶ اینچ خط تخلیه گاز مجاور مخزن کروی فعال.",
+                "work_area": "محوطه پیرامونی مخزن کروی TK-201 - لاین تخلیه اضطراری",
+                "equipment_involved": "دستگاه جوش اینورتر، فرز آهنگری، اسپید کور عایق",
+                "valid_from": now - timedelta(hours=1),
+                "valid_until": now + timedelta(hours=7),
+                "requester": petro_supervisor_user,
+                "responsible_supervisor": petro_supervisor_user,
+                "approver": hse_mgr_user,
+                "status": Permit.Status.APPROVED,
+                "assigned_workers": "صادق کریمی (سرپرست جوشکاری)",
+                "gas_testing_required": True,
+                "gas_testing_results": "LEL: 0%, H2S: 0 ppm در محدوده اطراف لوله",
+                "isolation_loto_required": True,
+                "isolation_loto_details": "خط لوله بلانک شده و شیر اصلی گاز پلمپ و قفل گردید.",
+                "weather_condition_ok": True,
+                "weather_notes": "سرعت باد زیر ۱۰ نات، بدون صاعقه و بارش.",
+            },
+        )
+
+        if ptw5 is not None and ptw_hot_sp is not None:
+            SIMOPSConflict.objects.update_or_create(
+                organization=org_petro,
+                permit_a=ptw5,
+                permit_b=ptw_hot_sp,
+                workplace=wp_spheres,
+                defaults={
+                    "conflict_type": SIMOPSConflict.ConflictType.INCOMPATIBLE_TYPES,
+                    "severity": SIMOPSConflict.Severity.CRITICAL_BLOCK,
+                    "description": "تداخل بحرانی: همزمانی عملیات ورود به فضای بسته (مخزن گاز مایع TK-201) و عملیات جوشکاری/کار گرم در محدوده خطر انفجاری.",
+                    "is_resolved": False,
+                    "override_approved": False,
+                    "is_synthetic": True,
+                },
+            )
+
+        ptw_elec_sp = seed_permit(
+            "PTW-202610-0203",
+            {
+                "organization": org_petro,
+                "workplace": wp_spheres,
+                "permit_type": Permit.PermitType.ELECTRICAL_ISOLATION,
+                "title": "کابل‌کشی سیستم ابزار دقیق و تله‌متری مخازن گاز",
+                "description": "عبور کابل‌های ضدجرقه فشار ضعیف سیستم پایش سطح مخازن.",
+                "work_area": "سینی کابل محوطه مخازن کروی",
+                "equipment_involved": "کابل‌کش دستی، مولتی‌متر دیجیتال",
+                "valid_from": now - timedelta(hours=2),
+                "valid_until": now + timedelta(hours=4),
+                "requester": petro_supervisor_user,
+                "responsible_supervisor": petro_supervisor_user,
+                "approver": hse_mgr_user,
+                "status": Permit.Status.ACTIVE,
+                "assigned_workers": "پیمان اسدی",
+                "weather_condition_ok": True,
+            },
+        )
+
+        if ptw5 is not None and ptw_elec_sp is not None:
+            SIMOPSConflict.objects.update_or_create(
+                organization=org_petro,
+                permit_a=ptw5,
+                permit_b=ptw_elec_sp,
+                workplace=wp_spheres,
+                defaults={
+                    "conflict_type": SIMOPSConflict.ConflictType.SPATIAL_OVERLAP,
+                    "severity": SIMOPSConflict.Severity.WARNING,
+                    "description": "هشدار همزمانی فعالیت برقی در مجاورت فضای بسته؛ تردد پرسنل در مسیر ورودی منهول.",
+                    "is_resolved": False,
+                    "override_approved": True,
+                    "override_by": petro_supervisor_user,
+                    "override_reason": "کانال کابل در فاصله ۳۰ متری مخزن قرار داشته و مسیر تردد کاملاً تفکیک و ایمن‌سازی شده است.",
+                    "override_at": now_dt - timedelta(hours=1, minutes=30),
+                    "is_synthetic": True,
+                },
+            )
+
         self.stdout.write(
             self.style.SUCCESS(
-                "Phase 12 workforce demo data seeded: job positions, assignments, contractors, dossiers, and shift attendance."
+                "Phase 13 PTW & SIMOPS demo data seeded: contractor linkages, weather checks, and SIMOPS conflict radar matrix."
+            )
+        )
+
+        # ==========================================
+        # Phase 14: Environmental Management & Occupational Hygiene
+        # ==========================================
+        # 1. Environmental Thresholds
+        th_cod, _ = EnvironmentalThreshold.objects.update_or_create(
+            organization=org_foolad,
+            category=EnvironmentalThreshold.Category.WASTEWATER,
+            parameter="COD",
+            defaults={
+                "name": "حداکثر مجاز COD پساب صنعتی خروجی",
+                "limit_type": EnvironmentalThreshold.LimitType.MAX_LIMIT,
+                "limit_value": 100.00,
+                "unit": "mg/L",
+                "standard_reference": "استاندارد خروجی فاضلاب سازمان حفاظت محیط زیست",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        th_ph, _ = EnvironmentalThreshold.objects.update_or_create(
+            organization=org_foolad,
+            category=EnvironmentalThreshold.Category.WASTEWATER,
+            parameter="PH",
+            defaults={
+                "name": "دامنه مجاز pH پساب صنعتی",
+                "limit_type": EnvironmentalThreshold.LimitType.RANGE,
+                "min_value": 6.50,
+                "limit_value": 8.50,
+                "unit": "pH",
+                "standard_reference": "استاندارد خروجی فاضلاب سازمان حفاظت محیط زیست",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        th_noise, _ = EnvironmentalThreshold.objects.update_or_create(
+            organization=org_foolad,
+            category=EnvironmentalThreshold.Category.NOISE,
+            parameter="NOISE_DBA",
+            defaults={
+                "name": "حد مجاز صوت مواجهه ۸ ساعته شغلی",
+                "limit_type": EnvironmentalThreshold.LimitType.MAX_LIMIT,
+                "limit_value": 85.00,
+                "unit": "dBA",
+                "standard_reference": "حدود مجاز مواجهه شغلی (OEL) وزارت بهداشت",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        th_wbgt, _ = EnvironmentalThreshold.objects.update_or_create(
+            organization=org_foolad,
+            category=EnvironmentalThreshold.Category.HEAT_STRESS,
+            parameter="WBGT_C",
+            defaults={
+                "name": "حد مجاز استرس حرارتی مشاغل سنگین",
+                "limit_type": EnvironmentalThreshold.LimitType.MAX_LIMIT,
+                "limit_value": 28.00,
+                "unit": "°C WBGT",
+                "standard_reference": "حدود مواجهه شغلی با عوامل گرمازا (OEL)",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        # 2. Environmental Aspects (ISO 14001)
+        asp1, _ = EnvironmentalAspect.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            activity_or_process="ذوب ضایعات در کوره قوس الکتریکی",
+            aspect="انتشار غبار فلزی و گازهای مونوکسید کربن و SO2",
+            defaults={
+                "impact": "آلودگی هوای اتمسفر و آسیب به سیستم تنفسی پرسنل و ساکنان مجاور",
+                "condition": EnvironmentalAspect.Condition.NORMAL,
+                "severity_score": 4,
+                "probability_score": 4,
+                "control_measures": "نصب غبارگیرهای بگ‌هاوس و فیلتراسیون با پایش مداوم افت فشار بگ‌ها",
+                "is_synthetic": True,
+            },
+        )
+
+        asp2, _ = EnvironmentalAspect.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            activity_or_process="خنک‌کاری غلتک‌های خط نورد با آب صنعتی",
+            aspect="تولید پساب صنعتی حاوی روغن هیدرولیک و ذرات پوسته اکسیدی",
+            defaults={
+                "impact": "آلودگی منابع آب سطحی، خاک و ایجاد لجن‌های هیدروکربنی",
+                "condition": EnvironmentalAspect.Condition.NORMAL,
+                "severity_score": 4,
+                "probability_score": 3,
+                "control_measures": "انتقال پساب به حوضچه اسکیمر روغن و ته‌نشینی لجن و سپس بازچرخانی ۹۰ درصدی آب",
+                "is_synthetic": True,
+            },
+        )
+
+        asp3, _ = EnvironmentalAspect.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_cast,
+            activity_or_process="تخلیه سرباره داغ از پاتیل مذاب ریخته‌گری",
+            aspect="ریزش ناگهانی و انفجار سرباره در مجاورت رطوبت",
+            defaults={
+                "impact": "آتش‌سوزی گسترده صنعتی و پرتاب ترکش‌های مذاب در محیط کارخانه",
+                "condition": EnvironmentalAspect.Condition.EMERGENCY,
+                "severity_score": 5,
+                "probability_score": 2,
+                "control_measures": "بازرسی خشک بودن کامل چاله سرباره و ممنوعیت تردد افراد غیرمجاز حین پاتیل‌ریزی",
+                "is_synthetic": True,
+            },
+        )
+
+        asp4, _ = EnvironmentalAspect.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            activity_or_process="بسته‌بندی بندیل‌های میلگرد و تسمه",
+            aspect="تولید ضایعات تسمه فولادی و پالت‌های چوبی شکسته",
+            defaults={
+                "impact": "انباشت ضایعات جامد غیرخطرناک و اشغال فضای سایت",
+                "condition": EnvironmentalAspect.Condition.NORMAL,
+                "severity_score": 1,
+                "probability_score": 3,
+                "control_measures": "تفکیک در مبدأ و فروش به کارگاه‌های بازیافت چوب و ذوب مجدد تسمه‌ها",
+                "is_synthetic": True,
+            },
+        )
+
+        # 3. Waste Records
+        WasteRecord.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            waste_name="روغن سوخته هیدرولیک ISO VG 68",
+            defaults={
+                "waste_type": WasteRecord.WasteType.HAZARDOUS,
+                "quantity": 650.00,
+                "unit": WasteRecord.Unit.LITER,
+                "storage_location": "انبار مسقف پسماندهای ویژه سوله ۴",
+                "generation_date": today - timedelta(days=8),
+                "status": WasteRecord.Status.STORED,
+                "notes": "نگهداری در بشکه‌های ۲۲۰ لیتری فلزی بر روی پالت مقاوم به نشت و دارای حوضچه مهار.",
+                "is_synthetic": True,
+            },
+        )
+
+        WasteRecord.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            waste_name="لجن‌های آلوده به هیدروکربن‌های نفتی",
+            defaults={
+                "waste_type": WasteRecord.WasteType.HAZARDOUS,
+                "quantity": 2.40,
+                "unit": WasteRecord.Unit.TON,
+                "storage_location": "محوطه حوضچه آرامش تصفیه پساب",
+                "generation_date": today - timedelta(days=20),
+                "status": WasteRecord.Status.DISPOSED,
+                "consignment_number": "MAN-1405-098",
+                "contractor": cont_paydar,
+                "disposal_facility": "مجتمع مدیریت و امحاء پسماندهای ویژه کویر",
+                "disposal_method": "سوزاندن در کوره زباله‌سوز دوار حرارت بالا با فیلتراسیون گاز خروجی",
+                "disposal_date": today - timedelta(days=5),
+                "notes": "حمل ایمن با کامیون دارای پلاک حمل مواد خطرناک و برگه اطلاعات ایمنی مواد (MSDS).",
+                "is_synthetic": True,
+            },
+        )
+
+        WasteRecord.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_cast,
+            waste_name="سرباره خنک‌شده کوره قوس الکتریکی",
+            defaults={
+                "waste_type": WasteRecord.WasteType.NON_HAZARDOUS,
+                "quantity": 18.50,
+                "unit": WasteRecord.Unit.TON,
+                "storage_location": "دپوی روباز سرباره ضلع غربی کارخانه",
+                "generation_date": today - timedelta(days=3),
+                "status": WasteRecord.Status.TRANSFERRED,
+                "consignment_number": "MAN-1405-112",
+                "notes": "انتقال به کارخانه سیمان جهت استفاده به عنوان پوزولان و مصالح زیرسازی جاده.",
+                "is_synthetic": True,
+            },
+        )
+
+        # 4. Wastewater & Emissions (with automated exceedance NonConformity creation)
+        evaluate_and_record_wastewater_emission(
+            organization=org_foolad,
+            workplace=wp_roll,
+            sampling_point="حوضچه خروجی تصفیه‌خانه بیولوژیکی",
+            category=WastewaterEmissionRecord.Category.WASTEWATER,
+            sample_date=today - timedelta(days=4),
+            parameter="PH",
+            measured_value=7.35,
+            unit="pH",
+            threshold=th_ph,
+            laboratory_name="آزمایشگاه معتمد محیط زیست آب آزما البرز",
+            test_report_number="LAB-REP-1405-412",
+            notes="کیفیت خروجی پساب از نظر اسیدیته کاملاً در محدوده استاندارد تخلیه به آب‌های سطحی است.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        evaluate_and_record_wastewater_emission(
+            organization=org_foolad,
+            workplace=wp_roll,
+            sampling_point="کانال سرریز حوضچه اسکیمر نورد",
+            category=WastewaterEmissionRecord.Category.WASTEWATER,
+            sample_date=today - timedelta(days=2),
+            parameter="COD",
+            measured_value=178.50,  # Exceeds 100 mg/L limit
+            unit="mg/L",
+            threshold=th_cod,
+            laboratory_name="آزمایشگاه معتمد محیط زیست آب آزما البرز",
+            test_report_number="LAB-REP-1405-498",
+            notes="تخطی از حد استاندارد به علت خرابی اسکیمر مکانیکی چربی‌گیر لاین خنک‌کننده.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        # 5. Occupational Hygiene Surveys
+        evaluate_and_record_hygiene_survey(
+            organization=org_foolad,
+            workplace=wp_roll,
+            category=OccupationalHygieneRecord.Category.LIGHTING,
+            location_details="کابین کنترل مرکزی خط نورد",
+            survey_date=today - timedelta(days=10),
+            surveyor_name="مهندس کاظمی (کارشناس بهداشت حرفه‌ای)",
+            measured_value=480.00,
+            unit="Lux",
+            control_recommendation="شدت روشنایی موضعی و عمومی با استاندارد ۵۰۰ لوکس اتاق کنترل تطابق دارد.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        evaluate_and_record_hygiene_survey(
+            organization=org_foolad,
+            workplace=wp_roll,
+            category=OccupationalHygieneRecord.Category.NOISE,
+            location_details="کارگاه تراش غلتک‌ها",
+            survey_date=today - timedelta(days=7),
+            surveyor_name="مهندس کاظمی (کارشناس بهداشت حرفه‌ای)",
+            measured_value=81.20,
+            unit="dBA",
+            threshold=th_noise,
+            control_recommendation="میزان تراز صوتی در محدوده هشدار (بالای ۸۰ دسی‌بل)؛ پایش ادواری ۳ ماهه الزامی است.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        evaluate_and_record_hygiene_survey(
+            organization=org_foolad,
+            workplace=wp_roll,
+            category=OccupationalHygieneRecord.Category.NOISE,
+            location_details="سکوی اپراتوری استند شماره ۳ نورد مقاطع سنگین",
+            survey_date=today - timedelta(days=1),
+            surveyor_name="مهندس کاظمی (کارشناس بهداشت حرفه‌ای)",
+            measured_value=93.60,  # Exceeds 85 dBA
+            unit="dBA",
+            threshold=th_noise,
+            control_recommendation="تجهیز اجباری اپراتورها به ایرماف با تضعیف SNR>=30dB، عایق‌کاری آکوستیک کابین و کاهش زمان شیفت در ایستگاه.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        evaluate_and_record_hygiene_survey(
+            organization=org_foolad,
+            workplace=wp_cast,
+            category=OccupationalHygieneRecord.Category.HEAT_STRESS,
+            location_details="سکوی تخلیه پاتیل مذاب ایستگاه ریخته‌گری",
+            survey_date=today - timedelta(days=1),
+            surveyor_name="مهندس کاظمی (کارشناس بهداشت حرفه‌ای)",
+            measured_value=31.40,  # Exceeds 28.0 WBGT
+            unit="°C WBGT",
+            threshold=th_wbgt,
+            control_recommendation="برقراری پروتکل کار در گرما: شیفت چرخشی ۲۵٪ کار و ۷۵٪ استراحت در اتاق خنک، توزیع شربت آبلیمو و پایش علائم دهیدراتاسیون.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Phase 14 Environmental & Occupational Hygiene demo data seeded: thresholds, aspects, hazardous waste, emission exceedances with CAPA, and hygiene surveys."
             )
         )
 
         self.stdout.write(self.style.SUCCESS("All synthetic demo data seeded successfully with is_synthetic=True."))
+
