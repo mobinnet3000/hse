@@ -75,7 +75,11 @@ python manage.py seed_demo_data
 python manage.py seed_demo_data
 ```
 
-> کاربران و سناریوهای دموی فاز ۱۰ در `docs/reports/PHASE-10-DEMO-GUIDE.md` توضیح داده شده‌اند. جزئیات فنی و شواهد آزمون در `docs/reports/10_training_competency_ppe.md` ثبت شده است. رمز اولیه حساب‌های دمو فقط در اولین ایجاد `Pass-12345-abc` است و اجرای مجدد seed بدون `--reset-demo-passwords` آن را تغییر نمی‌دهد.
+> **مستندات تکمیلی پیش از فاز ۱۱:**
+> - [گزارش ممیزی ۱۰ فاز نخست](docs/reports/PRE_PHASE_11_PRODUCT_AUDIT.md)
+> - [راهنمای جامع سناریوی دمو](docs/reports/PRE_PHASE_11-DEMO-GUIDE.md)
+> - [مستندات سیستم طراحی و UI/UX](docs/reports/PRE_PHASE_11-UI-UX.md)
+> - [برنامه اجرایی تکمیل محصول](docs/plans/PRE_PHASE_11_PRODUCT_COMPLETION.md)
 
 ---
 

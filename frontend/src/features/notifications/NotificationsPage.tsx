@@ -102,24 +102,20 @@ export function NotificationsPage() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "flex-start",
-              backgroundColor: n.is_read ? "#fdfdfd" : "#eef6ff",
-              borderRight: n.is_read ? "3px solid #ccc" : "3px solid #0056b3",
-              padding: "1rem",
+              backgroundColor: n.is_read ? "var(--bg-surface)" : "var(--primary-subtle)",
+              borderRight: n.is_read ? "3px solid var(--border-default)" : "3px solid var(--primary)",
+              padding: "1.15rem",
+              borderRadius: "var(--radius-lg)",
+              border: "1px solid var(--border-default)",
+              borderRightWidth: "4px",
+              boxShadow: "var(--shadow-xs)",
             }}
           >
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <strong>{n.title}</strong>
                 {!n.is_read && (
-                  <span
-                    style={{
-                      background: "#0056b3",
-                      color: "#fff",
-                      borderRadius: "4px",
-                      padding: "0.1rem 0.4rem",
-                      fontSize: "0.75rem",
-                    }}
-                  >
+                  <span className="badge badge-info">
                     جدید
                   </span>
                 )}
@@ -132,7 +128,7 @@ export function NotificationsPage() {
             {!n.is_read && (
               <button
                 type="button"
-                className="btn btn-sm btn-link"
+                className="btn btn-sm btn-outline"
                 onClick={() => handleMarkRead(n.id)}
                 style={{ whiteSpace: "nowrap" }}
               >

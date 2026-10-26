@@ -1,3 +1,4 @@
+import { FileCheck, RefreshCw, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
@@ -291,38 +292,22 @@ export function PermitsPage() {
       </div>
 
       {/* Main Tabs */}
-      <div className="sub-tabs" style={{ display: "flex", gap: "0.5rem", borderBottom: "2px solid var(--border-color, #e2e8f0)", marginBottom: "1.5rem" }}>
+      <div className="tabs-nav">
         <button
           type="button"
           className={`tab-btn ${activeMainTab === "ptw" ? "active" : ""}`}
           onClick={() => setActiveMainTab("ptw")}
-          style={{
-            padding: "0.6rem 1.2rem",
-            background: "none",
-            border: "none",
-            borderBottom: activeMainTab === "ptw" ? "3px solid var(--primary-color, #0284c7)" : "none",
-            fontWeight: activeMainTab === "ptw" ? "bold" : "normal",
-            cursor: "pointer",
-            fontSize: "1rem",
-          }}
         >
-          📋 پروانه‌های کار (Permit to Work)
+          <FileCheck size={16} style={{ display: "inline-block", verticalAlign: "middle", marginLeft: "0.4rem" }} />
+          پروانه‌های کار (Permit to Work)
         </button>
         <button
           type="button"
           className={`tab-btn ${activeMainTab === "handover" ? "active" : ""}`}
           onClick={() => setActiveMainTab("handover")}
-          style={{
-            padding: "0.6rem 1.2rem",
-            background: "none",
-            border: "none",
-            borderBottom: activeMainTab === "handover" ? "3px solid var(--primary-color, #0284c7)" : "none",
-            fontWeight: activeMainTab === "handover" ? "bold" : "normal",
-            cursor: "pointer",
-            fontSize: "1rem",
-          }}
         >
-          🔄 تحویل و تحول شیفت (Shift Handover)
+          <RefreshCw size={16} style={{ display: "inline-block", verticalAlign: "middle", marginLeft: "0.4rem" }} />
+          تحویل و تحول شیفت (Shift Handover)
         </button>
       </div>
 
@@ -334,21 +319,21 @@ export function PermitsPage() {
           {/* KPI Cards */}
           {stats && (
             <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-              <div className="kpi-card" style={{ padding: "1rem", borderRadius: "8px", background: "var(--card-bg, #f8fafc)", border: "1px solid var(--border-color, #e2e8f0)" }}>
+              <div className="card" style={{ padding: "1.25rem", margin: 0, borderRight: "4px solid var(--primary)" }}>
                 <span className="muted" style={{ fontSize: "0.85rem" }}>کل مجوزها</span>
-                <h3 style={{ margin: "0.3rem 0 0", color: "#1e293b" }}>{stats.total_permits}</h3>
+                <h3 style={{ margin: "0.3rem 0 0", color: "var(--text-primary)" }}>{stats.total_permits}</h3>
               </div>
-              <div className="kpi-card" style={{ padding: "1rem", borderRadius: "8px", background: "var(--card-bg, #f0fdf4)", border: "1px solid #bbf7d0" }}>
-                <span style={{ fontSize: "0.85rem", color: "#166534" }}>مجوزهای فعال و در حال اجرا</span>
-                <h3 style={{ margin: "0.3rem 0 0", color: "#15803d" }}>{stats.active_count}</h3>
+              <div className="card" style={{ padding: "1.25rem", margin: 0, borderRight: "4px solid var(--success)" }}>
+                <span style={{ fontSize: "0.85rem", color: "var(--success)" }}>مجوزهای فعال و در حال اجرا</span>
+                <h3 style={{ margin: "0.3rem 0 0", color: "var(--success)" }}>{stats.active_count}</h3>
               </div>
-              <div className="kpi-card" style={{ padding: "1rem", borderRadius: "8px", background: "var(--card-bg, #fefce8)", border: "1px solid #fef08a" }}>
-                <span style={{ fontSize: "0.85rem", color: "#854d0e" }}>در انتظار بررسی و تأیید</span>
-                <h3 style={{ margin: "0.3rem 0 0", color: "#a16207" }}>{stats.requested_count + stats.approved_count}</h3>
+              <div className="card" style={{ padding: "1.25rem", margin: 0, borderRight: "4px solid var(--warning)" }}>
+                <span style={{ fontSize: "0.85rem", color: "var(--warning)" }}>در انتظار بررسی و تأیید</span>
+                <h3 style={{ margin: "0.3rem 0 0", color: "var(--warning)" }}>{stats.requested_count + stats.approved_count}</h3>
               </div>
-              <div className="kpi-card" style={{ padding: "1rem", borderRadius: "8px", background: "var(--card-bg, #fef2f2)", border: "1px solid #fecaca" }}>
-                <span style={{ fontSize: "0.85rem", color: "#991b1b" }}>معلق‌شده یا منقضی</span>
-                <h3 style={{ margin: "0.3rem 0 0", color: "#b91c1c" }}>{stats.suspended_count + stats.expired_count}</h3>
+              <div className="card" style={{ padding: "1.25rem", margin: 0, borderRight: "4px solid var(--danger)" }}>
+                <span style={{ fontSize: "0.85rem", color: "var(--danger)" }}>معلق‌شده یا منقضی</span>
+                <h3 style={{ margin: "0.3rem 0 0", color: "var(--danger)" }}>{stats.suspended_count + stats.expired_count}</h3>
               </div>
             </div>
           )}
@@ -1456,11 +1441,11 @@ function CreatePermitModal({ organizationId, workplaces, onClose, onSuccess }: C
   const defaultUntil = toLocalDateTimeInput(new Date(now.getTime() + 8 * 3600000));
 
   return (
-    <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-      <div className="modal-content" style={{ background: "white", borderRadius: "8px", maxWidth: "650px", width: "90%", maxHeight: "90vh", overflowY: "auto", padding: "1.5rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.5rem", marginBottom: "1rem" }}>
-          <h3 style={{ margin: 0 }}>درخواست صدور مجوز کار جدید (PTW)</h3>
-          <button type="button" onClick={onClose} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer" }}>✕</button>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container" style={{ maxWidth: "650px" }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3 className="modal-title">درخواست صدور مجوز کار جدید (PTW)</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="بستن"><X size={18} /></button>
         </div>
 
         {error && <div style={{ color: "red", background: "#fee2e2", padding: "0.75rem", borderRadius: "4px", marginBottom: "1rem" }}>{error}</div>}

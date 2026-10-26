@@ -567,42 +567,42 @@ export function WorkforcePage() {
             marginBottom: "1.5rem",
           }}
         >
-          <div className="stat-card" style={{ padding: "1rem", background: "#f8f9fa", borderRadius: "8px", borderRight: "4px solid #0056b3" }}>
-            <span style={{ fontSize: "0.85rem", color: "#666" }}>کل کارکنان / فعال</span>
+          <div className="stat-card" style={{ borderRight: "4px solid var(--primary)" }}>
+            <span style={{ fontSize: "0.85rem" }} className="muted">کل کارکنان / فعال</span>
             <div style={{ fontSize: "1.5rem", fontWeight: "bold", margin: "0.25rem 0" }}>
-              {stats.employees_active} <span style={{ fontSize: "0.9rem", color: "#888" }}>از {stats.employees_total}</span>
+              {stats.employees_active} <span style={{ fontSize: "0.9rem" }} className="muted">از {stats.employees_total}</span>
             </div>
-            <span style={{ fontSize: "0.75rem", color: "#777" }}>
+            <span style={{ fontSize: "0.75rem" }} className="muted">
               {stats.employees_without_account} کارمند بدون حساب سامانه
             </span>
           </div>
 
-          <div className="stat-card" style={{ padding: "1rem", background: "#f8f9fa", borderRadius: "8px", borderRight: "4px solid #28a745" }}>
-            <span style={{ fontSize: "0.85rem", color: "#666" }}>صلاحیت‌های معتبر</span>
-            <div style={{ fontSize: "1.5rem", fontWeight: "bold", margin: "0.25rem 0", color: "#28a745" }}>
+          <div className="stat-card" style={{ borderRight: "4px solid var(--success)" }}>
+            <span style={{ fontSize: "0.85rem" }} className="muted">صلاحیت‌های معتبر</span>
+            <div style={{ fontSize: "1.5rem", fontWeight: "bold", margin: "0.25rem 0", color: "var(--success)" }}>
               {stats.competency_valid}
             </div>
-            <span style={{ fontSize: "0.75rem", color: stats.competency_expiring_soon > 0 ? "#e0a800" : "#777" }}>
+            <span style={{ fontSize: "0.75rem", color: stats.competency_expiring_soon > 0 ? "var(--warning)" : "inherit" }} className="muted">
               {stats.competency_expiring_soon} مورد در آستانه انقضا (۳۰ روز)
             </span>
           </div>
 
-          <div className="stat-card" style={{ padding: "1rem", background: "#f8f9fa", borderRadius: "8px", borderRight: "4px solid #dc3545" }}>
-            <span style={{ fontSize: "0.85rem", color: "#666" }}>صلاحیت‌های غیرمعتبر</span>
-            <div style={{ fontSize: "1.5rem", fontWeight: "bold", margin: "0.25rem 0", color: "#dc3545" }}>
+          <div className="stat-card" style={{ borderRight: "4px solid var(--danger)" }}>
+            <span style={{ fontSize: "0.85rem" }} className="muted">صلاحیت‌های غیرمعتبر</span>
+            <div style={{ fontSize: "1.5rem", fontWeight: "bold", margin: "0.25rem 0", color: "var(--danger)" }}>
               {stats.competency_expired + stats.competency_suspended + stats.competency_revoked}
             </div>
-            <span style={{ fontSize: "0.75rem", color: "#777" }}>
+            <span style={{ fontSize: "0.75rem" }} className="muted">
               {stats.competency_expired} منقضی | {stats.competency_suspended} تعلیق | {stats.competency_revoked} لغو
             </span>
           </div>
 
-          <div className="stat-card" style={{ padding: "1rem", background: "#f8f9fa", borderRadius: "8px", borderRight: "4px solid #fd7e14" }}>
-            <span style={{ fontSize: "0.85rem", color: "#666" }}>تخصیص‌های فعال PPE</span>
-            <div style={{ fontSize: "1.5rem", fontWeight: "bold", margin: "0.25rem 0", color: "#fd7e14" }}>
+          <div className="stat-card" style={{ borderRight: "4px solid var(--warning)" }}>
+            <span style={{ fontSize: "0.85rem" }} className="muted">تخصیص‌های فعال PPE</span>
+            <div style={{ fontSize: "1.5rem", fontWeight: "bold", margin: "0.25rem 0", color: "var(--warning)" }}>
               {stats.ppe_active_assignments}
             </div>
-            <span style={{ fontSize: "0.75rem", color: stats.ppe_assignments_overdue > 0 ? "#dc3545" : "#777" }}>
+            <span style={{ fontSize: "0.75rem", color: stats.ppe_assignments_overdue > 0 ? "var(--danger)" : "inherit" }} className="muted">
               {stats.ppe_assignments_overdue} موعد گذشته | {stats.ppe_stock_below_minimum} انبار زیر حداقل
             </span>
           </div>
@@ -610,40 +610,16 @@ export function WorkforcePage() {
       )}
 
       {/* Tabs */}
-      <div
-        className="tabs-nav"
-        style={{
-          display: "flex",
-          gap: "0.5rem",
-          borderBottom: "2px solid #dee2e6",
-          marginBottom: "1.5rem",
-        }}
-      >
+      <div className="tabs-nav">
         <button
           className={`tab-btn ${activeTab === "overview" ? "active" : ""}`}
           onClick={() => setActiveTab("overview")}
-          style={{
-            padding: "0.6rem 1.2rem",
-            border: "none",
-            background: "none",
-            borderBottom: activeTab === "overview" ? "3px solid #0056b3" : "none",
-            fontWeight: activeTab === "overview" ? "bold" : "normal",
-            cursor: "pointer",
-          }}
         >
           نمای کلی
         </button>
         <button
           className={`tab-btn ${activeTab === "employees" ? "active" : ""}`}
           onClick={() => setActiveTab("employees")}
-          style={{
-            padding: "0.6rem 1.2rem",
-            border: "none",
-            background: "none",
-            borderBottom: activeTab === "employees" ? "3px solid #0056b3" : "none",
-            fontWeight: activeTab === "employees" ? "bold" : "normal",
-            cursor: "pointer",
-          }}
         >
           پرسنل و سوابق ({employees.length})
         </button>
@@ -664,28 +640,12 @@ export function WorkforcePage() {
         <button
           className={`tab-btn ${activeTab === "competencies" ? "active" : ""}`}
           onClick={() => setActiveTab("competencies")}
-          style={{
-            padding: "0.6rem 1.2rem",
-            border: "none",
-            background: "none",
-            borderBottom: activeTab === "competencies" ? "3px solid #0056b3" : "none",
-            fontWeight: activeTab === "competencies" ? "bold" : "normal",
-            cursor: "pointer",
-          }}
         >
           صلاحیت‌ها و مجوز کار ({competencies.length})
         </button>
         <button
           className={`tab-btn ${activeTab === "ppe" ? "active" : ""}`}
           onClick={() => setActiveTab("ppe")}
-          style={{
-            padding: "0.6rem 1.2rem",
-            border: "none",
-            background: "none",
-            borderBottom: activeTab === "ppe" ? "3px solid #0056b3" : "none",
-            fontWeight: activeTab === "ppe" ? "bold" : "normal",
-            cursor: "pointer",
-          }}
         >
           تجهیزات حفاظت فردی PPE ({ppeItems.length})
         </button>

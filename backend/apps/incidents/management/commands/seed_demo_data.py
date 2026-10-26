@@ -41,10 +41,16 @@ class Command(BaseCommand):
             action="store_true",
             help="Deliberately reset passwords of existing demo-prefixed accounts only.",
         )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Force seeding demo data even if organizations exist without demo accounts.",
+        )
 
     def handle(self, *args, **options):
         self.stdout.write("Starting HSE Guard synthetic demo data seeding...")
         self.reset_demo_passwords = options.get("reset_demo_passwords", False)
+        self.force = options.get("force", False)
 
         # 1. Seed Knowledge Base regulations
         try:
@@ -55,21 +61,16 @@ class Command(BaseCommand):
 
         # 2. Organizations
         def seed_organization(code, name):
-            """Create the demo organization, or refresh it only if it is demo-owned.
-
-            A real organization may legitimately use one of these codes. Refuse
-            to overwrite it unless demo accounts are already attached, which is
-            the marker left by a previous seed run.
-            """
+            """Create the demo organization, or refresh it only if it is demo-owned."""
             existing = Organization.objects.filter(code=code).first()
             if existing is not None:
                 is_demo_owned = Membership.objects.filter(
                     organization=existing, user__username__startswith="demo_"
                 ).exists()
-                if not is_demo_owned:
+                if not is_demo_owned and not self.force:
                     raise CommandError(
                         f"سازمان «{code}» از قبل وجود دارد و نشانه‌ای از داده دمو ندارد؛ "
-                        "برای جلوگیری از بازنویسی داده واقعی، عملیات متوقف شد."
+                        "برای جلوگیری از بازنویسی داده واقعی، عملیات متوقف شد. از --force برای ادامه استفاده کنید."
                     )
                 existing.name = name
                 existing.is_active = True
@@ -408,6 +409,141 @@ class Command(BaseCommand):
                 "uploaded_by": viewer_user,
             }
         )
+
+        # 8. Checklists & Inspections
+        chk_fire, _ = Checklist.objects.update_or_create(
+            organization=org_foolad,
+            title="چک‌لیست ایمنی عمومی و تجهیزات اطفای حریق",
+            defaults={
+                "description": "پایش ماهانه کپسول‌های پودر و گاز، جعبه‌های F و مسیرهای دسترسی اضطراری",
+                "is_active": True,
+                "created_by": hse_mgr_user,
+            },
+        )
+        for idx, text in enumerate([
+            "بررسی فشارسنج و قرار داشتن عقربه در ناحیه سبز گیج",
+            "سالم بودن پلمپ، ضامن و بست نگه‌دارنده شیلنگ تخلیه",
+            "عدم وجود مانع یا دپوی کالا در مقابل کپسول‌ها و فایرباکس‌ها",
+            "اعتبار تاریخ آخرین تست هیدروستاتیک و شارژ دوره‌ای سالانه",
+        ], 1):
+            ChecklistItem.objects.update_or_create(
+                checklist=chk_fire, order=idx,
+                defaults={"text": text, "is_required": True},
+            )
+
+        chk_ppe_cast, _ = Checklist.objects.update_or_create(
+            organization=org_foolad,
+            title="چک‌لیست نظارت بر تجهیزات حفاظت فردی (PPE) کارگاه ریخته‌گری",
+            defaults={
+                "description": "انطباق البسه نسوز، شیلد و گترهای اپراتورهای کوره قوس و پاتیل مذاب",
+                "is_active": True,
+                "created_by": hse_mgr_user,
+            },
+        )
+        for idx, text in enumerate([
+            "استفاده از شیلد محافظ صورت و عینک ضد پاشش مذاب حین تخلیه",
+            "پوشش کامل گتر آلومینایز و دستکش چرمی ساق‌بلند نسوز",
+            "استفاده از کفش ایمنی با سرپنجه فولادی و زیره مقاوم به حرارت",
+            "سلامت و فیت بودن ماسک‌های تنفسی فیلتردار ضد گاز و ذرات فلزی",
+        ], 1):
+            ChecklistItem.objects.update_or_create(
+                checklist=chk_ppe_cast, order=idx,
+                defaults={"text": text, "is_required": True},
+            )
+
+        chk_scaffold, _ = Checklist.objects.update_or_create(
+            organization=org_petro,
+            title="چک‌لیست ایمنی داربست‌بندی و کار در ارتفاع",
+            defaults={
+                "description": "الزامات فنی سازه داربست، تخته‌ها، لوله‌های مهار و سیستم ضدسقوط",
+                "is_active": True,
+                "created_by": hse_mgr_user,
+            },
+        )
+        for idx, text in enumerate([
+            "نصب و سلامت تگ داربست معتبر (Scaffold Tag) سبز رنگ با امضای ناظر",
+            "تکمیل بودن نرده حفاظتی میانی و بالایی به ارتفاع ۹۰ و ۱۱۰ سانتی‌متر",
+            "وجود قرنیز لبه‌دار (Toe-board) به ارتفاع حداقل ۱۵ سانتی‌متر دور سکو",
+            "استفاده کلیه نفرات از کمربند ایمنی فول‌بادی و اتصال به لایف‌لاین",
+        ], 1):
+            ChecklistItem.objects.update_or_create(
+                checklist=chk_scaffold, order=idx,
+                defaults={"text": text, "is_required": True},
+            )
+
+        now_time = timezone.now()
+        insp_fire, _ = Inspection.objects.update_or_create(
+            organization=org_foolad,
+            checklist=chk_fire,
+            title="بازرسی ماهانه تجهیزات اطفای حریق خط نورد گرم",
+            defaults={
+                "workplace": wp_roll,
+                "inspector": inspector_user,
+                "created_by": hse_mgr_user,
+                "scheduled_at": now_time - timedelta(days=5),
+                "performed_at": now_time - timedelta(days=5),
+                "completed_at": now_time - timedelta(days=5),
+                "status": Inspection.Status.COMPLETED,
+                "notes": "کپسول‌های بخش غربی نیازمند بازبینی برچسب شارژ بودند.",
+            },
+        )
+        for item in chk_fire.items.all():
+            res_val = InspectionResponse.Result.CONFORM if item.order != 4 else InspectionResponse.Result.NONCONFORM
+            InspectionResponse.objects.update_or_create(
+                inspection=insp_fire,
+                item=item,
+                defaults={
+                    "item_text": item.text,
+                    "order": item.order,
+                    "is_required": item.is_required,
+                    "result": res_val,
+                    "notes": "برچسب شارژ منقضی شده و نیازمند تمدید است." if res_val == InspectionResponse.Result.NONCONFORM else "مطابق و تأیید شد.",
+                },
+            )
+
+        insp_ppe, _ = Inspection.objects.update_or_create(
+            organization=org_foolad,
+            checklist=chk_ppe_cast,
+            title="پایش میدانی استفاده از PPE در کارگاه ریخته‌گری",
+            defaults={
+                "workplace": wp_cast,
+                "inspector": supervisor_user,
+                "created_by": hse_mgr_user,
+                "scheduled_at": now_time - timedelta(days=2),
+                "performed_at": now_time - timedelta(days=2),
+                "completed_at": now_time - timedelta(days=2),
+                "status": Inspection.Status.COMPLETED,
+                "notes": "کلیه پرسنل شیفت از ادوات کامل و سالم برخوردار بودند.",
+            },
+        )
+        for item in chk_ppe_cast.items.all():
+            InspectionResponse.objects.update_or_create(
+                inspection=insp_ppe,
+                item=item,
+                defaults={
+                    "item_text": item.text,
+                    "order": item.order,
+                    "is_required": item.is_required,
+                    "result": InspectionResponse.Result.CONFORM,
+                    "notes": "وضعیت مطلوب ارزیابی شد.",
+                },
+            )
+
+        insp_scaff, _ = Inspection.objects.update_or_create(
+            organization=org_petro,
+            checklist=chk_scaffold,
+            title="بازرسی هفتگی داربست مخازن کروی واحد ذخیره‌سازی",
+            defaults={
+                "workplace": wp_spheres,
+                "inspector": petro_supervisor_user,
+                "created_by": hse_mgr_user,
+                "scheduled_at": now_time - timedelta(days=1),
+                "performed_at": now_time - timedelta(days=1),
+                "status": Inspection.Status.IN_PROGRESS,
+                "notes": "بررسی اولیه انجام شده و اصلاح قرنیز شمالی در دست اقدام است.",
+            },
+        )
+        self.stdout.write(self.style.SUCCESS("Checklists and inspections seeded."))
 
         # 9. Permits to Work (PTW) & Shift Handover
         def seed_permit(reference_code, defaults):

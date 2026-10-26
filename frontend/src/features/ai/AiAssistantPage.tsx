@@ -1,3 +1,4 @@
+import { ShieldAlert } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   analyzeWorkplaceWithAi,
@@ -232,21 +233,8 @@ export function AiAssistantPage() {
       </header>
 
       {/* Advisory Banner */}
-      <div
-        style={{
-          backgroundColor: "#fffbeb",
-          border: "1px solid #fde68a",
-          borderRadius: "8px",
-          padding: "0.85rem 1rem",
-          display: "flex",
-          alignItems: "flex-start",
-          gap: "0.75rem",
-          fontSize: "0.82rem",
-          color: "#92400e",
-          lineHeight: "1.7",
-        }}
-      >
-        <span style={{ fontSize: "1.2rem" }}>⚖️</span>
+      <div className="alert alert-warning" style={{ alignItems: "flex-start", gap: "0.75rem", lineHeight: "1.7" }}>
+        <ShieldAlert size={20} style={{ flexShrink: 0, marginTop: "0.2rem" }} />
         <div>
           <strong>الزام نظارت و اعتبارسنجی انسانی (Human-in-the-Loop):</strong>
           <p style={{ margin: "0.2rem 0 0" }}>
@@ -274,51 +262,27 @@ export function AiAssistantPage() {
       )}
 
       {/* Tab Buttons */}
-      <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1px solid var(--border, #d9e0e7)", paddingBottom: "0.5rem" }}>
+      <div className="tabs-nav">
         <button
           type="button"
           onClick={() => setActiveTab("workplace")}
-          style={{
-            padding: "0.5rem 1rem",
-            borderRadius: "6px",
-            border: "none",
-            cursor: "pointer",
-            fontWeight: activeTab === "workplace" ? "bold" : "normal",
-            backgroundColor: activeTab === "workplace" ? "var(--primary-soft, #e3f2ee)" : "transparent",
-            color: activeTab === "workplace" ? "var(--primary, #0f6b57)" : "var(--text, #1c2a36)",
-          }}
+          className={`tab-btn ${activeTab === "workplace" ? "active" : ""}`}
         >
-          🔍 تحلیل مخاطرات محیط کار
+          تحلیل مخاطرات محیط کار
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("checklist")}
-          style={{
-            padding: "0.5rem 1rem",
-            borderRadius: "6px",
-            border: "none",
-            cursor: "pointer",
-            fontWeight: activeTab === "checklist" ? "bold" : "normal",
-            backgroundColor: activeTab === "checklist" ? "var(--primary-soft, #e3f2ee)" : "transparent",
-            color: activeTab === "checklist" ? "var(--primary, #0f6b57)" : "var(--text, #1c2a36)",
-          }}
+          className={`tab-btn ${activeTab === "checklist" ? "active" : ""}`}
         >
-          📋 پیشنهاد چک‌لیست بازرسی
+          پیشنهاد چک‌لیست بازرسی
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("hierarchy")}
-          style={{
-            padding: "0.5rem 1rem",
-            borderRadius: "6px",
-            border: "none",
-            cursor: "pointer",
-            fontWeight: activeTab === "hierarchy" ? "bold" : "normal",
-            backgroundColor: activeTab === "hierarchy" ? "var(--primary-soft, #e3f2ee)" : "transparent",
-            color: activeTab === "hierarchy" ? "var(--primary, #0f6b57)" : "var(--text, #1c2a36)",
-          }}
+          className={`tab-btn ${activeTab === "hierarchy" ? "active" : ""}`}
         >
-          🛡️ سلسله‌مراتب کنترل خطر (ISO 45001)
+          سلسله‌مراتب کنترل خطر (ISO 45001)
         </button>
       </div>
 

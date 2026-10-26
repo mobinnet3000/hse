@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import {
   ApiRequestError,
@@ -409,16 +409,16 @@ export function InspectionsPage() {
               </option>
             ))}
           </select>
-          <button type="button" className="secondary" onClick={() => setTab("checklists")}>
+          <button type="button" className={`secondary ${tab === "checklists" ? "active" : ""}`} onClick={() => setTab("checklists")}>
             قالب‌ها
           </button>
-          <button type="button" className="secondary" onClick={() => setTab("inspections")}>
+          <button type="button" className={`secondary ${tab === "inspections" ? "active" : ""}`} onClick={() => setTab("inspections")}>
             بازرسی‌ها
           </button>
-          <button type="button" className="secondary" onClick={() => setTab("nonconformities")}>
+          <button type="button" className={`secondary ${tab === "nonconformities" ? "active" : ""}`} onClick={() => setTab("nonconformities")}>
             عدم‌انطباق‌ها
           </button>
-          <button type="button" className="secondary" onClick={() => setTab("actions")}>
+          <button type="button" className={`secondary ${tab === "actions" ? "active" : ""}`} onClick={() => setTab("actions")}>
             اقدامات
           </button>
         </div>

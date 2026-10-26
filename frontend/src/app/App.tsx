@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppLayout, type NavTab } from "../layouts/AppLayout";
 import { AuthProvider } from "../features/auth/AuthContext";
+import { ThemeProvider } from "../context/ThemeContext";
 import { HealthStatus } from "../features/health/HealthStatus";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { WorkforcePage } from "../features/workforce/WorkforcePage";
@@ -115,8 +116,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

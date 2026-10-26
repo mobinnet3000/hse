@@ -1,3 +1,4 @@
+import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   fetchOrganizations,
@@ -100,6 +101,32 @@ const REPORTS: ReportDefinition[] = [
       { value: "in_progress", label: "در حال انجام" },
       { value: "pending_verification", label: "در انتظار تأیید" },
       { value: "completed", label: "انجام‌یافته" },
+    ],
+  },
+  {
+    id: "permits",
+    name: "گزارش پروانه‌های کار (PTW)",
+    description: "مجوزهای کار گرم، ارتفاع، فضای بسته، حفاری و وضعیت صلاحیت تیم کاری",
+    statusOptions: [
+      { value: "requested", label: "درخواست‌شده" },
+      { value: "approved", label: "تأییدشده" },
+      { value: "active", label: "فعال و در حال اجرا" },
+      { value: "suspended", label: "معلق‌شده" },
+      { value: "completed", label: "اتمام کار عملیاتی" },
+      { value: "closed", label: "مختومه‌شده" },
+      { value: "cancelled", label: "لغوشده" },
+    ],
+  },
+  {
+    id: "incidents",
+    name: "گزارش حوادث و شبه‌حوادث",
+    description: "سوابق حوادث، شبه‌حوادث، اعمال ناایمن، تحلیل ریشه‌ای و تلفات روز کاری",
+    statusOptions: [
+      { value: "reported", label: "گزارش‌شده" },
+      { value: "under_review", label: "در حال بررسی اولیه" },
+      { value: "under_investigation", label: "در حال تحلیل ریشه‌ای" },
+      { value: "action_required", label: "نیازمند اقدام اصلاحی" },
+      { value: "closed", label: "مختومه‌شده" },
     ],
   },
 ];
@@ -268,6 +295,7 @@ export function ReportsPage() {
             onClick={() => handleDownload(selectedReport)}
             disabled={!organizationId}
           >
+            <Download size={16} />
             دریافت خروجی {activeDef.name} (CSV / Excel)
           </button>
         </div>
@@ -284,8 +312,10 @@ export function ReportsPage() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                background: selectedReport === r.id ? "#f9f9fc" : "transparent",
-                border: selectedReport === r.id ? "1px solid #0056b3" : "1px solid #e0e0e0",
+                backgroundColor: selectedReport === r.id ? "var(--primary-subtle)" : "var(--bg-surface)",
+                borderColor: selectedReport === r.id ? "var(--primary)" : "var(--border-default)",
+                margin: 0,
+                padding: "1.25rem",
               }}
             >
               <div>
@@ -296,10 +326,11 @@ export function ReportsPage() {
               </div>
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-outline"
                 onClick={() => handleDownload(r.id)}
                 disabled={!organizationId}
               >
+                <Download size={14} />
                 دانلود CSV
               </button>
             </div>
