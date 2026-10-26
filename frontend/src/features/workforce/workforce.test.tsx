@@ -199,6 +199,74 @@ const mockPPEAssignment = {
   created_at: "2026-10-20T08:00:00Z",
 };
 
+const mockContractor = {
+  id: 1,
+  organization: 1,
+  name: "شرکت مهندسی پایدار سازه",
+  registration_no: "REG-99120",
+  economic_code: "10103456789",
+  contact_person: "مهندس احمدی",
+  contact_phone: "02188990011",
+  contact_email: "info@paydarsazeh.ir",
+  status: "approved",
+  status_display: "تایید شده",
+  contract_start: "2026-01-01",
+  contract_end: "2026-12-31",
+  safety_score: 92.5,
+  is_active: true,
+  document_count: 2,
+  worker_count: 5,
+  evaluation_count: 1,
+  created_at: "2026-10-20T08:00:00Z",
+};
+
+const mockJobPosition = {
+  id: 1,
+  organization: 1,
+  code: "JOB-ELEC-01",
+  title: "تکنسین برق صنعتی",
+  department: "تعمیرات و نگهداری",
+  description: "نگهداری تابلوهای فشار قوی",
+  risk_level: "high",
+  risk_level_display: "خطر بالا",
+  requires_medical_check: true,
+  medical_interval_months: 12,
+  is_active: true,
+  active_assignments_count: 1,
+  created_at: "2026-10-20T08:00:00Z",
+};
+
+const mockAttendanceRecord = {
+  id: 1,
+  organization: 1,
+  workplace: 1,
+  workplace_name: "کارگاه الف",
+  person_type: "employee",
+  person_type_display: "پرسنل رسمی",
+  person_name: "امیر شریفی (EMP-001)",
+  employee: 1,
+  contractor_worker: null,
+  date: "2026-10-26",
+  check_in: "2026-10-26T07:45:00Z",
+  check_out: null,
+  status: "present",
+  status_display: "حاضر",
+  remarks: "ورود سر شیفت",
+  created_at: "2026-10-26T07:45:00Z",
+};
+
+const mockAttendanceRoster = {
+  date: "2026-10-26",
+  total_recorded: 1,
+  present_count: 1,
+  late_count: 0,
+  absent_count: 0,
+  early_departure_count: 0,
+  employee_count: 1,
+  contractor_worker_count: 0,
+  attendance_records: [mockAttendanceRecord],
+};
+
 function renderWorkforce() {
   return render(
     <AuthProvider>
@@ -223,6 +291,14 @@ describe("WorkforcePage Integration Tests", () => {
         "/workforce/ppe-items/": () => jsonResponse([mockPPEItem]),
         "/workforce/ppe-stock/": () => jsonResponse([mockPPEStock]),
         "/workforce/ppe-assignments/": () => jsonResponse([mockPPEAssignment]),
+        "/workforce/contractors/": () => jsonResponse([mockContractor]),
+        "/workforce/contractor-documents/": () => jsonResponse([]),
+        "/workforce/contractor-workers/": () => jsonResponse([]),
+        "/workforce/contractor-evaluations/": () => jsonResponse([]),
+        "/workforce/jobs/": () => jsonResponse([mockJobPosition]),
+        "/workforce/job-assignments/": () => jsonResponse([]),
+        "/workforce/attendance/": () => jsonResponse([mockAttendanceRecord]),
+        "/workforce/attendance/roster/": () => jsonResponse(mockAttendanceRoster),
         "/workforce/employees/1/training/": () => jsonResponse([mockAttendance]),
         "/workforce/employees/1/competencies/": () => jsonResponse([mockEmployeeCompetency]),
         "/workforce/employees/1/ppe/": () => jsonResponse([mockPPEAssignment]),
@@ -357,5 +433,61 @@ describe("WorkforcePage Integration Tests", () => {
     expect(screen.getByText("سوابق آموزشی")).toBeInTheDocument();
     expect(screen.getByText("صلاحیت‌های احراز‌شده")).toBeInTheDocument();
     expect(screen.getByText("تجهیزات حفاظت فردی PPE")).toBeInTheDocument();
+  });
+
+  it("displays contractors tab with company dossier and safety score", async () => {
+    const user = userEvent.setup();
+    renderWorkforce();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /پیمانکاران و مدارک/ })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /پیمانکاران و مدارک/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText("شرکت مهندسی پایدار سازه")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/REG-99120/)).toBeInTheDocument();
+    expect(screen.getByText(/92.5/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ثبت پیمانکار جدید/ })).toBeInTheDocument();
+  });
+
+  it("displays jobs and positions tab", async () => {
+    const user = userEvent.setup();
+    renderWorkforce();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /شناسنامه مشاغل و انتصاب/ })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /شناسنامه مشاغل و انتصاب/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText("تکنسین برق صنعتی")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("JOB-ELEC-01")).toBeInTheDocument();
+    expect(screen.getByText("تعمیرات و نگهداری")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /تعریف شغل جدید/ })).toBeInTheDocument();
+  });
+
+  it("displays attendance and shift roster tab with real-time statistics", async () => {
+    const user = userEvent.setup();
+    renderWorkforce();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /حضور و غیاب شیفت/ })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /حضور و غیاب شیفت/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /ثبت ورود \/ تردد شیفت/ })).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("کل تردد ثبت‌شده شیفت")).toBeInTheDocument();
+    expect(screen.getByText("امیر شریفی (EMP-001)")).toBeInTheDocument();
   });
 });

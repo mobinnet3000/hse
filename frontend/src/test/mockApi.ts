@@ -182,6 +182,25 @@ export function riskRoutes(overrides: Routes = {}): Routes {
     "/workforce/ppe-items/": () => jsonResponse([]),
     "/workforce/ppe-stock/": () => jsonResponse([]),
     "/workforce/ppe-assignments/": () => jsonResponse([]),
+    "/workforce/contractors/": () => jsonResponse([]),
+    "/workforce/contractor-documents/": () => jsonResponse([]),
+    "/workforce/contractor-workers/": () => jsonResponse([]),
+    "/workforce/contractor-evaluations/": () => jsonResponse([]),
+    "/workforce/jobs/": () => jsonResponse([]),
+    "/workforce/job-assignments/": () => jsonResponse([]),
+    "/workforce/attendance/": () => jsonResponse([]),
+    "/workforce/attendance/roster/": () =>
+      jsonResponse({
+        date: "2026-10-26",
+        total_recorded: 0,
+        present_count: 0,
+        late_count: 0,
+        absent_count: 0,
+        early_departure_count: 0,
+        employee_count: 0,
+        contractor_worker_count: 0,
+        attendance_records: [],
+      }),
     ...overrides,
   };
 }

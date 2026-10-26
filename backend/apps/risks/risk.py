@@ -34,3 +34,29 @@ def evaluate_risk(likelihood, severity):
     score = calculate_risk_score(likelihood, severity)
     code, label = risk_level_for_score(score)
     return score, code, label
+
+
+def calculate_hcms_residual(likelihood, severity):
+    score = calculate_risk_score(likelihood, severity)
+    code, label = risk_level_for_score(score)
+    return {
+        "residual_score": score,
+        "residual_level": code,
+        "residual_level_label": label,
+    }
+
+
+BARRIER_EFFECTIVENESS_FACTORS = {
+    "effective": 0.3,          # 70% risk reduction
+    "partially_effective": 0.6,# 40% risk reduction
+    "not_tested": 0.8,         # 20% estimated reduction
+    "ineffective": 1.0,        # No reduction (failed barrier)
+}
+
+
+def evaluate_barrier_residual(initial_score, effectiveness):
+    factor = BARRIER_EFFECTIVENESS_FACTORS.get(effectiveness, 1.0)
+    residual_score = max(1, min(25, int(round(initial_score * factor))))
+    code, label = risk_level_for_score(residual_score)
+    return residual_score, code, label
+

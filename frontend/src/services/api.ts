@@ -254,6 +254,224 @@ export function updateAssessment(id: number, data: Record<string, unknown>) {
     body: JSON.stringify(data),
   });
 }
+
+// -----------------------------------------
+// Phase 11: BowTie, Barriers & HCMS
+// -----------------------------------------
+
+export type BowTieThreat = {
+  id: number;
+  diagram: number;
+  title: string;
+  category: string;
+  order: number;
+};
+
+export type BowTieConsequence = {
+  id: number;
+  diagram: number;
+  title: string;
+  severity_level: "low" | "medium" | "high" | "critical";
+  severity_level_display: string;
+  order: number;
+};
+
+export type BarrierAssessment = {
+  id: number;
+  barrier: number;
+  effectiveness: "effective" | "partially_effective" | "ineffective" | "not_tested";
+  effectiveness_display: string;
+  assessed_by: number | null;
+  assessed_by_name?: string;
+  assessment_date: string;
+  evidence_reference: string;
+  notes: string;
+  created_at: string;
+};
+
+export type Barrier = {
+  id: number;
+  diagram: number;
+  threat: number | null;
+  consequence: number | null;
+  barrier_type: "preventive" | "mitigative";
+  barrier_type_display: string;
+  nature: "engineering" | "administrative" | "human_action" | "physical";
+  nature_display: string;
+  name: string;
+  description: string;
+  is_critical: boolean;
+  owner: number | null;
+  owner_name?: string;
+  current_effectiveness: "effective" | "partially_effective" | "ineffective" | "not_tested";
+  current_effectiveness_display: string;
+  status: "operational" | "impaired" | "decommissioned";
+  status_display: string;
+  assessments: BarrierAssessment[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type BowTieDiagram = {
+  id: number;
+  organization: number;
+  hazard: number;
+  hazard_title: string;
+  top_event: string;
+  description: string;
+  status: "draft" | "active" | "under_review" | "archived";
+  status_display: string;
+  owner: number | null;
+  owner_name?: string;
+  target_review_date: string | null;
+  threats: BowTieThreat[];
+  consequences: BowTieConsequence[];
+  barriers: Barrier[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type HCMSControl = {
+  id: number;
+  organization: number;
+  hazard: number;
+  hazard_title: string;
+  barrier: number | null;
+  control_title: string;
+  hierarchy_of_control: "elimination" | "substitution" | "engineering" | "administrative" | "ppe";
+  hierarchy_display: string;
+  implementation_status: "implemented" | "in_progress" | "planned" | "failed";
+  status_display: string;
+  review_frequency_days: number;
+  last_reviewed_at: string | null;
+  next_review_due: string | null;
+  responsible_owner: number | null;
+  owner_name?: string;
+  initial_risk_score: number;
+  residual_likelihood: number;
+  residual_severity: number;
+  residual_score: number;
+  residual_level: "low" | "medium" | "high" | "critical";
+  residual_level_display: string;
+  reassessment_trigger: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RiskTemplate = {
+  id: number;
+  organization: number | null;
+  title: string;
+  industry: string;
+  category: string;
+  category_display: string;
+  standard_code: string;
+  version: string;
+  typical_threats: string;
+  typical_consequences: string;
+  recommended_barriers: string;
+};
+
+export type RiskDashboardSummary = {
+  total_hazards: number;
+  reassessment_needed_count: number;
+  total_bowties: number;
+  total_barriers: number;
+  critical_barriers: number;
+  failed_critical_barriers: number;
+  total_controls: number;
+  pending_review_controls: number;
+};
+
+export function fetchBowTieDiagrams(
+  organizationId: number,
+  filters: Record<string, string> = {},
+  signal?: AbortSignal,
+) {
+  return request<BowTieDiagram[]>(
+    `/risks/bowtie/?${query({ organization: organizationId, ...filters })}`,
+    { signal },
+  );
+}
+
+export function fetchBowTieDiagram(id: number, signal?: AbortSignal) {
+  return request<BowTieDiagram>(`/risks/bowtie/${id}/`, { signal });
+}
+
+export function createBowTieDiagram(organizationId: number, data: Record<string, unknown>) {
+  return request<BowTieDiagram>("/risks/bowtie/", {
+    method: "POST",
+    body: JSON.stringify({ ...data, organization: organizationId }),
+  });
+}
+
+export function createBowTieThreat(diagramId: number, data: Record<string, unknown>) {
+  return request<BowTieThreat>(`/risks/bowtie/${diagramId}/threats/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function createBowTieConsequence(diagramId: number, data: Record<string, unknown>) {
+  return request<BowTieConsequence>(`/risks/bowtie/${diagramId}/consequences/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function createBarrier(data: Record<string, unknown>) {
+  return request<Barrier>("/risks/barriers/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function assessBarrier(barrierId: number, data: Record<string, unknown>) {
+  return request<BarrierAssessment>(`/risks/barriers/${barrierId}/assess/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchHCMSControls(
+  organizationId: number,
+  filters: Record<string, string> = {},
+  signal?: AbortSignal,
+) {
+  return request<HCMSControl[]>(
+    `/risks/hcms/?${query({ organization: organizationId, ...filters })}`,
+    { signal },
+  );
+}
+
+export function createHCMSControl(organizationId: number, data: Record<string, unknown>) {
+  return request<HCMSControl>("/risks/hcms/", {
+    method: "POST",
+    body: JSON.stringify({ ...data, organization: organizationId }),
+  });
+}
+
+export function updateHCMSControl(id: number, data: Record<string, unknown>) {
+  return request<HCMSControl>(`/risks/hcms/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchRiskTemplates(category?: string, signal?: AbortSignal) {
+  return request<RiskTemplate[]>(
+    `/risks/templates/${category ? `?category=${category}` : ""}`,
+    { signal },
+  );
+}
+
+export function fetchRiskDashboardSummary(organizationId: number, signal?: AbortSignal) {
+  return request<RiskDashboardSummary>(
+    `/risks/dashboard/summary/?organization=${organizationId}`,
+    { signal },
+  );
+}
+
 export type ChecklistItem = {
   id: number;
   checklist: number;
@@ -2068,4 +2286,281 @@ export function disposePPEAssignment(id: number, data: { condition?: string; not
 export function fetchPermitCompetencyStatus(permitId: number, signal?: AbortSignal) {
   return request<PermitCompetencyValidation>(`/permits/${permitId}/competency-status/`, { signal });
 }
+
+// ---------------------------------------------------------------------------
+// Phase 12: Jobs, Contractors & Attendance
+// ---------------------------------------------------------------------------
+
+export interface JobPosition {
+  id: number;
+  organization: number;
+  code: string;
+  title: string;
+  description: string;
+  department: string;
+  risk_level: "low" | "medium" | "high" | "critical";
+  risk_level_display?: string;
+  required_competencies: number[];
+  required_competency_details?: { id: number; code: string; name: string }[];
+  required_qualifications: string;
+  is_active: boolean;
+  assignments_count?: number;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EmployeeJobAssignment {
+  id: number;
+  organization: number;
+  employee: number;
+  employee_name?: string;
+  job_position: number;
+  job_position_title?: string;
+  job_position_code?: string;
+  start_date: string;
+  end_date?: string | null;
+  is_primary: boolean;
+  notes?: string;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContractorCompany {
+  id: number;
+  organization: number;
+  name: string;
+  registration_no: string;
+  economic_code: string;
+  contact_person: string;
+  contact_phone: string;
+  contact_email: string;
+  contract_start?: string | null;
+  contract_end?: string | null;
+  status: "pending" | "approved" | "suspended" | "blacklisted";
+  status_display?: string;
+  safety_score: number | string;
+  notes?: string;
+  workers_count?: number;
+  documents_count?: number;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContractorDocument {
+  id: number;
+  organization: number;
+  contractor: number;
+  contractor_name?: string;
+  document_type: "hse_plan" | "insurance_policy" | "qualification_cert" | "iso_cert" | "other";
+  document_type_display?: string;
+  title: string;
+  file_url?: string;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  status: "submitted" | "verified" | "expired" | "rejected";
+  status_display?: string;
+  verified_by?: number | null;
+  verified_by_name?: string | null;
+  verification_notes?: string;
+  is_expired?: boolean;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContractorWorker {
+  id: number;
+  organization: number;
+  contractor: number;
+  contractor_name?: string;
+  national_id: string;
+  first_name: string;
+  last_name: string;
+  full_name?: string;
+  mobile: string;
+  trade: string;
+  badge_number: string;
+  is_active: boolean;
+  medical_clearance_date?: string | null;
+  medical_expiry_date?: string | null;
+  safety_induction_date?: string | null;
+  notes?: string;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContractorEvaluation {
+  id: number;
+  organization: number;
+  contractor: number;
+  contractor_name?: string;
+  evaluation_date: string;
+  evaluator?: number | null;
+  evaluator_name?: string | null;
+  score: number | string;
+  criteria_scores?: Record<string, any>;
+  findings: string;
+  recommendation: "continue" | "warning" | "conditional_approval" | "terminate";
+  recommendation_display?: string;
+  is_synthetic?: boolean;
+  created_at?: string;
+}
+
+export interface AttendanceRecord {
+  id: number;
+  organization: number;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  person_type: "employee" | "contractor_worker";
+  person_type_display?: string;
+  employee?: number | null;
+  employee_name?: string | null;
+  contractor_worker?: number | null;
+  contractor_worker_name?: string | null;
+  person_name?: string;
+  date: string;
+  check_in: string;
+  check_out?: string | null;
+  entry_source: "gate_scanner" | "biometric" | "manual_roster" | "mobile_kiosk";
+  entry_source_display?: string;
+  status: "present" | "late" | "absent" | "early_departure";
+  status_display?: string;
+  verified_by?: number | null;
+  verified_by_name?: string | null;
+  notes?: string;
+  is_synthetic?: boolean;
+  created_at?: string;
+}
+
+export interface AttendanceRoster {
+  date: string;
+  total_recorded: number;
+  present_count: number;
+  late_count: number;
+  absent_count: number;
+  early_departure_count: number;
+  employee_count: number;
+  contractor_worker_count: number;
+}
+
+export function fetchJobPositions(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<JobPosition[]>(`/workforce/jobs/${workforceQuery(params)}`, { signal });
+}
+
+export function createJobPosition(data: Record<string, unknown>) {
+  return request<JobPosition>("/workforce/jobs/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchEmployeeJobAssignments(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<EmployeeJobAssignment[]>(`/workforce/job-assignments/${workforceQuery(params)}`, { signal });
+}
+
+export function createEmployeeJobAssignment(data: Record<string, unknown>) {
+  return request<EmployeeJobAssignment>("/workforce/job-assignments/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchContractors(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<ContractorCompany[]>(`/workforce/contractors/${workforceQuery(params)}`, { signal });
+}
+
+export function createContractor(data: Record<string, unknown>) {
+  return request<ContractorCompany>("/workforce/contractors/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchContractorDocuments(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<ContractorDocument[]>(`/workforce/contractor-documents/${workforceQuery(params)}`, { signal });
+}
+
+export function createContractorDocument(data: Record<string, unknown>) {
+  return request<ContractorDocument>("/workforce/contractor-documents/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function verifyContractorDocument(id: number, data: { status: string; verification_notes?: string }) {
+  return request<ContractorDocument>(`/workforce/contractor-documents/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchContractorWorkers(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<ContractorWorker[]>(`/workforce/contractor-workers/${workforceQuery(params)}`, { signal });
+}
+
+export function createContractorWorker(data: Record<string, unknown>) {
+  return request<ContractorWorker>("/workforce/contractor-workers/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchContractorEvaluations(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<ContractorEvaluation[]>(`/workforce/contractor-evaluations/${workforceQuery(params)}`, { signal });
+}
+
+export function createContractorEvaluation(data: Record<string, unknown>) {
+  return request<ContractorEvaluation>("/workforce/contractor-evaluations/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchAttendanceRecords(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<AttendanceRecord[]>(`/workforce/attendance/${workforceQuery(params)}`, { signal });
+}
+
+export function createAttendanceRecord(data: Record<string, unknown>) {
+  return request<AttendanceRecord>("/workforce/attendance/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchAttendanceRoster(
+  date?: string,
+  organizationId?: number,
+  signal?: AbortSignal,
+) {
+  const p: Record<string, string | number | undefined> = {};
+  if (date) p.date = date;
+  if (organizationId) p.organization = organizationId;
+  return request<AttendanceRoster>(`/workforce/attendance/roster/${workforceQuery(p)}`, { signal });
+}
+
 

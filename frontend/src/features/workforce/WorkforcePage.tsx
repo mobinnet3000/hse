@@ -29,6 +29,27 @@ import {
   issueEmployeeCompetency,
   returnPPEAssignment,
   updateEmployeeCompetencyStatus,
+  createAttendanceRecord,
+  createContractor,
+  createContractorDocument,
+  createContractorWorker,
+  createEmployeeJobAssignment,
+  createJobPosition,
+  fetchAttendanceRecords,
+  fetchAttendanceRoster,
+  fetchContractorDocuments,
+  fetchContractors,
+  fetchContractorWorkers,
+  fetchEmployeeJobAssignments,
+  fetchJobPositions,
+  verifyContractorDocument,
+  type AttendanceRecord,
+  type AttendanceRoster,
+  type ContractorCompany,
+  type ContractorDocument,
+  type ContractorWorker,
+  type EmployeeJobAssignment,
+  type JobPosition,
   type Competency,
   type Employee,
   type EmployeeCompetency,
@@ -45,7 +66,15 @@ import {
   type Workplace,
 } from "../../services/api";
 
-type WorkforceTab = "overview" | "employees" | "training" | "competencies" | "ppe";
+type WorkforceTab =
+  | "overview"
+  | "employees"
+  | "training"
+  | "competencies"
+  | "ppe"
+  | "contractors"
+  | "jobs"
+  | "attendance";
 
 export function WorkforcePage() {
   const [activeTab, setActiveTab] = useState<WorkforceTab>("overview");
@@ -69,6 +98,60 @@ export function WorkforcePage() {
   const [ppeItems, setPpeItems] = useState<PPEItem[]>([]);
   const [ppeStocks, setPpeStocks] = useState<PPEStock[]>([]);
   const [ppeAssignments, setPpeAssignments] = useState<PPEAssignment[]>([]);
+
+  // Phase 12 Domain Data
+  const [contractors, setContractors] = useState<ContractorCompany[]>([]);
+  const [contractorDocuments, setContractorDocuments] = useState<ContractorDocument[]>([]);
+  const [contractorWorkers, setContractorWorkers] = useState<ContractorWorker[]>([]);
+  const [selectedContractorId, setSelectedContractorId] = useState<number | null>(null);
+
+  const [jobPositions, setJobPositions] = useState<JobPosition[]>([]);
+  const [jobAssignments, setJobAssignments] = useState<EmployeeJobAssignment[]>([]);
+
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [attendanceRoster, setAttendanceRoster] = useState<AttendanceRoster | null>(null);
+  const [attendanceDate, setAttendanceDate] = useState<string>(new Date().toISOString().split("T")[0]);
+
+  // Phase 12 Modals
+  const [showContractorModal, setShowContractorModal] = useState<boolean>(false);
+  const [showContractorDocModal, setShowContractorDocModal] = useState<boolean>(false);
+  const [showContractorWorkerModal, setShowContractorWorkerModal] = useState<boolean>(false);
+  const [showJobPositionModal, setShowJobPositionModal] = useState<boolean>(false);
+  const [showJobAssignModal, setShowJobAssignModal] = useState<boolean>(false);
+  const [showAttendanceModalP12, setShowAttendanceModalP12] = useState<boolean>(false);
+
+  // Phase 12 Forms
+  const [contractorName, setContractorName] = useState("");
+  const [contractorRegNo, setContractorRegNo] = useState("");
+  const [contractorContactPerson, setContractorContactPerson] = useState("");
+  const [contractorPhone, setContractorPhone] = useState("");
+
+  const [docType, setDocType] = useState<"hse_plan" | "insurance_policy" | "qualification_cert" | "iso_cert" | "other">("hse_plan");
+  const [docTitle, setDocTitle] = useState("");
+  const [docValidUntil, setDocValidUntil] = useState("");
+
+  const [workerNatId, setWorkerNatId] = useState("");
+  const [workerFirstName, setWorkerFirstName] = useState("");
+  const [workerLastName, setWorkerLastName] = useState("");
+  const [workerTrade, setWorkerTrade] = useState("");
+  const [workerMobile, setWorkerMobile] = useState("");
+
+  const [jobCode, setJobCode] = useState("");
+  const [jobTitleInput, setJobTitleInput] = useState("");
+  const [jobDept, setJobDept] = useState("");
+  const [jobRisk, setJobRisk] = useState<"low" | "medium" | "high" | "critical">("medium");
+  const [jobQuals, setJobQuals] = useState("");
+
+  const [assignEmpId, setAssignEmpId] = useState("");
+  const [assignJobId, setAssignJobId] = useState("");
+  const [assignStartDate, setAssignStartDate] = useState(new Date().toISOString().split("T")[0]);
+
+  const [attType, setAttType] = useState<"employee" | "contractor_worker">("employee");
+  const [attPersonEmpId, setAttPersonEmpId] = useState("");
+  const [attPersonWorkerId, setAttPersonWorkerId] = useState("");
+  const [attWorkplaceId, setAttWorkplaceId] = useState("");
+  const [attStatusP12, setAttStatusP12] = useState<"present" | "late" | "absent" | "early_departure">("present");
+  const [attCheckIn, setAttCheckIn] = useState(new Date().toISOString().slice(0, 16));
 
   // Search and filter states
   const [employeeSearch, setEmployeeSearch] = useState<string>("");
@@ -187,6 +270,11 @@ export function WorkforcePage() {
       fetchPPEItems().catch(() => []),
       fetchPPEStock().catch(() => []),
       fetchPPEAssignments().catch(() => []),
+      fetchContractors().catch(() => []),
+      fetchJobPositions().catch(() => []),
+      fetchEmployeeJobAssignments().catch(() => []),
+      fetchAttendanceRecords({ date: attendanceDate }).catch(() => []),
+      fetchAttendanceRoster(attendanceDate).catch(() => null),
     ])
       .then(
         ([
@@ -202,6 +290,11 @@ export function WorkforcePage() {
           items,
           stocks,
           assigns,
+          cntrs,
+          jobs,
+          jAssigns,
+          attRecs,
+          roster,
         ]) => {
           setStats(st);
           setOrganizations(orgs);
@@ -215,6 +308,11 @@ export function WorkforcePage() {
           setPpeItems(items);
           setPpeStocks(stocks);
           setPpeAssignments(assigns);
+          setContractors(cntrs);
+          setJobPositions(jobs);
+          setJobAssignments(jAssigns);
+          setAttendanceRecords(attRecs);
+          setAttendanceRoster(roster);
         },
       )
       .catch((err) => {
@@ -226,6 +324,29 @@ export function WorkforcePage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (selectedContractorId) {
+      fetchContractorDocuments({ contractor: selectedContractorId })
+        .then(setContractorDocuments)
+        .catch(() => setContractorDocuments([]));
+      fetchContractorWorkers({ contractor: selectedContractorId })
+        .then(setContractorWorkers)
+        .catch(() => setContractorWorkers([]));
+    } else {
+      setContractorDocuments([]);
+      setContractorWorkers([]);
+    }
+  }, [selectedContractorId]);
+
+  useEffect(() => {
+    fetchAttendanceRecords({ date: attendanceDate })
+      .then(setAttendanceRecords)
+      .catch(() => setAttendanceRecords([]));
+    fetchAttendanceRoster(attendanceDate)
+      .then(setAttendanceRoster)
+      .catch(() => setAttendanceRoster(null));
+  }, [attendanceDate]);
 
   useEffect(() => {
     if (selectedSessionId) {
@@ -507,6 +628,177 @@ export function WorkforcePage() {
     }
   };
 
+  // Phase 12 Handlers
+  const handleCreateContractor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await createContractor({
+        name: contractorName,
+        registration_no: contractorRegNo,
+        contact_person: contractorContactPerson,
+        contact_phone: contractorPhone,
+        status: "approved",
+      });
+      setShowContractorModal(false);
+      setContractorName("");
+      setContractorRegNo("");
+      setContractorContactPerson("");
+      setContractorPhone("");
+      loadData();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "خطا در ثبت شرکت پیمانکاری");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateContractorDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedContractorId) return;
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await createContractorDocument({
+        contractor: selectedContractorId,
+        document_type: docType,
+        title: docTitle,
+        valid_until: docValidUntil || null,
+        status: "submitted",
+      });
+      setShowContractorDocModal(false);
+      setDocTitle("");
+      setDocValidUntil("");
+      if (selectedContractorId) {
+        const docs = await fetchContractorDocuments({ contractor: selectedContractorId });
+        setContractorDocuments(docs);
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "خطا در ثبت مدرک پیمانکار");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVerifyDoc = async (docId: number) => {
+    try {
+      await verifyContractorDocument(docId, {
+        status: "verified",
+        verification_notes: "مستندات ایمنی و مدارک تکنسین بررسی و مورد تأیید قرار گرفت.",
+      });
+      if (selectedContractorId) {
+        const docs = await fetchContractorDocuments({ contractor: selectedContractorId });
+        setContractorDocuments(docs);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "خطا در تایید مدرک");
+    }
+  };
+
+  const handleCreateContractorWorker = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedContractorId) return;
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await createContractorWorker({
+        contractor: selectedContractorId,
+        national_id: workerNatId,
+        first_name: workerFirstName,
+        last_name: workerLastName,
+        trade: workerTrade,
+        mobile: workerMobile,
+      });
+      setShowContractorWorkerModal(false);
+      setWorkerNatId("");
+      setWorkerFirstName("");
+      setWorkerLastName("");
+      setWorkerTrade("");
+      setWorkerMobile("");
+      if (selectedContractorId) {
+        const workers = await fetchContractorWorkers({ contractor: selectedContractorId });
+        setContractorWorkers(workers);
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "خطا در ثبت کارگر پیمانکار");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateJobPosition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await createJobPosition({
+        code: jobCode,
+        title: jobTitleInput,
+        department: jobDept,
+        risk_level: jobRisk,
+        required_qualifications: jobQuals,
+      });
+      setShowJobPositionModal(false);
+      setJobCode("");
+      setJobTitleInput("");
+      setJobDept("");
+      setJobQuals("");
+      loadData();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "خطا در ایجاد شناسنامه شغل");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateJobAssign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignEmpId || !assignJobId) return;
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await createEmployeeJobAssignment({
+        employee: Number(assignEmpId),
+        job_position: Number(assignJobId),
+        start_date: assignStartDate,
+        is_primary: true,
+      });
+      setShowJobAssignModal(false);
+      setAssignEmpId("");
+      setAssignJobId("");
+      loadData();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "خطا در انتصاب کارمند به شغل");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateShiftAttendance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await createAttendanceRecord({
+        workplace: attWorkplaceId ? Number(attWorkplaceId) : null,
+        person_type: attType,
+        employee: attType === "employee" ? Number(attPersonEmpId) : null,
+        contractor_worker: attType === "contractor_worker" ? Number(attPersonWorkerId) : null,
+        date: attendanceDate,
+        check_in: attCheckIn,
+        status: attStatusP12,
+      });
+      setShowAttendanceModalP12(false);
+      fetchAttendanceRecords({ date: attendanceDate }).then(setAttendanceRecords);
+      fetchAttendanceRoster(attendanceDate).then(setAttendanceRoster);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "خطا در ثبت تردد");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const filteredEmployees = employees.filter((emp) => {
     const matchSearch =
       !employeeSearch ||
@@ -648,6 +940,24 @@ export function WorkforcePage() {
           onClick={() => setActiveTab("ppe")}
         >
           تجهیزات حفاظت فردی PPE ({ppeItems.length})
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "contractors" ? "active" : ""}`}
+          onClick={() => setActiveTab("contractors")}
+        >
+          پیمانکاران و مدارک ({contractors.length})
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "jobs" ? "active" : ""}`}
+          onClick={() => setActiveTab("jobs")}
+        >
+          شناسنامه مشاغل و انتصاب ({jobPositions.length})
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "attendance" ? "active" : ""}`}
+          onClick={() => setActiveTab("attendance")}
+        >
+          حضور و غیاب شیفت
         </button>
       </div>
 
@@ -1205,6 +1515,490 @@ export function WorkforcePage() {
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* TAB 6: CONTRACTORS */}
+      {!loading && activeTab === "contractors" && (
+        <div className="contractors-tab">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <h2 style={{ fontSize: "1.25rem", margin: 0 }}>مدیریت شرکت‌های پیمانکاری و صلاحیت ایمنی</h2>
+            <button className="button button-primary" onClick={() => setShowContractorModal(true)}>
+              ثبت پیمانکار جدید
+            </button>
+          </div>
+
+          <table className="table" style={{ width: "100%", borderCollapse: "collapse", marginBottom: "1.5rem" }}>
+            <thead>
+              <tr style={{ textAlign: "right", borderBottom: "2px solid #dee2e6" }}>
+                <th style={{ padding: "0.75rem" }}>نام شرکت پیمانکار</th>
+                <th style={{ padding: "0.75rem" }}>شماره ثبت</th>
+                <th style={{ padding: "0.75rem" }}>مسئول رابط / تماس</th>
+                <th style={{ padding: "0.75rem" }}>مدت قرارداد</th>
+                <th style={{ padding: "0.75rem" }}>رتبه ایمنی HSE</th>
+                <th style={{ padding: "0.75rem" }}>وضعیت</th>
+                <th style={{ padding: "0.75rem" }}>مدارک / نیروها</th>
+                <th style={{ padding: "0.75rem" }}>عملیات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contractors.map((c) => (
+                <tr key={c.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                  <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{c.name}</td>
+                  <td style={{ padding: "0.75rem" }}>{c.registration_no || "—"}</td>
+                  <td style={{ padding: "0.75rem" }}>{c.contact_person} {c.contact_phone ? `(${c.contact_phone})` : ""}</td>
+                  <td style={{ padding: "0.75rem" }}>{c.contract_start || "—"} تا {c.contract_end || "—"}</td>
+                  <td style={{ padding: "0.75rem" }}>
+                    <span
+                      style={{
+                        padding: "0.2rem 0.6rem",
+                        borderRadius: "4px",
+                        fontSize: "0.85rem",
+                        fontWeight: "bold",
+                        backgroundColor: Number(c.safety_score) >= 80 ? "#e8f5e9" : "#ffebee",
+                        color: Number(c.safety_score) >= 80 ? "#2e7d32" : "#c62828",
+                      }}
+                    >
+                      {c.safety_score} / 100
+                    </span>
+                  </td>
+                  <td style={{ padding: "0.75rem" }}>
+                    <span
+                      style={{
+                        padding: "0.2rem 0.5rem",
+                        borderRadius: "4px",
+                        fontSize: "0.8rem",
+                        backgroundColor: c.status === "approved" ? "#e8f5e9" : "#fff3e0",
+                        color: c.status === "approved" ? "#2e7d32" : "#e65100",
+                      }}
+                    >
+                      {c.status_display}
+                    </span>
+                  </td>
+                  <td style={{ padding: "0.75rem" }}>
+                    {c.documents_count ?? 0} مدرک | {c.workers_count ?? 0} نیرو
+                  </td>
+                  <td style={{ padding: "0.75rem" }}>
+                    <button
+                      className="button button-sm button-outline"
+                      onClick={() => setSelectedContractorId(c.id === selectedContractorId ? null : c.id)}
+                    >
+                      {selectedContractorId === c.id ? "بستن پرونده" : "مشاهده پرونده و مدارک"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {contractors.length === 0 && (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                    هیچ شرکت پیمانکاری ثبت نشده است.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {/* Selected Contractor Dossier */}
+          {selectedContractorId && (
+            <div className="card" style={{ padding: "1.25rem", border: "1px solid #dee2e6", borderRadius: "8px", marginBottom: "1.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #eee", paddingBottom: "0.75rem", marginBottom: "1rem" }}>
+                <h3 style={{ margin: 0 }}>
+                  پرونده مدارک و پرسنل: {contractors.find((c) => c.id === selectedContractorId)?.name}
+                </h3>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button className="button button-sm button-primary" onClick={() => setShowContractorDocModal(true)}>
+                    ثبت مدرک جدید
+                  </button>
+                  <button className="button button-sm button-secondary" onClick={() => setShowContractorWorkerModal(true)}>
+                    ثبت کارگر جدید
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+                {/* Documents Table */}
+                <div>
+                  <h4 style={{ margin: "0 0 0.5rem" }}>مدارک و مجوزهای ایمنی (HSE Plan، بیمه، استاندارد)</h4>
+                  <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ textAlign: "right", borderBottom: "1px solid #dee2e6" }}>
+                        <th style={{ padding: "0.5rem" }}>نوع مدرک</th>
+                        <th style={{ padding: "0.5rem" }}>عنوان</th>
+                        <th style={{ padding: "0.5rem" }}>اعتبار</th>
+                        <th style={{ padding: "0.5rem" }}>وضعیت</th>
+                        <th style={{ padding: "0.5rem" }}>عملیات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contractorDocuments.map((doc) => (
+                        <tr key={doc.id} style={{ borderBottom: "1px solid #eee" }}>
+                          <td style={{ padding: "0.5rem" }}>{doc.document_type_display}</td>
+                          <td style={{ padding: "0.5rem", fontWeight: "bold" }}>{doc.title}</td>
+                          <td style={{ padding: "0.5rem" }}>
+                            <span style={{ color: doc.is_expired ? "#dc3545" : "inherit" }}>
+                              {doc.valid_until || "نامحدود"}
+                            </span>
+                          </td>
+                          <td style={{ padding: "0.5rem" }}>
+                            <span
+                              style={{
+                                padding: "0.15rem 0.4rem",
+                                borderRadius: "4px",
+                                fontSize: "0.75rem",
+                                backgroundColor: doc.status === "verified" ? "#e8f5e9" : "#fff3e0",
+                                color: doc.status === "verified" ? "#2e7d32" : "#e65100",
+                              }}
+                            >
+                              {doc.status_display}
+                            </span>
+                          </td>
+                          <td style={{ padding: "0.5rem" }}>
+                            {doc.status !== "verified" && (
+                              <button
+                                className="button button-sm button-outline"
+                                onClick={() => handleVerifyDoc(doc.id)}
+                              >
+                                تایید مدرک
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {contractorDocuments.length === 0 && (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: "center", padding: "1rem", color: "#888" }}>
+                            مدرکی ثبت نشده است.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Workers Table */}
+                <div>
+                  <h4 style={{ margin: "0 0 0.5rem" }}>کارگران و تکنسین‌های تحت پوشش</h4>
+                  <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ textAlign: "right", borderBottom: "1px solid #dee2e6" }}>
+                        <th style={{ padding: "0.5rem" }}>کد ملی</th>
+                        <th style={{ padding: "0.5rem" }}>نام و نام خانوادگی</th>
+                        <th style={{ padding: "0.5rem" }}>رسته شغلی</th>
+                        <th style={{ padding: "0.5rem" }}>تماس</th>
+                        <th style={{ padding: "0.5rem" }}>وضعیت</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contractorWorkers.map((w) => (
+                        <tr key={w.id} style={{ borderBottom: "1px solid #eee" }}>
+                          <td style={{ padding: "0.5rem" }}>{w.national_id}</td>
+                          <td style={{ padding: "0.5rem", fontWeight: "bold" }}>{w.full_name}</td>
+                          <td style={{ padding: "0.5rem" }}>{w.trade || "عمومی"}</td>
+                          <td style={{ padding: "0.5rem" }}>{w.mobile || "—"}</td>
+                          <td style={{ padding: "0.5rem" }}>
+                            <span style={{ color: w.is_active ? "#28a745" : "#6c757d" }}>
+                              {w.is_active ? "فعال" : "غیرفعال"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {contractorWorkers.length === 0 && (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: "center", padding: "1rem", color: "#888" }}>
+                            کارگری برای این پیمانکار ثبت نشده است.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 7: JOBS & ASSIGNMENTS */}
+      {!loading && activeTab === "jobs" && (
+        <div className="jobs-tab">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <h2 style={{ fontSize: "1.25rem", margin: 0 }}>شناسنامه مشاغل سازمانی و ماتریس شایستگی</h2>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button className="button button-primary" onClick={() => setShowJobPositionModal(true)}>
+                تعریف شغل جدید
+              </button>
+              <button className="button button-secondary" onClick={() => setShowJobAssignModal(true)}>
+                انتصاب پرسنل به شغل
+              </button>
+            </div>
+          </div>
+
+          <table className="table" style={{ width: "100%", borderCollapse: "collapse", marginBottom: "2rem" }}>
+            <thead>
+              <tr style={{ textAlign: "right", borderBottom: "2px solid #dee2e6" }}>
+                <th style={{ padding: "0.75rem" }}>کد شغل</th>
+                <th style={{ padding: "0.75rem" }}>عنوان سمت</th>
+                <th style={{ padding: "0.75rem" }}>دپارتمان / واحد</th>
+                <th style={{ padding: "0.75rem" }}>سطح ریسک شغلی</th>
+                <th style={{ padding: "0.75rem" }}>صلاحیت‌های الزامی</th>
+                <th style={{ padding: "0.75rem" }}>شرایط احراز</th>
+                <th style={{ padding: "0.75rem" }}>انتصابات فعال</th>
+              </tr>
+            </thead>
+            <tbody>
+              {jobPositions.map((jp) => (
+                <tr key={jp.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                  <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{jp.code}</td>
+                  <td style={{ padding: "0.75rem" }}>{jp.title}</td>
+                  <td style={{ padding: "0.75rem" }}>{jp.department || "—"}</td>
+                  <td style={{ padding: "0.75rem" }}>
+                    <span
+                      style={{
+                        padding: "0.2rem 0.5rem",
+                        borderRadius: "4px",
+                        fontSize: "0.8rem",
+                        fontWeight: "bold",
+                        backgroundColor:
+                          jp.risk_level === "critical"
+                            ? "#ffebee"
+                            : jp.risk_level === "high"
+                            ? "#fff3e0"
+                            : jp.risk_level === "medium"
+                            ? "#e3f2fd"
+                            : "#e8f5e9",
+                        color:
+                          jp.risk_level === "critical"
+                            ? "#c62828"
+                            : jp.risk_level === "high"
+                            ? "#e65100"
+                            : jp.risk_level === "medium"
+                            ? "#1565c0"
+                            : "#2e7d32",
+                      }}
+                    >
+                      {jp.risk_level_display}
+                    </span>
+                  </td>
+                  <td style={{ padding: "0.75rem" }}>
+                    {jp.required_competency_details && jp.required_competency_details.length > 0 ? (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                        {jp.required_competency_details.map((c) => (
+                          <span
+                            key={c.id}
+                            style={{
+                              padding: "0.15rem 0.4rem",
+                              backgroundColor: "#f1f3f5",
+                              borderRadius: "4px",
+                              fontSize: "0.75rem",
+                            }}
+                          >
+                            {c.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td style={{ padding: "0.75rem", fontSize: "0.85rem", color: "#555" }}>
+                    {jp.required_qualifications || "—"}
+                  </td>
+                  <td style={{ padding: "0.75rem", fontWeight: "bold" }}>
+                    {jp.assignments_count ?? 0} نفر
+                  </td>
+                </tr>
+              ))}
+              {jobPositions.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                    هیچ شناسنامه شغلی تعریف نشده است.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          <h3 style={{ fontSize: "1.15rem", marginBottom: "0.75rem" }}>ماتریس سوابق انتصاب کارکنان به مشاغل</h3>
+          <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ textAlign: "right", borderBottom: "2px solid #dee2e6" }}>
+                <th style={{ padding: "0.75rem" }}>نام کارمند</th>
+                <th style={{ padding: "0.75rem" }}>عنوان سمت شغلی</th>
+                <th style={{ padding: "0.75rem" }}>کد شغل</th>
+                <th style={{ padding: "0.75rem" }}>تاریخ شروع</th>
+                <th style={{ padding: "0.75rem" }}>تاریخ پایان</th>
+                <th style={{ padding: "0.75rem" }}>نوع سمت</th>
+              </tr>
+            </thead>
+            <tbody>
+              {jobAssignments.map((ja) => (
+                <tr key={ja.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                  <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{ja.employee_name}</td>
+                  <td style={{ padding: "0.75rem" }}>{ja.job_position_title}</td>
+                  <td style={{ padding: "0.75rem" }}>{ja.job_position_code}</td>
+                  <td style={{ padding: "0.75rem" }}>{ja.start_date}</td>
+                  <td style={{ padding: "0.75rem" }}>
+                    {ja.end_date ? (
+                      ja.end_date
+                    ) : (
+                      <span style={{ color: "#28a745", fontWeight: "bold" }}>جاری / فعال</span>
+                    )}
+                  </td>
+                  <td style={{ padding: "0.75rem" }}>
+                    {ja.is_primary ? "سمت اصلی" : "سمت فرعی/پروژه‌ای"}
+                  </td>
+                </tr>
+              ))}
+              {jobAssignments.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                    هیچ سابقه‌ای از انتصاب مشاغل ثبت نشده است.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* TAB 8: ATTENDANCE & SHIFT ROSTER */}
+      {!loading && activeTab === "attendance" && (
+        <div className="attendance-tab">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+            <div>
+              <h2 style={{ fontSize: "1.25rem", margin: 0 }}>پایش بلادرنگ حضور و غیاب و تردد شیفت کاری</h2>
+              <p style={{ margin: "0.25rem 0 0", color: "#666", fontSize: "0.9rem" }}>
+                ردیابی حضور کارکنان سازمانی و نیروهای پیمانکاری بر اساس گیت‌های هوشمند و دستگاه‌های بیومتریک
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <label style={{ fontSize: "0.9rem", fontWeight: "bold" }}>تاریخ شیفت:</label>
+              <input
+                type="date"
+                value={attendanceDate}
+                onChange={(e) => setAttendanceDate(e.target.value)}
+                style={{ padding: "0.4rem 0.6rem", borderRadius: "4px", border: "1px solid #ccc" }}
+              />
+              <button className="button button-primary" onClick={() => setShowAttendanceModalP12(true)}>
+                ثبت ورود / تردد شیفت
+              </button>
+            </div>
+          </div>
+
+          {/* Roster KPI Summary */}
+          <div
+            className="stats-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: "1rem",
+              marginBottom: "1.5rem",
+            }}
+          >
+            <div className="stat-card" style={{ borderRight: "4px solid #1976d2", padding: "1rem", background: "#fff", borderRadius: "8px", border: "1px solid #dee2e6" }}>
+              <span style={{ fontSize: "0.85rem", color: "#666" }}>کل تردد ثبت‌شده شیفت</span>
+              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "#1976d2" }}>
+                {attendanceRoster?.total_recorded ?? attendanceRecords.length}
+              </div>
+              <span style={{ fontSize: "0.8rem", color: "#666" }}>
+                {attendanceRoster?.employee_count ?? 0} رسمی | {attendanceRoster?.contractor_worker_count ?? 0} پیمانکار
+              </span>
+            </div>
+
+            <div className="stat-card" style={{ borderRight: "4px solid #2e7d32", padding: "1rem", background: "#fff", borderRadius: "8px", border: "1px solid #dee2e6" }}>
+              <span style={{ fontSize: "0.85rem", color: "#666" }}>حاضرین به‌موقع</span>
+              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "#2e7d32" }}>
+                {attendanceRoster?.present_count ?? 0}
+              </div>
+              <span style={{ fontSize: "0.8rem", color: "#2e7d32" }}>ورود بدون تأخیر</span>
+            </div>
+
+            <div className="stat-card" style={{ borderRight: "4px solid #f57c00", padding: "1rem", background: "#fff", borderRadius: "8px", border: "1px solid #dee2e6" }}>
+              <span style={{ fontSize: "0.85rem", color: "#666" }}>تأخیر در ورود</span>
+              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "#f57c00" }}>
+                {attendanceRoster?.late_count ?? 0}
+              </div>
+              <span style={{ fontSize: "0.8rem", color: "#f57c00" }}>نیاز به بررسی سرپرست</span>
+            </div>
+
+            <div className="stat-card" style={{ borderRight: "4px solid #c62828", padding: "1rem", background: "#fff", borderRadius: "8px", border: "1px solid #dee2e6" }}>
+              <span style={{ fontSize: "0.85rem", color: "#666" }}>غایبین شیفت</span>
+              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "#c62828" }}>
+                {attendanceRoster?.absent_count ?? 0}
+              </div>
+              <span style={{ fontSize: "0.8rem", color: "#c62828" }}>عدم ثبت تردد</span>
+            </div>
+          </div>
+
+          {/* Attendance Table */}
+          <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ textAlign: "right", borderBottom: "2px solid #dee2e6" }}>
+                <th style={{ padding: "0.75rem" }}>نام و نام خانوادگی</th>
+                <th style={{ padding: "0.75rem" }}>نوع نیرو</th>
+                <th style={{ padding: "0.75rem" }}>کارگاه / محل استقرار</th>
+                <th style={{ padding: "0.75rem" }}>زمان ورود (Check-In)</th>
+                <th style={{ padding: "0.75rem" }}>زمان خروج (Check-Out)</th>
+                <th style={{ padding: "0.75rem" }}>درگاه ورود</th>
+                <th style={{ padding: "0.75rem" }}>وضعیت حضور</th>
+              </tr>
+            </thead>
+            <tbody>
+              {attendanceRecords.map((att) => (
+                <tr key={att.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                  <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{att.person_name}</td>
+                  <td style={{ padding: "0.75rem" }}>
+                    <span
+                      style={{
+                        padding: "0.2rem 0.5rem",
+                        borderRadius: "4px",
+                        fontSize: "0.8rem",
+                        backgroundColor: att.person_type === "employee" ? "#e3f2fd" : "#ede7f6",
+                        color: att.person_type === "employee" ? "#1565c0" : "#4527a0",
+                      }}
+                    >
+                      {att.person_type_display}
+                    </span>
+                  </td>
+                  <td style={{ padding: "0.75rem" }}>{att.workplace_name || "کارگاه اصلی"}</td>
+                  <td style={{ padding: "0.75rem" }}>{att.check_in?.replace("T", " ").slice(0, 16)}</td>
+                  <td style={{ padding: "0.75rem" }}>{att.check_out ? att.check_out.replace("T", " ").slice(0, 16) : "—"}</td>
+                  <td style={{ padding: "0.75rem" }}>{att.entry_source_display}</td>
+                  <td style={{ padding: "0.75rem" }}>
+                    <span
+                      style={{
+                        padding: "0.2rem 0.6rem",
+                        borderRadius: "4px",
+                        fontSize: "0.8rem",
+                        fontWeight: "bold",
+                        backgroundColor:
+                          att.status === "present"
+                            ? "#e8f5e9"
+                            : att.status === "late"
+                            ? "#fff3e0"
+                            : "#ffebee",
+                        color:
+                          att.status === "present"
+                            ? "#2e7d32"
+                            : att.status === "late"
+                            ? "#e65100"
+                            : "#c62828",
+                      }}
+                    >
+                      {att.status_display}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {attendanceRecords.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                    هیچ ثبتی برای تاریخ {attendanceDate} وجود ندارد.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -1787,6 +2581,281 @@ export function WorkforcePage() {
                 <button type="button" className="button button-outline" onClick={() => setShowPPEStockModal(false)}>انصراف</button>
                 <button type="submit" disabled={submitting} className="button button-primary">
                   {submitting ? "در حال ثبت..." : "ذخیره موجودی"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Create Contractor */}
+      {showContractorModal && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+            <h3 style={{ marginTop: 0 }}>ثبت شرکت پیمانکاری جدید</h3>
+            {formError && <div className="alert alert-danger">{formError}</div>}
+            <form onSubmit={handleCreateContractor}>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>نام شرکت پیمانکار *</label>
+                <input required type="text" value={contractorName} onChange={(e) => setContractorName(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>شماره ثبت / شناسه ملی</label>
+                <input type="text" value={contractorRegNo} onChange={(e) => setContractorRegNo(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
+                <div>
+                  <label>فرد رابط / نماینده</label>
+                  <input type="text" value={contractorContactPerson} onChange={(e) => setContractorContactPerson(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+                <div>
+                  <label>تلفن تماس</label>
+                  <input type="text" value={contractorPhone} onChange={(e) => setContractorPhone(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="button button-outline" onClick={() => setShowContractorModal(false)}>انصراف</button>
+                <button type="submit" disabled={submitting} className="button button-primary">
+                  {submitting ? "در حال ثبت..." : "ذخیره پیمانکار"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Create Contractor Document */}
+      {showContractorDocModal && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+            <h3 style={{ marginTop: 0 }}>ثبت مدرک / مجوز ایمنی پیمانکار</h3>
+            {formError && <div className="alert alert-danger">{formError}</div>}
+            <form onSubmit={handleCreateContractorDoc}>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>نوع مدرک *</label>
+                <select value={docType} onChange={(e: any) => setDocType(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                  <option value="hse_plan">طرح سلامت و ایمنی (HSE Plan)</option>
+                  <option value="insurance_policy">بیمه‌نامه مسئولیت مدنی</option>
+                  <option value="qualification_cert">گواهینامه صلاحیت ایمنی پیمانکاری</option>
+                  <option value="iso_cert">گواهینامه‌های ایزو/استاندارد</option>
+                  <option value="other">سایر مدارک</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>عنوان مدرک *</label>
+                <input required type="text" value={docTitle} onChange={(e) => setDocTitle(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ marginBottom: "1rem" }}>
+                <label>تاریخ انقضا / پایان اعتبار</label>
+                <input type="date" value={docValidUntil} onChange={(e) => setDocValidUntil(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="button button-outline" onClick={() => setShowContractorDocModal(false)}>انصراف</button>
+                <button type="submit" disabled={submitting} className="button button-primary">
+                  {submitting ? "در حال ثبت..." : "بارگذاری مدرک"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Create Contractor Worker */}
+      {showContractorWorkerModal && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+            <h3 style={{ marginTop: 0 }}>ثبت مشخصات کارگر پیمانکار</h3>
+            {formError && <div className="alert alert-danger">{formError}</div>}
+            <form onSubmit={handleCreateContractorWorker}>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>کد ملی *</label>
+                <input required type="text" value={workerNatId} onChange={(e) => setWorkerNatId(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                <div>
+                  <label>نام *</label>
+                  <input required type="text" value={workerFirstName} onChange={(e) => setWorkerFirstName(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+                <div>
+                  <label>نام خانوادگی *</label>
+                  <input required type="text" value={workerLastName} onChange={(e) => setWorkerLastName(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
+                <div>
+                  <label>رسته شغلی (جوشکار، داربست‌بند، ...)</label>
+                  <input type="text" value={workerTrade} onChange={(e) => setWorkerTrade(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+                <div>
+                  <label>تلفن همراه</label>
+                  <input type="text" value={workerMobile} onChange={(e) => setWorkerMobile(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="button button-outline" onClick={() => setShowContractorWorkerModal(false)}>انصراف</button>
+                <button type="submit" disabled={submitting} className="button button-primary">
+                  {submitting ? "در حال ثبت..." : "ذخیره کارگر"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Create Job Position */}
+      {showJobPositionModal && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+            <h3 style={{ marginTop: 0 }}>تعریف شناسنامه شغل سازمانی</h3>
+            {formError && <div className="alert alert-danger">{formError}</div>}
+            <form onSubmit={handleCreateJobPosition}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                <div>
+                  <label>کد شغل *</label>
+                  <input required type="text" value={jobCode} onChange={(e) => setJobCode(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+                <div>
+                  <label>عنوان سمت *</label>
+                  <input required type="text" value={jobTitleInput} onChange={(e) => setJobTitleInput(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                <div>
+                  <label>واحد / دپارتمان</label>
+                  <input type="text" value={jobDept} onChange={(e) => setJobDept(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+                <div>
+                  <label>سطح ریسک شغلی *</label>
+                  <select value={jobRisk} onChange={(e: any) => setJobRisk(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                    <option value="low">پایین (Low)</option>
+                    <option value="medium">متوسط (Medium)</option>
+                    <option value="high">بالا (High)</option>
+                    <option value="critical">بحرانی (Critical)</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginBottom: "1rem" }}>
+                <label>شرایط احراز و سوابق مورد نیاز</label>
+                <textarea value={jobQuals} onChange={(e) => setJobQuals(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="button button-outline" onClick={() => setShowJobPositionModal(false)}>انصراف</button>
+                <button type="submit" disabled={submitting} className="button button-primary">
+                  {submitting ? "در حال ثبت..." : "ذخیره شغل"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Create Job Assignment */}
+      {showJobAssignModal && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+            <h3 style={{ marginTop: 0 }}>انتصاب کارمند به سمت شغلی</h3>
+            {formError && <div className="alert alert-danger">{formError}</div>}
+            <form onSubmit={handleCreateJobAssign}>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>کارمند *</label>
+                <select required value={assignEmpId} onChange={(e) => setAssignEmpId(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                  <option value="">انتخاب کارمند...</option>
+                  {employees.filter((e) => e.is_active).map((e) => (
+                    <option key={e.id} value={e.id}>{e.full_name} ({e.employee_no})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>شغل سازمانی *</label>
+                <select required value={assignJobId} onChange={(e) => setAssignJobId(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                  <option value="">انتخاب شغل...</option>
+                  {jobPositions.filter((j) => j.is_active).map((j) => (
+                    <option key={j.id} value={j.id}>{j.title} ({j.code})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: "1rem" }}>
+                <label>تاریخ انتصاب / شروع *</label>
+                <input required type="date" value={assignStartDate} onChange={(e) => setAssignStartDate(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="button button-outline" onClick={() => setShowJobAssignModal(false)}>انصراف</button>
+                <button type="submit" disabled={submitting} className="button button-primary">
+                  {submitting ? "در حال ثبت..." : "تأیید انتصاب"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Record Attendance */}
+      {showAttendanceModalP12 && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+            <h3 style={{ marginTop: 0 }}>ثبت تردد و ورود به شیفت کاری</h3>
+            {formError && <div className="alert alert-danger">{formError}</div>}
+            <form onSubmit={handleCreateShiftAttendance}>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>نوع نیرو *</label>
+                <select value={attType} onChange={(e: any) => setAttType(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                  <option value="employee">پرسنل رسمی / سازمانی</option>
+                  <option value="contractor_worker">نیروی پیمانکار</option>
+                </select>
+              </div>
+
+              {attType === "employee" ? (
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label>انتخاب کارمند *</label>
+                  <select required value={attPersonEmpId} onChange={(e) => setAttPersonEmpId(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                    <option value="">انتخاب کارمند...</option>
+                    {employees.filter((e) => e.is_active).map((e) => (
+                      <option key={e.id} value={e.id}>{e.full_name} ({e.employee_no})</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label>انتخاب کارگر پیمانکار *</label>
+                  <select required value={attPersonWorkerId} onChange={(e) => setAttPersonWorkerId(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                    <option value="">انتخاب کارگر...</option>
+                    {contractorWorkers.map((w) => (
+                      <option key={w.id} value={w.id}>{w.full_name} ({w.national_id})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                <div>
+                  <label>کارگاه / واحد</label>
+                  <select value={attWorkplaceId} onChange={(e) => setAttWorkplaceId(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                    <option value="">کارگاه اصلی...</option>
+                    {workplaces.map((w) => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label>وضعیت حضور *</label>
+                  <select value={attStatusP12} onChange={(e: any) => setAttStatusP12(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                    <option value="present">حاضر (به‌موقع)</option>
+                    <option value="late">تأخیر در ورود</option>
+                    <option value="absent">غایب</option>
+                    <option value="early_departure">خروج زودهنگام</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "1rem" }}>
+                <label>زمان ثبت تردد *</label>
+                <input required type="datetime-local" value={attCheckIn} onChange={(e) => setAttCheckIn(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="button button-outline" onClick={() => setShowAttendanceModalP12(false)}>انصراف</button>
+                <button type="submit" disabled={submitting} className="button button-primary">
+                  {submitting ? "در حال ثبت..." : "ثبت تردد"}
                 </button>
               </div>
             </form>

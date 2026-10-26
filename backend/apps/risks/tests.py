@@ -345,3 +345,165 @@ class AssessmentApiTests(RiskApiBase):
         Membership.objects.filter(user=self.inspector).update(is_active=False)
         self.client.force_login(self.inspector)
         self.assertEqual(self.client.get(reverse("assessment-list")).json(), [])
+
+
+from apps.risks.models import (
+    Barrier,
+    BarrierAssessment,
+    BowTieConsequence,
+    BowTieDiagram,
+    BowTieThreat,
+    HCMSControlMatrix,
+    RiskAssessmentTemplate,
+)
+
+
+class Phase11BowTieAndHCMSTests(RiskApiBase):
+    def setUp(self):
+        super().setUp()
+        self.hazard = Hazard.objects.create(
+            organization=self.org_a,
+            workplace=self.workplace_a,
+            title="نشت گاز متان از فلنج",
+            category="chemical",
+            status="active",
+        )
+
+    def test_bowtie_creation_and_isolation(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse("bowtie-list"),
+            {
+                "organization": self.org_a.pk,
+                "hazard": self.hazard.pk,
+                "top_event": "نشت گاز سمی در واحد احیا",
+                "description": "رویداد کانونی نشت شدید",
+                "status": "active",
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        diagram_id = data["id"]
+        self.assertEqual(data["top_event"], "نشت گاز سمی در واحد احیا")
+
+        # Outsider cannot view it
+        self.client.force_login(self.outsider)
+        resp_out = self.client.get(reverse("bowtie-detail", args=[diagram_id]))
+        self.assertEqual(resp_out.status_code, 404)
+
+    def test_preventive_and_mitigative_barriers_flow(self):
+        diagram = BowTieDiagram.objects.create(
+            organization=self.org_a,
+            hazard=self.hazard,
+            top_event="حریق ترانسفورماتور اصلی",
+        )
+        threat = BowTieThreat.objects.create(
+            diagram=diagram,
+            title="افزایش بیش از حد ولتاژ و حرارت",
+            category="electrical",
+        )
+        consequence = BowTieConsequence.objects.create(
+            diagram=diagram,
+            title="توقف تولید و آسیب سازه‌ای",
+            severity_level="high",
+        )
+
+        self.client.force_login(self.manager)
+
+        # Create preventive barrier
+        resp_b1 = self.client.post(
+            reverse("barrier-list"),
+            {
+                "diagram": diagram.pk,
+                "threat": threat.pk,
+                "barrier_type": "preventive",
+                "nature": "engineering",
+                "name": "رله حفاظت اضافه جریان",
+                "is_critical": True,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(resp_b1.status_code, 201)
+        b1_id = resp_b1.json()["id"]
+
+        # Create mitigative barrier
+        resp_b2 = self.client.post(
+            reverse("barrier-list"),
+            {
+                "diagram": diagram.pk,
+                "consequence": consequence.pk,
+                "barrier_type": "mitigative",
+                "nature": "physical",
+                "name": "دیوار حائل ضد آتش و سیستم فوم",
+                "is_critical": False,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(resp_b2.status_code, 201)
+
+        # Assess critical barrier as ineffective -> triggers reassessment on parent hazard!
+        resp_assess = self.client.post(
+            reverse("barrier-assessment-create", args=[b1_id]),
+            {
+                "effectiveness": "ineffective",
+                "assessment_date": "2026-10-26",
+                "evidence_reference": "گزارش تست تست‌باکس TB-202",
+                "notes": "رله در اثر فرسودگی قطع نکرد",
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(resp_assess.status_code, 201)
+
+        # Check barrier status changed to impaired
+        barrier = Barrier.objects.get(pk=b1_id)
+        self.assertEqual(barrier.current_effectiveness, "ineffective")
+        self.assertEqual(barrier.status, "impaired")
+
+        # Check hazard was flagged for reassessment
+        self.hazard.refresh_from_db()
+        self.assertTrue(self.hazard.reassessment_needed)
+        self.assertIn("رله حفاظت اضافه جریان", self.hazard.reassessment_reason)
+
+    def test_hcms_control_matrix_residual_calculation(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse("hcms-list"),
+            {
+                "organization": self.org_a.pk,
+                "hazard": self.hazard.pk,
+                "control_title": "نصب سیستم پایلوت و مشعل اضطراری",
+                "hierarchy_of_control": "engineering",
+                "implementation_status": "implemented",
+                "residual_likelihood": 2,
+                "residual_severity": 3,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertEqual(data["residual_score"], 6)  # 2 * 3 = 6
+        self.assertEqual(data["residual_level"], "medium")
+
+    def test_risk_templates_and_dashboard_summary(self):
+        RiskAssessmentTemplate.objects.create(
+            title="الگوی ارزیابی کار در فضای بسته",
+            industry="صنایع سنگین",
+            category="safety",
+            standard_code="OSHA 1910.146",
+        )
+        self.client.force_login(self.manager)
+        resp_tpl = self.client.get(reverse("risk-template-list"))
+        self.assertEqual(resp_tpl.status_code, 200)
+        self.assertGreaterEqual(len(resp_tpl.json()), 1)
+
+        resp_dash = self.client.get(
+            reverse("risk-dashboard-summary"),
+            {"organization": self.org_a.pk},
+        )
+        self.assertEqual(resp_dash.status_code, 200)
+        dash_data = resp_dash.json()
+        self.assertIn("total_hazards", dash_data)
+        self.assertIn("critical_barriers", dash_data)
+        self.assertIn("total_bowties", dash_data)
+

@@ -12,11 +12,28 @@ from apps.incidents.models import Incident, IncidentAttachment
 from apps.inspections.models import Inspection, InspectionResponse
 from apps.organizations.models import Membership, Organization
 from apps.permits.models import Permit, PermitAttachment, PermitTypeCompetencyRequirement, ShiftHandover
-from apps.risks.models import Hazard, RiskAssessment
+from apps.risks.models import (
+    Barrier,
+    BarrierAssessment,
+    BowTieConsequence,
+    BowTieDiagram,
+    BowTieThreat,
+    HCMSControlMatrix,
+    Hazard,
+    RiskAssessment,
+    RiskAssessmentTemplate,
+)
 from apps.workforce.models import (
+    AttendanceRecord,
     Competency,
+    ContractorCompany,
+    ContractorDocument,
+    ContractorEvaluation,
+    ContractorWorker,
     Employee,
     EmployeeCompetency,
+    EmployeeJobAssignment,
+    JobPosition,
     PPEAssignment,
     PPEAssignmentEvent,
     PPEItem,
@@ -240,6 +257,208 @@ class Command(BaseCommand):
             }
         )
         self.stdout.write(self.style.SUCCESS("Hazards and Risk Assessments seeded."))
+
+        # 5.1. Phase 11: BowTie Diagrams, Barriers & HCMS Matrices
+        bt_furnace, _ = BowTieDiagram.objects.update_or_create(
+            organization=org_foolad,
+            hazard=haz_slag,
+            top_event="انفجار و پاشش سرباره و ذرات مذاب از دهانه کوره قوس الکتریکی",
+            defaults={
+                "description": "مدل‌سازی موانع پیشگیرانه ورود رطوبت و کنترل پرتاب مذاب حین فرآیند دمش اکسیژن",
+                "status": BowTieDiagram.Status.ACTIVE,
+                "owner": hse_mgr_user,
+                "created_by": hse_mgr_user,
+                "target_review_date": (timezone.now() + timedelta(days=60)).date(),
+            },
+        )
+        th_moist, _ = BowTieThreat.objects.update_or_create(
+            diagram=bt_furnace,
+            title="ورود قراضه مرطوب و بسته‌های محبوس آب به حوضچه مذاب کوره",
+            defaults={"category": "operational", "order": 1},
+        )
+        th_cooling, _ = BowTieThreat.objects.update_or_create(
+            diagram=bt_furnace,
+            title="نشت آب از پانل‌های مسی سیستم خنک‌کاری سقف کوره",
+            defaults={"category": "equipment_failure", "order": 2},
+        )
+        cq_burns, _ = BowTieConsequence.objects.update_or_create(
+            diagram=bt_furnace,
+            title="سوختگی شدید حرارتی پرسنل و اپراتورهای مستقر در سکوی ذوب",
+            defaults={"severity_level": BowTieConsequence.Severity.CRITICAL, "order": 1},
+        )
+        cq_damage, _ = BowTieConsequence.objects.update_or_create(
+            diagram=bt_furnace,
+            title="آسیب مکانیکی و سازه‌ای به ترانسفورماتور و تجهیزات جانبی کوره",
+            defaults={"severity_level": BowTieConsequence.Severity.HIGH, "order": 2},
+        )
+
+        bar_preheat, _ = Barrier.objects.update_or_create(
+            diagram=bt_furnace,
+            threat=th_moist,
+            name="سامانه پیش‌گرمایش و خشک‌کن مداوم قراضه شارژ کوره",
+            defaults={
+                "barrier_type": Barrier.BarrierType.PREVENTIVE,
+                "nature": Barrier.Nature.ENGINEERING,
+                "is_critical": True,
+                "owner": hse_mgr_user,
+                "current_effectiveness": Barrier.Effectiveness.EFFECTIVE,
+                "status": Barrier.Status.OPERATIONAL,
+                "description": "کوره پیش‌گرم تونلی با مشعل‌های گازسوز جهت تبخیر رطوبت سطحی آهن‌قراضه",
+            },
+        )
+        bar_sensor, _ = Barrier.objects.update_or_create(
+            diagram=bt_furnace,
+            threat=th_cooling,
+            name="حسگرهای اپتیکی مادون قرمز و پایش مداوم دبی آب خنک‌کن",
+            defaults={
+                "barrier_type": Barrier.BarrierType.PREVENTIVE,
+                "nature": Barrier.Nature.ENGINEERING,
+                "is_critical": True,
+                "owner": supervisor_user,
+                "current_effectiveness": Barrier.Effectiveness.INEFFECTIVE,
+                "status": Barrier.Status.IMPAIRED,
+                "description": "سیستم اینترلاک قطع اضطراری قوس در صورت افت فشار یا نشت مدار خنک‌کاری",
+            },
+        )
+        # Critical barrier failure triggers reassessment flag on hazard!
+        haz_slag.reassessment_needed = True
+        haz_slag.reassessment_reason = "نقص در مانع کنترلی بحرانی: حسگرهای اپتیکی مادون قرمز و پایش مداوم دبی آب خنک‌کن"
+        haz_slag.save(update_fields=["reassessment_needed", "reassessment_reason", "updated_at"])
+
+        Barrier.objects.update_or_create(
+            diagram=bt_furnace,
+            consequence=cq_burns,
+            name="اتاقک کنترل عایق ضد حرارت و جان‌پناه نسوز اپراتوری",
+            defaults={
+                "barrier_type": Barrier.BarrierType.MITIGATIVE,
+                "nature": Barrier.Nature.PHYSICAL,
+                "is_critical": False,
+                "owner": supervisor_user,
+                "current_effectiveness": Barrier.Effectiveness.EFFECTIVE,
+                "status": Barrier.Status.OPERATIONAL,
+                "description": "شیشه‌های نسوز چندلایه و بدنه عایق سرامیکی جهت ممانعت از پرتاب گدازه به اتاقک",
+            },
+        )
+
+        # Barrier Assessment records
+        BarrierAssessment.objects.get_or_create(
+            barrier=bar_sensor,
+            assessment_date=(timezone.now() - timedelta(days=2)).date(),
+            defaults={
+                "effectiveness": Barrier.Effectiveness.INEFFECTIVE,
+                "assessed_by": inspector_user,
+                "evidence_reference": "گزارش تست دوره‌ای مدار ابزاردقیق IR-EAF-01",
+                "notes": "سنسور به علت نشست گرد و غبار نسوز دچار خطای کالیبراسیون شده و فرمان قطع صادر نمی‌کند.",
+            },
+        )
+        BarrierAssessment.objects.get_or_create(
+            barrier=bar_preheat,
+            assessment_date=(timezone.now() - timedelta(days=10)).date(),
+            defaults={
+                "effectiveness": Barrier.Effectiveness.EFFECTIVE,
+                "assessed_by": inspector_user,
+                "evidence_reference": "چک‌لیست بازرسی حرارت‌سنجی تونل شارژ",
+                "notes": "دمای قراضه خروجی بالای ۲۵۰ درجه ثبت شد و رطوبت کاملاً صفر است.",
+            },
+        )
+
+        # HCMS Controls
+        HCMSControlMatrix.objects.update_or_create(
+            organization=org_foolad,
+            hazard=haz_slag,
+            control_title="نصب سرپوش مکنده غبار و شیلدهای متحرک ضد پاشش مذاب",
+            defaults={
+                "barrier": bar_preheat,
+                "hierarchy_of_control": HCMSControlMatrix.Hierarchy.ENGINEERING,
+                "implementation_status": HCMSControlMatrix.Status.IMPLEMENTED,
+                "review_frequency_days": 90,
+                "last_reviewed_at": (timezone.now() - timedelta(days=15)).date(),
+                "next_review_due": (timezone.now() + timedelta(days=75)).date(),
+                "responsible_owner": hse_mgr_user,
+                "initial_risk_score": 16,
+                "residual_likelihood": 2,
+                "residual_severity": 3,
+                "residual_score": 6,
+                "residual_level": "medium",
+            },
+        )
+
+        # BowTie for Petrochemical
+        bt_gas, _ = BowTieDiagram.objects.update_or_create(
+            organization=org_petro,
+            hazard=haz_gas,
+            top_event="نشت بخارات سنگین هیدروکربوری و اشتعال در ناحیه جداسازی الفین",
+            defaults={
+                "description": "پایش یکپارچگی خطوط الفین و کنترل موانع جداسازی گازهای قابل اشتعال",
+                "status": BowTieDiagram.Status.ACTIVE,
+                "owner": petro_supervisor_user,
+                "created_by": petro_supervisor_user,
+                "target_review_date": (timezone.now() + timedelta(days=90)).date(),
+            },
+        )
+        th_seal, _ = BowTieThreat.objects.update_or_create(
+            diagram=bt_gas,
+            title="فرسودگی مکانیکال سیل پمپ گردش خوراک الفین",
+            defaults={"category": "equipment_failure", "order": 1},
+        )
+        cq_vce, _ = BowTieConsequence.objects.update_or_create(
+            diagram=bt_gas,
+            title="انفجار ابر بخار اشتعال‌زا (VCE) و گسترش حریق به مخازن کروی",
+            defaults={"severity_level": BowTieConsequence.Severity.CRITICAL, "order": 1},
+        )
+        Barrier.objects.update_or_create(
+            diagram=bt_gas,
+            threat=th_seal,
+            name="سیستم دابل سیل مکانیکی پلان ۵۳A با گاز نیتروژن تحت فشار",
+            defaults={
+                "barrier_type": Barrier.BarrierType.PREVENTIVE,
+                "nature": Barrier.Nature.ENGINEERING,
+                "is_critical": True,
+                "owner": petro_supervisor_user,
+                "current_effectiveness": Barrier.Effectiveness.EFFECTIVE,
+                "status": Barrier.Status.OPERATIONAL,
+            },
+        )
+        Barrier.objects.update_or_create(
+            diagram=bt_gas,
+            consequence=cq_vce,
+            name="سامانه خاموش‌کننده سیلابی آب و فوم (Deluge System)",
+            defaults={
+                "barrier_type": Barrier.BarrierType.MITIGATIVE,
+                "nature": Barrier.Nature.ENGINEERING,
+                "is_critical": True,
+                "owner": petro_supervisor_user,
+                "current_effectiveness": Barrier.Effectiveness.EFFECTIVE,
+                "status": Barrier.Status.OPERATIONAL,
+            },
+        )
+
+        # Risk Assessment Templates
+        RiskAssessmentTemplate.objects.get_or_create(
+            title="الگوی ارزیابی ریسک فرآیندی کوره قوس و پاتیل مذاب",
+            defaults={
+                "industry": "صنایع فولاد و متالورژی",
+                "category": Hazard.Category.SAFETY,
+                "standard_code": "ISO 45001:2018 / NFPA 652",
+                "version": "1.0",
+                "typical_threats": "ورود رطوبت، افت فشار آب، نوسان قوس الکتریکی",
+                "typical_consequences": "پاشش مذاب، حریق ترانسفورماتور، سوختگی پرسنل",
+                "recommended_barriers": "کوره خشک‌کن قراضه، سنسورهای دبی آب، دیواره حائل نسوز",
+            },
+        )
+        RiskAssessmentTemplate.objects.get_or_create(
+            title="الگوی ارزیابی ریسک نشتی و انفجار واحدهای الفین",
+            defaults={
+                "industry": "صنایع نفت، گاز و پتروشیمی",
+                "category": Hazard.Category.CHEMICAL,
+                "standard_code": "API RP 752 / OSHA PSM 1910.119",
+                "version": "2.1",
+                "typical_threats": "فرسودگی سیل پمپ، نشت فلنج، خطای شیرآلات",
+                "typical_consequences": "انفجار ابر بخار (VCE)، آلودگی هوا، حریق فلش",
+                "recommended_barriers": "مکانیکال سیل پلان ۵۳، دتکتور مادون قرمز، سیستم دلویج آب و فوم",
+            },
+        )
+        self.stdout.write(self.style.SUCCESS("Phase 11 BowTie, Barriers & HCMS seeded."))
 
         # 6. CAPA & NonConformity
         nc_slag, _ = NonConformity.objects.update_or_create(
@@ -2448,6 +2667,256 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 "Phase 10 workforce demo data seeded: employees, training, competencies, PTW rules and PPE."
+            )
+        )
+
+        # ==========================================
+        # Phase 12: Workforce Extension, Jobs, Contractors & Attendance
+        # ==========================================
+        def seed_job_position(org, code, defaults):
+            job, _ = JobPosition.objects.update_or_create(
+                organization=org,
+                code=code,
+                defaults={**defaults, "is_synthetic": True},
+            )
+            return job
+
+        job_elec = seed_job_position(
+            org_foolad,
+            "JOB-FA-ELEC",
+            {
+                "title": "تکنسین ارشد برق و ابزار دقیق",
+                "department": "تعمیرات و نگهداری",
+                "description": "نصب، تعمیر و بازرسی تابلوهای برق فشار متوسط و سیستم‌های کنترل.",
+                "risk_level": JobPosition.RiskLevel.HIGH,
+                "required_qualifications": "مدرک کارشناسی برق، گواهینامه ایمنی فشار قوی و کار در ارتفاع.",
+                "is_active": True,
+            },
+        )
+        job_mech = seed_job_position(
+            org_foolad,
+            "JOB-FA-MECH",
+            {
+                "title": "مکانیک تجهیزات دوار و پمپ‌ها",
+                "department": "تعمیرات مکانیک",
+                "description": "تعمیر و نگهداری پمپ‌های هیدرولیک و کمپرسورهای خط نورد.",
+                "risk_level": JobPosition.RiskLevel.MEDIUM,
+                "required_qualifications": "کاردانی مکانیک صنعتی با ۵ سال تجربه در صنایع فولادی.",
+                "is_active": True,
+            },
+        )
+        job_proc = seed_job_position(
+            org_petro,
+            "JOB-SP-PROC",
+            {
+                "title": "اپراتور ارشد اتاق کنترل پتروشیمی",
+                "department": "بهره‌برداری",
+                "description": "پایش فرآیندهای واحد اولفین و سیستم‌های ESD/DCS.",
+                "risk_level": JobPosition.RiskLevel.CRITICAL,
+                "required_qualifications": "مهندسی شیمی یا کنترل فرآیند، صلاحیت کار در فضاهای دارای ریسک آتش‌سوزی.",
+                "is_active": True,
+            },
+        )
+
+        # Job assignments
+        if emp_morteza:
+            EmployeeJobAssignment.objects.update_or_create(
+                organization=org_foolad,
+                employee=emp_morteza,
+                job_position=job_elec,
+                defaults={
+                    "is_primary": True,
+                    "start_date": today - timedelta(days=180),
+                    "end_date": None,
+                    "notes": "انتصاب اصلی به عنوان سرپرست برق شیفت.",
+                    "is_synthetic": True,
+                },
+            )
+        if emp_behrooz:
+            EmployeeJobAssignment.objects.update_or_create(
+                organization=org_foolad,
+                employee=emp_behrooz,
+                job_position=job_mech,
+                defaults={
+                    "is_primary": True,
+                    "start_date": today - timedelta(days=365),
+                    "end_date": None,
+                    "notes": "مسئول پمپ‌های فشار قوی.",
+                    "is_synthetic": True,
+                },
+            )
+        if emp_sara:
+            EmployeeJobAssignment.objects.update_or_create(
+                organization=org_petro,
+                employee=emp_sara,
+                job_position=job_proc,
+                defaults={
+                    "is_primary": True,
+                    "start_date": today - timedelta(days=200),
+                    "end_date": None,
+                    "notes": "شیفت الف واحد اولفین.",
+                    "is_synthetic": True,
+                },
+            )
+
+        # Contractor Companies
+        def seed_contractor(org, name, defaults):
+            cont, _ = ContractorCompany.objects.update_or_create(
+                organization=org,
+                name=name,
+                defaults={**defaults, "is_synthetic": True},
+            )
+            return cont
+
+        cont_paydar = seed_contractor(
+            org_foolad,
+            "شرکت مهندسی پایدار سازه البرز",
+            {
+                "registration_no": "REG-99120",
+                "economic_code": "10103456789",
+                "contact_person": "مهندس احمدی",
+                "contact_phone": "02188990011",
+                "contact_email": "info@paydarsazeh.ir",
+                "status": ContractorCompany.Status.APPROVED,
+                "safety_score": 92.50,
+                "contract_start": today - timedelta(days=90),
+                "contract_end": today + timedelta(days=275),
+                "notes": "پیمانکار رتبه یک تعمیرات مکانیکی و سازه‌های فلزی.",
+            },
+        )
+
+        cont_ariana = seed_contractor(
+            org_foolad,
+            "پیمانکاری آریانا صنعت گاز",
+            {
+                "registration_no": "REG-88410",
+                "economic_code": "10105678901",
+                "contact_person": "مهندس مرادی",
+                "contact_phone": "02188443322",
+                "contact_email": "contact@arianagas.ir",
+                "status": ContractorCompany.Status.PENDING,
+                "safety_score": 78.00,
+                "contract_start": today - timedelta(days=30),
+                "contract_end": today + timedelta(days=150),
+                "notes": "در حال ارزیابی صلاحیت ایمنی برای خطوط انتقال گاز.",
+            },
+        )
+
+        # Contractor Documents
+        ContractorDocument.objects.update_or_create(
+            organization=org_foolad,
+            contractor=cont_paydar,
+            document_type=ContractorDocument.DocumentType.HSE_PLAN,
+            defaults={
+                "title": "طرح سلامت، ایمنی و محیط زیست (HSE Plan)",
+                "valid_until": today + timedelta(days=200),
+                "status": ContractorDocument.Status.VERIFIED,
+                "verification_notes": "تأییدشده توسط اداره بازرسی HSE کارخانه فولاد.",
+                "is_synthetic": True,
+            },
+        )
+        ContractorDocument.objects.update_or_create(
+            organization=org_foolad,
+            contractor=cont_paydar,
+            document_type=ContractorDocument.DocumentType.INSURANCE_POLICY,
+            defaults={
+                "title": "بیمه‌نامه مسئولیت مدنی کارفرما در قبال کارکنان",
+                "valid_until": today + timedelta(days=120),
+                "status": ContractorDocument.Status.VERIFIED,
+                "verification_notes": "شماره بیمه‌نامه: INS-9843-IR",
+                "is_synthetic": True,
+            },
+        )
+
+        # Contractor Workers
+        worker_ali, _ = ContractorWorker.objects.update_or_create(
+            organization=org_foolad,
+            contractor=cont_paydar,
+            national_id="0019876543",
+            defaults={
+                "first_name": "صادق",
+                "last_name": "کریمی",
+                "mobile": "09121112233",
+                "trade": "جوشکار تخصصی خطوط انتقال",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+        worker_reza, _ = ContractorWorker.objects.update_or_create(
+            organization=org_foolad,
+            contractor=cont_paydar,
+            national_id="0023456789",
+            defaults={
+                "first_name": "پیمان",
+                "last_name": "رضایی",
+                "mobile": "09123334455",
+                "trade": "کمک جوشکار و سنگ‌زن",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        # Contractor Evaluation
+        ContractorEvaluation.objects.update_or_create(
+            organization=org_foolad,
+            contractor=cont_paydar,
+            evaluation_date=today - timedelta(days=15),
+            defaults={
+                "score": 92.50,
+                "criteria_scores": {"ppe_compliance": 95, "ptw_discipline": 90, "incident_rate": 92.5},
+                "findings": "انضباط و پایبندی عالی به رویه‌های صدور مجوز کار و استفاده از تجهیزات ایمنی فردی.",
+                "is_synthetic": True,
+            },
+        )
+
+        # Attendance Records for today
+        now_dt = timezone.now()
+        AttendanceRecord.objects.update_or_create(
+            organization=org_foolad,
+            person_type=AttendanceRecord.PersonType.EMPLOYEE,
+            employee=emp_morteza,
+            date=today,
+            defaults={
+                "workplace": wp_roll,
+                "check_in": now_dt.replace(hour=7, minute=45, second=0, microsecond=0),
+                "entry_source": AttendanceRecord.EntrySource.GATE_SCANNER,
+                "status": AttendanceRecord.Status.PRESENT,
+                "notes": "ورود سر شیفت صبح با احراز هویت بیومتریک.",
+                "is_synthetic": True,
+            },
+        )
+        AttendanceRecord.objects.update_or_create(
+            organization=org_foolad,
+            person_type=AttendanceRecord.PersonType.EMPLOYEE,
+            employee=emp_behrooz,
+            date=today,
+            defaults={
+                "workplace": wp_cast,
+                "check_in": now_dt.replace(hour=8, minute=20, second=0, microsecond=0),
+                "entry_source": AttendanceRecord.EntrySource.GATE_SCANNER,
+                "status": AttendanceRecord.Status.LATE,
+                "notes": "۲۰ دقیقه تأخیر به‌دلیل بازرسی تجهیزات حفاظتی در گیت.",
+                "is_synthetic": True,
+            },
+        )
+        AttendanceRecord.objects.update_or_create(
+            organization=org_foolad,
+            person_type=AttendanceRecord.PersonType.CONTRACTOR_WORKER,
+            contractor_worker=worker_ali,
+            date=today,
+            defaults={
+                "workplace": wp_roll,
+                "check_in": now_dt.replace(hour=7, minute=50, second=0, microsecond=0),
+                "entry_source": AttendanceRecord.EntrySource.GATE_SCANNER,
+                "status": AttendanceRecord.Status.PRESENT,
+                "notes": "ورود اکیپ جوشکاری پیمانکار پایدار سازه با مجوز کار گرم معتبر.",
+                "is_synthetic": True,
+            },
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Phase 12 workforce demo data seeded: job positions, assignments, contractors, dossiers, and shift attendance."
             )
         )
 

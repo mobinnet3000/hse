@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
-from django.db.models import F, Q
+from django.db.models import F, Q, ProtectedError
 from django.utils import timezone
 from rest_framework import generics, status as drf_status
 from rest_framework.exceptions import ValidationError
@@ -24,9 +24,16 @@ from apps.permits.models import PermitTypeCompetencyRequirement
 
 from .models import (
     PPE_REPLACEMENT_DUE_SOON_DAYS,
+    AttendanceRecord,
     Competency,
+    ContractorCompany,
+    ContractorDocument,
+    ContractorEvaluation,
+    ContractorWorker,
     Employee,
     EmployeeCompetency,
+    EmployeeJobAssignment,
+    JobPosition,
     PPEAssignment,
     PPEItem,
     PPEStock,
@@ -66,6 +73,13 @@ from .serializers import (
     TrainingSessionCreateSerializer,
     TrainingSessionSerializer,
     TrainingSessionUpdateSerializer,
+    AttendanceRecordSerializer,
+    ContractorCompanySerializer,
+    ContractorDocumentSerializer,
+    ContractorEvaluationSerializer,
+    ContractorWorkerSerializer,
+    EmployeeJobAssignmentSerializer,
+    JobPositionSerializer,
 )
 from .services import (
     change_employee_competency_status,
@@ -1101,3 +1115,423 @@ class WorkforceStatsView(APIView):
             else:
                 organization_ids = []
         return Response(workforce_stats(organization_ids))
+
+
+# ==============================================================================
+# Phase 12: Job Catalog, Contractors & Attendance Views
+# ==============================================================================
+
+class JobPositionListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+    serializer_class = JobPositionSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        queryset = JobPosition.objects.filter(
+            organization_id__in=org_ids
+        ).prefetch_related("required_competencies", "assignments")
+        queryset = _filter_org(queryset, self.request)
+        risk = self.request.query_params.get("risk_level")
+        if risk:
+            queryset = queryset.filter(risk_level=risk)
+        active = self.request.query_params.get("is_active")
+        if active in {"true", "false"}:
+            queryset = queryset.filter(is_active=(active == "true"))
+        search = (self.request.query_params.get("search") or "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search)
+                | Q(code__icontains=search)
+                | Q(department__icontains=search)
+            )
+        return queryset.distinct()
+
+    def post(self, request, *args, **kwargs):
+        organization, error = _org_from_request(request, can_manage_workforce)
+        if error:
+            return error
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(organization=organization)
+        return Response(serializer.data, status=drf_status.HTTP_201_CREATED)
+
+
+class JobPositionDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = JobPositionSerializer
+
+    def get_queryset(self):
+        return JobPosition.objects.filter(
+            organization_id__in=accessible_organization_ids(self.request.user)
+        ).prefetch_related("required_competencies", "assignments")
+
+    def perform_update(self, serializer):
+        if not can_manage_workforce(self.request.user, serializer.instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not can_manage_workforce(self.request.user, instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        if instance.assignments.exists():
+            raise ValidationError("امکان حذف شغلی که دارای سابقه انتساب کارمند است وجود ندارد.")
+        try:
+            instance.delete()
+        except ProtectedError:
+            raise ValidationError("امکان حذف شغلی که دارای وابستگی فعال است وجود ندارد.")
+
+
+class EmployeeJobAssignmentListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+    serializer_class = EmployeeJobAssignmentSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        queryset = EmployeeJobAssignment.objects.filter(
+            organization_id__in=org_ids
+        ).select_related("employee", "job_position")
+        queryset = _filter_org(queryset, self.request)
+        employee_id = self.request.query_params.get("employee")
+        if employee_id and employee_id.isdigit():
+            queryset = queryset.filter(employee_id=int(employee_id))
+        job_id = self.request.query_params.get("job_position")
+        if job_id and job_id.isdigit():
+            queryset = queryset.filter(job_position_id=int(job_id))
+        active_only = self.request.query_params.get("active")
+        if active_only == "true":
+            queryset = queryset.filter(end_date__isnull=True)
+        return queryset
+
+    def post(self, request, *args, **kwargs):
+        organization, error = _org_from_request(request, can_manage_workforce)
+        if error:
+            return error
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(organization=organization)
+        return Response(serializer.data, status=drf_status.HTTP_201_CREATED)
+
+
+class EmployeeJobAssignmentDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = EmployeeJobAssignmentSerializer
+
+    def get_queryset(self):
+        return EmployeeJobAssignment.objects.filter(
+            organization_id__in=accessible_organization_ids(self.request.user)
+        ).select_related("employee", "job_position")
+
+    def perform_update(self, serializer):
+        if not can_manage_workforce(self.request.user, serializer.instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not can_manage_workforce(self.request.user, instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        instance.delete()
+
+
+class ContractorCompanyListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+    serializer_class = ContractorCompanySerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        queryset = ContractorCompany.objects.filter(
+            organization_id__in=org_ids
+        ).prefetch_related("workers", "documents", "evaluations")
+        queryset = _filter_org(queryset, self.request)
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+        search = (self.request.query_params.get("search") or "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search)
+                | Q(contact_person__icontains=search)
+                | Q(registration_no__icontains=search)
+            )
+        return queryset
+
+    def post(self, request, *args, **kwargs):
+        organization, error = _org_from_request(request, can_manage_workforce)
+        if error:
+            return error
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(organization=organization)
+        return Response(serializer.data, status=drf_status.HTTP_201_CREATED)
+
+
+class ContractorCompanyDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ContractorCompanySerializer
+
+    def get_queryset(self):
+        return ContractorCompany.objects.filter(
+            organization_id__in=accessible_organization_ids(self.request.user)
+        ).prefetch_related("workers", "documents", "evaluations")
+
+    def perform_update(self, serializer):
+        if not can_manage_workforce(self.request.user, serializer.instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not can_manage_workforce(self.request.user, instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        instance.delete()
+
+
+class ContractorDocumentListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+    serializer_class = ContractorDocumentSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        queryset = ContractorDocument.objects.filter(
+            organization_id__in=org_ids
+        ).select_related("contractor", "verified_by")
+        queryset = _filter_org(queryset, self.request)
+        contractor_id = self.request.query_params.get("contractor")
+        if contractor_id and contractor_id.isdigit():
+            queryset = queryset.filter(contractor_id=int(contractor_id))
+        doc_type = self.request.query_params.get("document_type")
+        if doc_type:
+            queryset = queryset.filter(document_type=doc_type)
+        status_val = self.request.query_params.get("status")
+        if status_val:
+            queryset = queryset.filter(status=status_val)
+        return queryset
+
+    def post(self, request, *args, **kwargs):
+        organization, error = _org_from_request(request, can_manage_workforce)
+        if error:
+            return error
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(organization=organization)
+        return Response(serializer.data, status=drf_status.HTTP_201_CREATED)
+
+
+class ContractorDocumentDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ContractorDocumentSerializer
+
+    def get_queryset(self):
+        return ContractorDocument.objects.filter(
+            organization_id__in=accessible_organization_ids(self.request.user)
+        ).select_related("contractor", "verified_by")
+
+    def perform_update(self, serializer):
+        if not can_manage_workforce(self.request.user, serializer.instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not can_manage_workforce(self.request.user, instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        instance.delete()
+
+
+class ContractorWorkerListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+    serializer_class = ContractorWorkerSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        queryset = ContractorWorker.objects.filter(
+            organization_id__in=org_ids
+        ).select_related("contractor")
+        queryset = _filter_org(queryset, self.request)
+        contractor_id = self.request.query_params.get("contractor")
+        if contractor_id and contractor_id.isdigit():
+            queryset = queryset.filter(contractor_id=int(contractor_id))
+        trade = self.request.query_params.get("trade")
+        if trade:
+            queryset = queryset.filter(trade__icontains=trade)
+        active = self.request.query_params.get("is_active")
+        if active in {"true", "false"}:
+            queryset = queryset.filter(is_active=(active == "true"))
+        search = (self.request.query_params.get("search") or "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(first_name__icontains=search)
+                | Q(last_name__icontains=search)
+                | Q(national_id__icontains=search)
+                | Q(trade__icontains=search)
+            )
+        return queryset
+
+    def post(self, request, *args, **kwargs):
+        organization, error = _org_from_request(request, can_manage_workforce)
+        if error:
+            return error
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(organization=organization)
+        return Response(serializer.data, status=drf_status.HTTP_201_CREATED)
+
+
+class ContractorWorkerDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ContractorWorkerSerializer
+
+    def get_queryset(self):
+        return ContractorWorker.objects.filter(
+            organization_id__in=accessible_organization_ids(self.request.user)
+        ).select_related("contractor")
+
+    def perform_update(self, serializer):
+        if not can_manage_workforce(self.request.user, serializer.instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not can_manage_workforce(self.request.user, instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        instance.delete()
+
+
+class ContractorEvaluationListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+    serializer_class = ContractorEvaluationSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        queryset = ContractorEvaluation.objects.filter(
+            organization_id__in=org_ids
+        ).select_related("contractor", "evaluator")
+        queryset = _filter_org(queryset, self.request)
+        contractor_id = self.request.query_params.get("contractor")
+        if contractor_id and contractor_id.isdigit():
+            queryset = queryset.filter(contractor_id=int(contractor_id))
+        return queryset
+
+    def post(self, request, *args, **kwargs):
+        organization, error = _org_from_request(request, can_manage_workforce)
+        if error:
+            return error
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(organization=organization, evaluator=request.user)
+        return Response(serializer.data, status=drf_status.HTTP_201_CREATED)
+
+
+class ContractorEvaluationDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ContractorEvaluationSerializer
+
+    def get_queryset(self):
+        return ContractorEvaluation.objects.filter(
+            organization_id__in=accessible_organization_ids(self.request.user)
+        ).select_related("contractor", "evaluator")
+
+    def perform_update(self, serializer):
+        if not can_manage_workforce(self.request.user, serializer.instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not can_manage_workforce(self.request.user, instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        instance.delete()
+
+
+class AttendanceRecordListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+    serializer_class = AttendanceRecordSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        queryset = AttendanceRecord.objects.filter(
+            organization_id__in=org_ids
+        ).select_related("workplace", "employee", "contractor_worker", "verified_by")
+        queryset = _filter_org(queryset, self.request)
+        date_param = self.request.query_params.get("date")
+        if date_param:
+            queryset = queryset.filter(date=date_param)
+        workplace = self.request.query_params.get("workplace")
+        if workplace and workplace.isdigit():
+            queryset = queryset.filter(workplace_id=int(workplace))
+        person_type = self.request.query_params.get("person_type")
+        if person_type:
+            queryset = queryset.filter(person_type=person_type)
+        status_val = self.request.query_params.get("status")
+        if status_val:
+            queryset = queryset.filter(status=status_val)
+        return queryset
+
+    def post(self, request, *args, **kwargs):
+        organization, error = _org_from_request(request, can_manage_workforce)
+        if error:
+            return error
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(organization=organization, verified_by=request.user)
+        return Response(serializer.data, status=drf_status.HTTP_201_CREATED)
+
+
+class AttendanceRecordDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = AttendanceRecordSerializer
+
+    def get_queryset(self):
+        return AttendanceRecord.objects.filter(
+            organization_id__in=accessible_organization_ids(self.request.user)
+        ).select_related("workplace", "employee", "contractor_worker", "verified_by")
+
+    def perform_update(self, serializer):
+        if not can_manage_workforce(self.request.user, serializer.instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not can_manage_workforce(self.request.user, instance.organization_id):
+            raise ValidationError(FORBIDDEN["error"]["message"])
+        instance.delete()
+
+
+class AttendanceRosterView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        org_ids = list(accessible_organization_ids(request.user))
+        org_id = request.query_params.get("organization")
+        if org_id:
+            if org_id.isdigit() and can_view_organization(request.user, int(org_id)):
+                org_ids = [int(org_id)]
+            else:
+                org_ids = []
+        date_str = request.query_params.get("date") or timezone.localdate().isoformat()
+        records = AttendanceRecord.objects.filter(
+            organization_id__in=org_ids,
+            date=date_str,
+        ).select_related("workplace", "employee", "contractor_worker")
+        total = records.count()
+        present = records.filter(status="present").count()
+        late = records.filter(status="late").count()
+        absent = records.filter(status="absent").count()
+        early = records.filter(status="early_departure").count()
+        employee_count = records.filter(person_type="employee").count()
+        contractor_count = records.filter(person_type="contractor_worker").count()
+
+        return Response({
+            "date": date_str,
+            "total_recorded": total,
+            "present_count": present,
+            "late_count": late,
+            "absent_count": absent,
+            "early_departure_count": early,
+            "employee_count": employee_count,
+            "contractor_worker_count": contractor_count,
+        })
+
