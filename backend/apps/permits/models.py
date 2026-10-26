@@ -93,6 +93,12 @@ class Permit(models.Model):
         blank=True,
         help_text="اسامی یا شماره پرسنلی افراد مجاز به کار تحت این مجوز",
     )
+    assigned_employees = models.ManyToManyField(
+        "workforce.Employee",
+        blank=True,
+        related_name="permits",
+        help_text="افراد ساختاریافته معرفی‌شده برای کنترل صلاحیت؛ متن آزاد برای سازگاری حفظ شده است.",
+    )
 
     # Hazards, Precautions & Controls
     related_hazards = models.ManyToManyField(
@@ -201,6 +207,49 @@ class Permit(models.Model):
 
         if self.workplace_id and self.workplace.organization_id != self.organization_id:
             raise ValidationError({"workplace": "محل کار باید متعلق به همان سازمان باشد."})
+
+
+class PermitTypeCompetencyRequirement(models.Model):
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="permit_competency_requirements",
+    )
+    permit_type = models.CharField(max_length=32, choices=Permit.PermitType.choices)
+    competency = models.ForeignKey(
+        "workforce.Competency",
+        on_delete=models.PROTECT,
+        related_name="permit_requirements",
+    )
+    notes = models.TextField(blank=True)
+    is_synthetic = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        related_name="permit_competency_requirements_created",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["permit_type", "competency__name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "permit_type", "competency"],
+                name="unique_permit_type_competency_per_org",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["organization", "permit_type"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_permit_type_display()} — {self.competency}"
+
+    def clean(self):
+        if self.competency_id and self.competency.organization_id != self.organization_id:
+            raise ValidationError({"competency": "صلاحیت باید متعلق به همان سازمان باشد."})
 
 
 class PermitAttachment(models.Model):

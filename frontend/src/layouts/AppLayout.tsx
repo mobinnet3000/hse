@@ -6,6 +6,7 @@ import { LoginPage } from "../features/auth/LoginPage";
 export type NavTab =
   | "all"
   | "dashboard"
+  | "workforce"
   | "permits"
   | "assets"
   | "incidents"
@@ -42,6 +43,7 @@ export function AppLayout({
 
   const navItems: Array<{ id: NavTab; label: string }> = [
     { id: "dashboard", label: "داشبورد" },
+    { id: "workforce", label: "کارکنان، آموزش و PPE" },
     { id: "permits", label: "مجوزهای کار و تحویل شیفت" },
     { id: "assets", label: "تجهیزات و کالیبراسیون" },
     { id: "incidents", label: "حوادث و شبه‌حوادث" },

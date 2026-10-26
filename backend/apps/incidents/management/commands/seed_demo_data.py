@@ -11,8 +11,20 @@ from apps.findings.models import NonConformity
 from apps.incidents.models import Incident, IncidentAttachment
 from apps.inspections.models import Inspection, InspectionResponse
 from apps.organizations.models import Membership, Organization
-from apps.permits.models import Permit, PermitAttachment, ShiftHandover
+from apps.permits.models import Permit, PermitAttachment, PermitTypeCompetencyRequirement, ShiftHandover
 from apps.risks.models import Hazard, RiskAssessment
+from apps.workforce.models import (
+    Competency,
+    Employee,
+    EmployeeCompetency,
+    PPEAssignment,
+    PPEAssignmentEvent,
+    PPEItem,
+    PPEStock,
+    TrainingAttendance,
+    TrainingCourse,
+    TrainingSession,
+)
 from apps.workplaces.models import Workplace
 
 
@@ -1006,5 +1018,1301 @@ class Command(BaseCommand):
                     "is_active": True,
                 },
             )
+
+        # 11. Workforce: employees, training, competency and PPE
+        def seed_employee(organization, employee_no, defaults):
+            existing = Employee.objects.filter(
+                organization=organization, employee_no=employee_no
+            ).first()
+            if existing is not None and not existing.is_synthetic:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipped demo employee {employee_no}: employee number belongs to a real record."
+                    )
+                )
+                return None
+            payload = {**defaults, "is_synthetic": True}
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.full_clean()
+                existing.save()
+                return existing
+            employee = Employee(
+                organization=organization, employee_no=employee_no, **payload
+            )
+            employee.full_clean()
+            employee.save()
+            return employee
+
+        def seed_course(organization, code, defaults):
+            existing = TrainingCourse.objects.filter(
+                organization=organization, code=code
+            ).first()
+            if existing is not None and not existing.is_synthetic:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipped demo course {code}: course code belongs to a real record."
+                    )
+                )
+                return None
+            payload = {**defaults, "is_synthetic": True, "created_by": hse_mgr_user}
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.full_clean()
+                existing.save()
+                return existing
+            course = TrainingCourse(
+                organization=organization, code=code, **payload
+            )
+            course.full_clean()
+            course.save()
+            return course
+
+        def seed_session(organization, course, scheduled_on, defaults):
+            existing = TrainingSession.objects.filter(
+                organization=organization,
+                course=course,
+                scheduled_on=scheduled_on,
+                is_synthetic=True,
+            ).first()
+            payload = {
+                **defaults,
+                "is_synthetic": True,
+                "created_by": hse_mgr_user,
+            }
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.full_clean()
+                existing.save()
+                return existing
+            session = TrainingSession(
+                organization=organization,
+                course=course,
+                scheduled_on=scheduled_on,
+                **payload,
+            )
+            session.full_clean()
+            session.save()
+            return session
+
+        def seed_attendance(session, employee, defaults):
+            existing = TrainingAttendance.objects.filter(
+                session=session, employee=employee
+            ).first()
+            if existing is not None and not existing.is_synthetic:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipped real attendance for {employee.employee_no} in {session.course.code}."
+                    )
+                )
+                return None
+            payload = {**defaults, "is_synthetic": True, "recorded_by": hse_mgr_user}
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.full_clean()
+                existing.save()
+                return existing
+            attendance = TrainingAttendance(
+                organization=session.organization,
+                session=session,
+                employee=employee,
+                **payload,
+            )
+            attendance.full_clean()
+            attendance.save()
+            return attendance
+
+        def seed_competency(organization, code, defaults):
+            existing = Competency.objects.filter(
+                organization=organization, code=code
+            ).first()
+            if existing is not None and not existing.is_synthetic:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipped demo competency {code}: code belongs to a real record."
+                    )
+                )
+                return None
+            accepted_courses = defaults.pop("accepted_courses", [])
+            payload = {**defaults, "is_synthetic": True, "created_by": hse_mgr_user}
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.full_clean()
+                existing.save()
+                existing.accepted_courses.set(accepted_courses)
+                return existing
+            competency = Competency(
+                organization=organization, code=code, **payload
+            )
+            competency.full_clean()
+            competency.save()
+            competency.accepted_courses.set(accepted_courses)
+            return competency
+
+        def seed_employee_competency(employee, competency, achieved_on, defaults):
+            existing = EmployeeCompetency.objects.filter(
+                employee=employee,
+                competency=competency,
+                achieved_on=achieved_on,
+                is_synthetic=True,
+            ).first()
+            payload = {
+                **defaults,
+                "is_synthetic": True,
+                "recorded_by": hse_mgr_user,
+            }
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.full_clean()
+                existing.save()
+                return existing
+            record = EmployeeCompetency(
+                organization=employee.organization,
+                employee=employee,
+                competency=competency,
+                achieved_on=achieved_on,
+                **payload,
+            )
+            record.full_clean()
+            record.save()
+            return record
+
+        def seed_requirement(organization, permit_type, competency):
+            existing = PermitTypeCompetencyRequirement.objects.filter(
+                organization=organization,
+                permit_type=permit_type,
+                competency=competency,
+            ).first()
+            if existing is not None and not existing.is_synthetic:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipped real competency requirement for {permit_type}."
+                    )
+                )
+                return existing
+            payload = {
+                "notes": "الزام صلاحیت تعریف‌شده برای نمونه نمایشی فاز ۱۰",
+                "is_synthetic": True,
+                "created_by": hse_mgr_user,
+            }
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.save()
+                return existing
+            return PermitTypeCompetencyRequirement.objects.create(
+                organization=organization,
+                permit_type=permit_type,
+                competency=competency,
+                **payload,
+            )
+
+        def seed_ppe_item(organization, code, defaults):
+            existing = PPEItem.objects.filter(
+                organization=organization, code=code
+            ).first()
+            if existing is not None and not existing.is_synthetic:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipped demo PPE item {code}: code belongs to a real record."
+                    )
+                )
+                return None
+            payload = {**defaults, "is_synthetic": True, "created_by": hse_mgr_user}
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.full_clean()
+                existing.save()
+                return existing
+            item = PPEItem(organization=organization, code=code, **payload)
+            item.full_clean()
+            item.save()
+            return item
+
+        def seed_stock(organization, item, workplace, location_name, quantity, minimum):
+            existing = PPEStock.objects.filter(
+                organization=organization,
+                item=item,
+                workplace=workplace,
+                location_name=location_name,
+            ).first()
+            if existing is not None and not existing.is_synthetic:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipped real PPE stock for {item.code} at {location_name}."
+                    )
+                )
+                return existing
+            payload = {
+                "quantity_on_hand": quantity,
+                "quantity_minimum": minimum,
+                "is_active": True,
+                "is_synthetic": True,
+            }
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.save()
+                return existing
+            return PPEStock.objects.create(
+                organization=organization,
+                item=item,
+                workplace=workplace,
+                location_name=location_name,
+                **payload,
+            )
+
+        def seed_assignment(employee, item, stock, issued_on, defaults):
+            serial_number = defaults.pop("serial_number", "")
+            existing = PPEAssignment.objects.filter(
+                organization=employee.organization,
+                employee=employee,
+                item=item,
+                serial_number=serial_number,
+                issued_on=issued_on,
+                is_synthetic=True,
+            ).first()
+            # Real assignments with a similar natural key are never overwritten;
+            # a separately marked synthetic row is created instead.
+            payload = {
+                **defaults,
+                "serial_number": serial_number,
+                "is_synthetic": True,
+                "issued_by": hse_mgr_user,
+            }
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.full_clean()
+                existing.save()
+                return existing
+            assignment = PPEAssignment(
+                organization=employee.organization,
+                employee=employee,
+                item=item,
+                stock=stock,
+                issued_on=issued_on,
+                **payload,
+            )
+            assignment.full_clean()
+            assignment.save()
+            return assignment
+
+        def seed_ppe_event(assignment, event_type, occurred_on, defaults):
+            existing = PPEAssignmentEvent.objects.filter(
+                assignment=assignment,
+                event_type=event_type,
+                occurred_on=occurred_on,
+                is_synthetic=True,
+            ).first()
+            payload = {**defaults, "is_synthetic": True, "actor": hse_mgr_user}
+            if existing is not None:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                existing.save()
+                return existing
+            return PPEAssignmentEvent.objects.create(
+                organization=assignment.organization,
+                assignment=assignment,
+                event_type=event_type,
+                occurred_on=occurred_on,
+                **payload,
+            )
+
+        today = now.date()
+
+        # Foolad Alborz people (with and without login accounts)
+        emp_morteza = seed_employee(
+            org_foolad,
+            "EMP-FA-001",
+            {
+                "first_name": "مرتضی",
+                "last_name": "باقری",
+                "job_title": "جوشکار ارشد",
+                "workplace": wp_roll,
+                "user": None,
+                "is_active": True,
+                "notes": "کارمند بدون حساب ورود؛ آموزش و PPE در سامانه ثبت می‌شود.",
+            },
+        )
+        emp_ahmad = seed_employee(
+            org_foolad,
+            "EMP-FA-002",
+            {
+                "first_name": "احمد",
+                "last_name": "سهرابی",
+                "job_title": "کمک‌جوشکار",
+                "workplace": wp_roll,
+                "user": None,
+                "is_active": True,
+                "notes": "",
+            },
+        )
+        emp_mohsen = seed_employee(
+            org_foolad,
+            "EMP-FA-003",
+            {
+                "first_name": "محسن",
+                "last_name": "نوری",
+                "job_title": "تکنسین کار در ارتفاع",
+                "workplace": wp_cast,
+                "user": None,
+                "is_active": True,
+                "notes": "",
+            },
+        )
+        emp_behrooz = seed_employee(
+            org_foolad,
+            "EMP-FA-004",
+            {
+                "first_name": "بهروز",
+                "last_name": "رفیعی",
+                "job_title": "ریگر و کارگر ارتفاع",
+                "workplace": wp_cast,
+                "user": None,
+                "is_active": True,
+                "notes": "صلاحیت کار در ارتفاع منقضی شده و نیازمند تمدید است.",
+            },
+        )
+        emp_ali = seed_employee(
+            org_foolad,
+            "EMP-FA-005",
+            {
+                "first_name": "علی",
+                "last_name": "رستمی",
+                "job_title": "سرپرست کارگاه",
+                "workplace": wp_roll,
+                "user": supervisor_user,
+                "is_active": True,
+                "notes": "",
+            },
+        )
+
+        # Sepehr Petro people
+        emp_amir = seed_employee(
+            org_petro,
+            "EMP-SP-001",
+            {
+                "first_name": "امیر",
+                "last_name": "قاسمی",
+                "job_title": "کارشناس NDT",
+                "workplace": wp_spheres,
+                "user": None,
+                "is_active": True,
+                "notes": "",
+            },
+        )
+        emp_davood = seed_employee(
+            org_petro,
+            "EMP-SP-002",
+            {
+                "first_name": "داوود",
+                "last_name": "کیانی",
+                "job_title": "مراقب ورود به فضای بسته",
+                "workplace": wp_spheres,
+                "user": None,
+                "is_active": True,
+                "notes": "",
+            },
+        )
+        emp_saeed = seed_employee(
+            org_petro,
+            "EMP-SP-003",
+            {
+                "first_name": "سعید",
+                "last_name": "کریمی",
+                "job_title": "سرپرست تعمیرات",
+                "workplace": wp_maint,
+                "user": petro_supervisor_user,
+                "is_active": True,
+                "notes": "",
+            },
+        )
+        emp_sara = seed_employee(
+            org_petro,
+            "EMP-SP-004",
+            {
+                "first_name": "سارا",
+                "last_name": "تهرانی",
+                "job_title": "کارشناس HSE",
+                "workplace": wp_maint,
+                "user": viewer_user,
+                "is_active": True,
+                "notes": "",
+            },
+        )
+        emp_navid = seed_employee(
+            org_petro,
+            "EMP-SP-005",
+            {
+                "first_name": "نوید",
+                "last_name": "شریفی",
+                "job_title": "کارگر عملیات",
+                "workplace": wp_olefin,
+                "user": None,
+                "is_active": True,
+                "notes": "بدون صلاحیت معتبر برای کار گرم/فضای بسته.",
+            },
+        )
+
+        # Training courses
+        course_hot = seed_course(
+            org_foolad,
+            "TR-FA-HOT",
+            {
+                "title": "جوشکاری، برش و ایمنی کار گرم",
+                "category": "ایمنی آتش و کار گرم",
+                "description": "اصول پیشگیری از حریق، دیده‌بانی، تجهیزات جوشکاری و ارزیابی محیط.",
+                "objectives": "شناسایی خطرات کار گرم و اجرای کنترل‌های پیش از شروع کار",
+                "duration_minutes": 480,
+                "delivery_type": TrainingCourse.DeliveryType.PRACTICAL,
+                "is_mandatory": True,
+                "requires_renewal": True,
+                "validity_months": 24,
+                "is_active": True,
+            },
+        )
+        course_height = seed_course(
+            org_foolad,
+            "TR-FA-HEIGHT",
+            {
+                "title": "کار در ارتفاع و استفاده از هارنس",
+                "category": "سقوط و کار در ارتفاع",
+                "description": "کنترل سقوط، لایف‌لاین، بازرسی هارنس و اصول نجات.",
+                "objectives": "اجرای ایمن کار در ارتفاع و استفاده صحیح از سیستم‌های حفاظت سقوط",
+                "duration_minutes": 480,
+                "delivery_type": TrainingCourse.DeliveryType.PRACTICAL,
+                "is_mandatory": True,
+                "requires_renewal": True,
+                "validity_months": 24,
+                "is_active": True,
+            },
+        )
+        course_loto = seed_course(
+            org_foolad,
+            "TR-FA-LOTO",
+            {
+                "title": "ایزولاسیون انرژی و قفل و تگ‌گذاری",
+                "category": "ایمنی برق و انرژی",
+                "description": "شناسایی منابع انرژی، قفل‌گذاری و آزمون صفر انرژی.",
+                "objectives": "اجرای LOTO برای تجهیزات صنعتی",
+                "duration_minutes": 240,
+                "delivery_type": TrainingCourse.DeliveryType.IN_PERSON,
+                "is_mandatory": True,
+                "requires_renewal": True,
+                "validity_months": 36,
+                "is_active": True,
+            },
+        )
+        course_cs = seed_course(
+            org_petro,
+            "TR-SP-CS",
+            {
+                "title": "ورود ایمن به فضای بسته",
+                "category": "فضای بسته",
+                "description": "ارزیابی اتمسفر، تهویه، مجوز ورود، مراقب و طرح نجات.",
+                "objectives": "ورود و کار ایمن در مخازن و فضاهای بسته",
+                "duration_minutes": 480,
+                "delivery_type": TrainingCourse.DeliveryType.PRACTICAL,
+                "is_mandatory": True,
+                "requires_renewal": True,
+                "validity_months": 24,
+                "is_active": True,
+            },
+        )
+        course_gas = seed_course(
+            org_petro,
+            "TR-SP-GAS",
+            {
+                "title": "گازسنجی و پایش اتمسفر",
+                "category": "پایش اتمسفر",
+                "description": "کالیبراسیون، تست ضربه و تفسیر نتایج O2، LEL، H2S و CO.",
+                "objectives": "اندازه‌گیری و تفسیر صحیح اتمسفر قبل از ورود",
+                "duration_minutes": 240,
+                "delivery_type": TrainingCourse.DeliveryType.BLENDED,
+                "is_mandatory": True,
+                "requires_renewal": True,
+                "validity_months": 24,
+                "is_active": True,
+            },
+        )
+        course_first_aid = seed_course(
+            org_petro,
+            "TR-SP-FIRST",
+            {
+                "title": "کمک‌های اولیه و واکنش اضطراری",
+                "category": "واکنش اضطراری",
+                "description": "ارزیابی صحنه، احیای پایه و انتقال مصدوم.",
+                "objectives": "واکنش اولیه ایمن در حوادث",
+                "duration_minutes": 240,
+                "delivery_type": TrainingCourse.DeliveryType.IN_PERSON,
+                "is_mandatory": False,
+                "requires_renewal": True,
+                "validity_months": 36,
+                "is_active": True,
+            },
+        )
+
+        # Delivery sessions
+        sess_hot = seed_session(
+            org_foolad,
+            course_hot,
+            today - timedelta(days=60),
+            {
+                "workplace": wp_roll,
+                "instructor_name": "استاد جعفری — مرکز آموزش فنی",
+                "duration_minutes": 480,
+                "capacity": 12,
+                "status": TrainingSession.Status.COMPLETED,
+                "notes": "دوره عملی با تمرین دیده‌بانی حریق در محوطه امن.",
+            },
+        )
+        sess_height = seed_session(
+            org_foolad,
+            course_height,
+            today - timedelta(days=30),
+            {
+                "workplace": wp_cast,
+                "instructor_name": "تیم آموزش ایمنی ارتفاع",
+                "duration_minutes": 480,
+                "capacity": 10,
+                "status": TrainingSession.Status.COMPLETED,
+                "notes": "شامل بازرسی هارنس و تمرین نجات از ارتفاع.",
+            },
+        )
+        sess_cs = seed_session(
+            org_petro,
+            course_cs,
+            today - timedelta(days=20),
+            {
+                "workplace": wp_olefin,
+                "instructor_name": "مرکز آموزش پتروشیمی سپهر",
+                "duration_minutes": 480,
+                "capacity": 8,
+                "status": TrainingSession.Status.COMPLETED,
+                "notes": "تمرین ورود به فضای بسته شبیه‌سازی‌شده.",
+            },
+        )
+        sess_first = seed_session(
+            org_petro,
+            course_first_aid,
+            today - timedelta(days=10),
+            {
+                "workplace": wp_maint,
+                "instructor_name": "مربی کمک‌های اولیه صنعتی",
+                "duration_minutes": 240,
+                "capacity": 15,
+                "status": TrainingSession.Status.COMPLETED,
+                "notes": "",
+            },
+        )
+        seed_session(
+            org_petro,
+            course_gas,
+            today + timedelta(days=7),
+            {
+                "workplace": wp_olefin,
+                "instructor_name": "آزمایشگاه پایش اتمسفر",
+                "duration_minutes": 240,
+                "capacity": 12,
+                "status": TrainingSession.Status.SCHEDULED,
+                "notes": "دوره آینده؛ نتیجه قبولی نباید قبل از برگزاری ثبت شود.",
+            },
+        )
+
+        # Attendance / assessment history
+        if emp_morteza and sess_hot:
+            seed_attendance(
+                sess_hot,
+                emp_morteza,
+                {
+                    "attendance_status": TrainingAttendance.AttendanceStatus.ATTENDED,
+                    "assessment_result": TrainingAttendance.AssessmentResult.PASSED,
+                    "score": 92,
+                    "completed_on": sess_hot.scheduled_on,
+                    "notes": "قبولی با نمره ۹۲.",
+                },
+            )
+        if emp_ahmad and sess_hot:
+            seed_attendance(
+                sess_hot,
+                emp_ahmad,
+                {
+                    "attendance_status": TrainingAttendance.AttendanceStatus.ATTENDED,
+                    "assessment_result": TrainingAttendance.AssessmentResult.PASSED,
+                    "score": 81,
+                    "completed_on": sess_hot.scheduled_on,
+                    "notes": "قبولی مشروط به تمدید صلاحیت.",
+                },
+            )
+        if emp_mohsen and sess_height:
+            seed_attendance(
+                sess_height,
+                emp_mohsen,
+                {
+                    "attendance_status": TrainingAttendance.AttendanceStatus.ATTENDED,
+                    "assessment_result": TrainingAttendance.AssessmentResult.PASSED,
+                    "score": 88,
+                    "completed_on": sess_height.scheduled_on,
+                    "notes": "",
+                },
+            )
+        if emp_behrooz and sess_height:
+            seed_attendance(
+                sess_height,
+                emp_behrooz,
+                {
+                    "attendance_status": TrainingAttendance.AttendanceStatus.ATTENDED,
+                    "assessment_result": TrainingAttendance.AssessmentResult.FAILED,
+                    "score": 44,
+                    "completed_on": sess_height.scheduled_on,
+                    "notes": "نیاز به آموزش مجدد و ارزیابی دوباره.",
+                },
+            )
+        if emp_amir and sess_cs:
+            seed_attendance(
+                sess_cs,
+                emp_amir,
+                {
+                    "attendance_status": TrainingAttendance.AttendanceStatus.ATTENDED,
+                    "assessment_result": TrainingAttendance.AssessmentResult.PASSED,
+                    "score": 95,
+                    "completed_on": sess_cs.scheduled_on,
+                    "notes": "",
+                },
+            )
+        if emp_davood and sess_cs:
+            seed_attendance(
+                sess_cs,
+                emp_davood,
+                {
+                    "attendance_status": TrainingAttendance.AttendanceStatus.ATTENDED,
+                    "assessment_result": TrainingAttendance.AssessmentResult.PASSED,
+                    "score": 87,
+                    "completed_on": sess_cs.scheduled_on,
+                    "notes": "",
+                },
+            )
+        if emp_navid and sess_cs:
+            seed_attendance(
+                sess_cs,
+                emp_navid,
+                {
+                    "attendance_status": TrainingAttendance.AttendanceStatus.ABSENT,
+                    "assessment_result": TrainingAttendance.AssessmentResult.PENDING,
+                    "score": None,
+                    "completed_on": None,
+                    "notes": "غیبت در جلسه عملی؛ صلاحیت صادر نشد.",
+                },
+            )
+        if emp_sara and sess_first:
+            seed_attendance(
+                sess_first,
+                emp_sara,
+                {
+                    "attendance_status": TrainingAttendance.AttendanceStatus.ATTENDED,
+                    "assessment_result": TrainingAttendance.AssessmentResult.PASSED,
+                    "score": 90,
+                    "completed_on": sess_first.scheduled_on,
+                    "notes": "",
+                },
+            )
+
+        # Competency definitions
+        comp_hot = seed_competency(
+            org_foolad,
+            "CMP-FA-HOT",
+            {
+                "name": "صلاحیت کار گرم",
+                "description": "مجوز انجام جوشکاری، برش و عملیات تولید جرقه.",
+                "allowed_activities": "جوشکاری، برشکاری، سنگ‌زنی و کار گرم در واحدهای فرآیندی",
+                "is_mandatory": True,
+                "validity_months": 24,
+                "accepted_courses": [course_hot],
+                "is_active": True,
+            },
+        )
+        comp_height = seed_competency(
+            org_foolad,
+            "CMP-FA-HEIGHT",
+            {
+                "name": "صلاحیت کار در ارتفاع",
+                "description": "توانایی کار در ارتفاع بالای ۱.۸ متر با سیستم حفاظت سقوط.",
+                "allowed_activities": "کار روی داربست، سکو، تیر و تجهیزات بالای ارتفاع",
+                "is_mandatory": True,
+                "validity_months": 24,
+                "accepted_courses": [course_height],
+                "is_active": True,
+            },
+        )
+        comp_loto = seed_competency(
+            org_foolad,
+            "CMP-FA-LOTO",
+            {
+                "name": "صلاحیت ایزولاسیون انرژی",
+                "description": "اجرای قفل و تگ‌گذاری و آزمون صفر انرژی.",
+                "allowed_activities": "تعمیر و نگهداری تجهیزات دارای انرژی الکتریکی/مکانیکی",
+                "is_mandatory": True,
+                "validity_months": 36,
+                "accepted_courses": [course_loto],
+                "is_active": True,
+            },
+        )
+        comp_cs = seed_competency(
+            org_petro,
+            "CMP-SP-CS",
+            {
+                "name": "صلاحیت ورود به فضای بسته",
+                "description": "ورود ایمن به مخازن، برج‌ها و فضاهای بسته.",
+                "allowed_activities": "ورود به فضای بسته، بازرسی داخلی مخزن و NDT",
+                "is_mandatory": True,
+                "validity_months": 24,
+                "accepted_courses": [course_cs],
+                "is_active": True,
+            },
+        )
+        comp_gas = seed_competency(
+            org_petro,
+            "CMP-SP-GAS",
+            {
+                "name": "صلاحیت گازسنجی",
+                "description": "کار با گازسنج و تفسیر نتایج پایش اتمسفر.",
+                "allowed_activities": "گازسنجی ورود به فضای بسته و پایش منطقه",
+                "is_mandatory": True,
+                "validity_months": 24,
+                "accepted_courses": [course_gas],
+                "is_active": True,
+            },
+        )
+        comp_first_aid = seed_competency(
+            org_petro,
+            "CMP-SP-FIRST",
+            {
+                "name": "صلاحیت کمک‌های اولیه",
+                "description": "واکنش اولیه و احیای پایه در صحنه حادثه.",
+                "allowed_activities": "کمک‌های اولیه و پشتیبانی واکنش اضطراری",
+                "is_mandatory": False,
+                "validity_months": 36,
+                "accepted_courses": [course_first_aid],
+                "is_active": True,
+            },
+        )
+
+        # Historic and effective employee competency records
+        if emp_morteza and comp_hot:
+            seed_employee_competency(
+                emp_morteza,
+                comp_hot,
+                today - timedelta(days=800),
+                {
+                    "expires_on": today - timedelta(days=70),
+                    "source_course": course_hot,
+                    "certificate_number": "CERT-FA-HOT-OLD",
+                    "status": EmployeeCompetency.Status.ACTIVE,
+                    "notes": "دوره قبلی منقضی شده و برای تاریخچه حفظ می‌شود.",
+                },
+            )
+            seed_employee_competency(
+                emp_morteza,
+                comp_hot,
+                today - timedelta(days=60),
+                {
+                    "expires_on": today + timedelta(days=670),
+                    "source_course": course_hot,
+                    "source_session": sess_hot,
+                    "certificate_number": "CERT-FA-HOT-1405-01",
+                    "status": EmployeeCompetency.Status.ACTIVE,
+                    "notes": "تمدید معتبر پس از دوره جدید.",
+                },
+            )
+        if emp_ahmad and comp_hot:
+            seed_employee_competency(
+                emp_ahmad,
+                comp_hot,
+                today - timedelta(days=700),
+                {
+                    "expires_on": today + timedelta(days=10),
+                    "source_course": course_hot,
+                    "source_session": sess_hot,
+                    "certificate_number": "CERT-FA-HOT-1405-02",
+                    "status": EmployeeCompetency.Status.ACTIVE,
+                    "notes": "نزدیک انقضا؛ برای نمایش هشدار ۳۰ روزه.",
+                },
+            )
+        if emp_mohsen and comp_height:
+            seed_employee_competency(
+                emp_mohsen,
+                comp_height,
+                today - timedelta(days=30),
+                {
+                    "expires_on": today + timedelta(days=700),
+                    "source_course": course_height,
+                    "source_session": sess_height,
+                    "certificate_number": "CERT-FA-HEIGHT-1405-03",
+                    "status": EmployeeCompetency.Status.ACTIVE,
+                    "notes": "",
+                },
+            )
+        if emp_behrooz and comp_height:
+            seed_employee_competency(
+                emp_behrooz,
+                comp_height,
+                today - timedelta(days=750),
+                {
+                    "expires_on": today - timedelta(days=20),
+                    "source_course": course_height,
+                    "certificate_number": "CERT-FA-HEIGHT-OLD",
+                    "status": EmployeeCompetency.Status.ACTIVE,
+                    "notes": "منقضی؛ برای آزمون رد صلاحیت مجوز کار در ارتفاع.",
+                },
+            )
+        if emp_ali and comp_hot:
+            seed_employee_competency(
+                emp_ali,
+                comp_hot,
+                today - timedelta(days=100),
+                {
+                    "expires_on": today + timedelta(days=630),
+                    "source_course": course_hot,
+                    "certificate_number": "CERT-FA-HOT-SUP",
+                    "status": EmployeeCompetency.Status.ACTIVE,
+                    "notes": "",
+                },
+            )
+        if emp_ali and comp_height:
+            seed_employee_competency(
+                emp_ali,
+                comp_height,
+                today - timedelta(days=100),
+                {
+                    "expires_on": today + timedelta(days=630),
+                    "source_course": course_height,
+                    "certificate_number": "CERT-FA-HEIGHT-SUP",
+                    "status": EmployeeCompetency.Status.ACTIVE,
+                    "notes": "",
+                },
+            )
+        if emp_amir and comp_cs:
+            seed_employee_competency(
+                emp_amir,
+                comp_cs,
+                today - timedelta(days=20),
+                {
+                    "expires_on": today + timedelta(days=710),
+                    "source_course": course_cs,
+                    "source_session": sess_cs,
+                    "certificate_number": "CERT-SP-CS-1405-01",
+                    "status": EmployeeCompetency.Status.ACTIVE,
+                    "notes": "",
+                },
+            )
+        if emp_davood and comp_cs:
+            seed_employee_competency(
+                emp_davood,
+                comp_cs,
+                today - timedelta(days=20),
+                {
+                    "expires_on": today + timedelta(days=710),
+                    "source_course": course_cs,
+                    "source_session": sess_cs,
+                    "certificate_number": "CERT-SP-CS-1405-02",
+                    "status": EmployeeCompetency.Status.ACTIVE,
+                    "notes": "",
+                },
+            )
+        if emp_saeed and comp_cs:
+            seed_employee_competency(
+                emp_saeed,
+                comp_cs,
+                today - timedelta(days=200),
+                {
+                    "expires_on": today + timedelta(days=530),
+                    "source_course": course_cs,
+                    "certificate_number": "CERT-SP-CS-SUP",
+                    "status": EmployeeCompetency.Status.ACTIVE,
+                    "notes": "",
+                },
+            )
+        if emp_sara and comp_first_aid:
+            seed_employee_competency(
+                emp_sara,
+                comp_first_aid,
+                today - timedelta(days=30),
+                {
+                    "expires_on": today + timedelta(days=1050),
+                    "source_course": course_first_aid,
+                    "source_session": sess_first,
+                    "certificate_number": "CERT-SP-FIRST-1405-01",
+                    "status": EmployeeCompetency.Status.SUSPENDED,
+                    "notes": "تعلیق موقت برای بررسی اداری؛ در اعتبارسنجی معتبر شمرده نمی‌شود.",
+                },
+            )
+        if emp_davood and comp_gas:
+            seed_employee_competency(
+                emp_davood,
+                comp_gas,
+                today - timedelta(days=400),
+                {
+                    "expires_on": today + timedelta(days=300),
+                    "source_course": course_gas,
+                    "certificate_number": "CERT-SP-GAS-REVOKED",
+                    "status": EmployeeCompetency.Status.REVOKED,
+                    "notes": "لغوشده؛ برای آزمون عدم پذیرش صلاحیت.",
+                },
+            )
+
+        # PTW competency rules and structured crews
+        if comp_hot:
+            seed_requirement(org_foolad, Permit.PermitType.HOT_WORK, comp_hot)
+        if comp_height:
+            seed_requirement(org_foolad, Permit.PermitType.WORK_AT_HEIGHT, comp_height)
+        if comp_cs:
+            seed_requirement(org_petro, Permit.PermitType.CONFINED_SPACE, comp_cs)
+
+        if ptw1 is not None:
+            ptw1.assigned_employees.set([emp for emp in (emp_morteza, emp_ahmad) if emp])
+        if ptw2 is not None:
+            ptw2.assigned_employees.set([emp for emp in (emp_mohsen, emp_behrooz) if emp])
+        if ptw3 is not None:
+            ptw3.assigned_employees.set([emp for emp in (emp_behrooz,) if emp])
+        if ptw4 is not None:
+            ptw4.assigned_employees.set([emp for emp in (emp_morteza,) if emp])
+        if ptw5 is not None:
+            ptw5.assigned_employees.set([emp for emp in (emp_amir, emp_davood) if emp])
+
+        ptw6 = seed_permit(
+            "PTW-202610-0106",
+            {
+                "organization": org_foolad,
+                "workplace": wp_cast,
+                "permit_type": Permit.PermitType.HOT_WORK,
+                "title": "کار گرم تیم پیمانکاری بدون فهرست ساختاریافته کارکنان",
+                "description": "نمونه نمایشی برای وضعیت نامشخص صلاحیت؛ فقط نام در متن آزاد ثبت شده است.",
+                "work_area": "محوطه ریخته‌گری، ضلع شرقی",
+                "equipment_involved": "دستگاه جوش سیار",
+                "valid_from": now + timedelta(hours=2),
+                "valid_until": now + timedelta(hours=8),
+                "requester": hse_mgr_user,
+                "responsible_supervisor": None,
+                "status": Permit.Status.UNDER_REVIEW,
+                "assigned_workers": "تیم پیمانکاری آرمان (نام و شماره پرسنلی ساختاریافته ثبت نشده است)",
+                "precautions_taken": "محوطه جداسازی و کپسول اطفا مستقر شده است.",
+                "required_ppe": "شیلد جوشکاری، دستکش چرمی، ماسک تنفسی",
+                "gas_testing_required": False,
+                "isolation_loto_required": False,
+                "is_synthetic": True,
+            },
+        )
+        if ptw6 is not None:
+            ptw6.assigned_employees.clear()
+
+        # PPE catalogue
+        ppe_helmet_fa = seed_ppe_item(
+            org_foolad,
+            "PPE-FA-HELMET",
+            {
+                "name": "کلاه ایمنی صنعتی",
+                "category": "حفاظت سر",
+                "description": "کلاه ایمنی با بند چانه و قابلیت نصب عینک.",
+                "usage_requirements": "تنظیم بند، بازرسی شیلد و جایگزینی پس از ضربه.",
+                "sizes": "M, L, XL",
+                "replacement_interval_days": 730,
+                "inspection_required": True,
+                "is_durable": True,
+                "tracks_serial": False,
+                "is_active": True,
+            },
+        )
+        ppe_glove_fa = seed_ppe_item(
+            org_foolad,
+            "PPE-FA-GLOVE",
+            {
+                "name": "دستکش ضدبرش و حرارت",
+                "category": "حفاظت دست",
+                "description": "دستکش چرمی مناسب کار گرم و جابه‌جایی قطعات.",
+                "usage_requirements": "بازرسی پارگی و تعویض پس از سوختگی یا سایش.",
+                "sizes": "9, 10, 11",
+                "replacement_interval_days": 30,
+                "inspection_required": False,
+                "is_durable": False,
+                "tracks_serial": False,
+                "is_active": True,
+            },
+        )
+        ppe_harness_fa = seed_ppe_item(
+            org_foolad,
+            "PPE-FA-HARNESS",
+            {
+                "name": "هارنس تمام‌بدن ایمنی",
+                "category": "حفاظت در برابر سقوط",
+                "description": "هارنس دو قلابه با حلقه پشتی و تسمه‌های تنظیم.",
+                "usage_requirements": "بازرسی قبل از هر استفاده، اتصال به لایف‌لاین معتبر.",
+                "sizes": "Universal",
+                "replacement_interval_days": 730,
+                "inspection_required": True,
+                "is_durable": True,
+                "tracks_serial": True,
+                "is_active": True,
+            },
+        )
+        ppe_resp_fa = seed_ppe_item(
+            org_foolad,
+            "PPE-FA-RESP",
+            {
+                "name": "ماسک تنفسی نیم‌صورت با فیلتر",
+                "category": "حفاظت تنفس",
+                "description": "ماسک نیم‌صورت برای بخارات و ذرات.",
+                "usage_requirements": "تست تناسب، تعویض فیلتر و بازرسی سوپاپ.",
+                "sizes": "S, M, L",
+                "replacement_interval_days": 180,
+                "inspection_required": True,
+                "is_durable": True,
+                "tracks_serial": True,
+                "is_active": True,
+            },
+        )
+        ppe_helmet_sp = seed_ppe_item(
+            org_petro,
+            "PPE-SP-HELMET",
+            {
+                "name": "کلاه ایمنی پتروشیمی",
+                "category": "حفاظت سر",
+                "description": "کلاه ایمنی مقاوم به حرارت با برچسب واحد.",
+                "usage_requirements": "بازرسی روزانه و تنظیم بند.",
+                "sizes": "M, L",
+                "replacement_interval_days": 730,
+                "inspection_required": True,
+                "is_durable": True,
+                "tracks_serial": False,
+                "is_active": True,
+            },
+        )
+        ppe_resp_sp = seed_ppe_item(
+            org_petro,
+            "PPE-SP-RESP",
+            {
+                "name": "ماسک تنفسی تمام‌صورت",
+                "category": "حفاظت تنفس",
+                "description": "ماسک تمام‌صورت با فیلتر ترکیبی.",
+                "usage_requirements": "تست تناسب سالانه و بازرسی فیلتر.",
+                "sizes": "M, L",
+                "replacement_interval_days": 365,
+                "inspection_required": True,
+                "is_durable": True,
+                "tracks_serial": True,
+                "is_active": True,
+            },
+        )
+        ppe_glove_sp = seed_ppe_item(
+            org_petro,
+            "PPE-SP-GLOVE",
+            {
+                "name": "دستکش شیمیایی",
+                "category": "حفاظت دست",
+                "description": "دستکش مقاوم به مواد شیمیایی سبک.",
+                "usage_requirements": "بررسی نشتی قبل از استفاده.",
+                "sizes": "9, 10",
+                "replacement_interval_days": 30,
+                "inspection_required": False,
+                "is_durable": False,
+                "tracks_serial": False,
+                "is_active": True,
+            },
+        )
+
+        # PPE stock: one below-minimum and one empty location
+        stock_helmet_fa = seed_stock(
+            org_foolad, ppe_helmet_fa, wp_roll, "انبار خط نورد", 28, 10
+        ) if ppe_helmet_fa else None
+        stock_glove_fa = seed_stock(
+            org_foolad, ppe_glove_fa, wp_cast, "انبار کارگاه ریخته‌گری", 12, 20
+        ) if ppe_glove_fa else None
+        stock_harness_fa = seed_stock(
+            org_foolad, ppe_harness_fa, wp_cast, "انبار تجهیزات ارتفاع", 4, 2
+        ) if ppe_harness_fa else None
+        stock_resp_fa = seed_stock(
+            org_foolad, ppe_resp_fa, wp_roll, "انبار تنفسی", 0, 4
+        ) if ppe_resp_fa else None
+        stock_helmet_sp = seed_stock(
+            org_petro, ppe_helmet_sp, wp_maint, "انبار مرکزی HSE", 18, 5
+        ) if ppe_helmet_sp else None
+        stock_resp_sp = seed_stock(
+            org_petro, ppe_resp_sp, wp_olefin, "انبار واحد الفین", 7, 3
+        ) if ppe_resp_sp else None
+        stock_glove_sp = seed_stock(
+            org_petro, ppe_glove_sp, wp_maint, "انبار مرکزی HSE", 30, 10
+        ) if ppe_glove_sp else None
+
+        # PPE assignment history
+        def make_events(assignment, specs):
+            for event_type, occurred_on, defaults in specs:
+                seed_ppe_event(assignment, event_type, occurred_on, defaults)
+
+        if emp_morteza and ppe_helmet_fa and stock_helmet_fa:
+            a = seed_assignment(
+                emp_morteza,
+                ppe_helmet_fa,
+                stock_helmet_fa,
+                today - timedelta(days=10),
+                {
+                    "quantity": 1,
+                    "serial_number": "",
+                    "condition_on_issue": "نو",
+                    "replacement_due_on": today + timedelta(days=720),
+                    "status": PPEAssignment.Status.ACTIVE,
+                    "notes": "کلاه اختصاصی کارگاه جوشکاری.",
+                },
+            )
+            make_events(a, [(PPEAssignmentEvent.EventType.ISSUED, today - timedelta(days=10), {"quantity": 1, "condition": "نو"})])
+        if emp_morteza and ppe_glove_fa and stock_glove_fa:
+            old_glove = seed_assignment(
+                emp_morteza,
+                ppe_glove_fa,
+                stock_glove_fa,
+                today - timedelta(days=95),
+                {
+                    "quantity": 2,
+                    "serial_number": "",
+                    "condition_on_issue": "نو",
+                    "replacement_due_on": today - timedelta(days=65),
+                    "status": PPEAssignment.Status.REPLACED,
+                    "returned_on": today - timedelta(days=3),
+                    "return_condition": "ساییدگی؛ تعویض شد.",
+                    "notes": "",
+                },
+            )
+            make_events(old_glove, [
+                (PPEAssignmentEvent.EventType.ISSUED, today - timedelta(days=95), {"quantity": 2, "condition": "نو"}),
+                (PPEAssignmentEvent.EventType.REPLACED, today - timedelta(days=3), {"quantity": 2, "condition": "ساییدگی"}),
+            ])
+            new_glove = seed_assignment(
+                emp_morteza,
+                ppe_glove_fa,
+                stock_glove_fa,
+                today - timedelta(days=3),
+                {
+                    "quantity": 2,
+                    "serial_number": "",
+                    "condition_on_issue": "نو",
+                    "replacement_due_on": today + timedelta(days=27),
+                    "status": PPEAssignment.Status.ACTIVE,
+                    "notes": "تعویض دوره‌ای؛ موعد تعویض نزدیک است.",
+                },
+            )
+            make_events(new_glove, [(PPEAssignmentEvent.EventType.ISSUED, today - timedelta(days=3), {"quantity": 2, "condition": "نو"})])
+        if emp_ahmad and ppe_helmet_fa and stock_helmet_fa:
+            a = seed_assignment(
+                emp_ahmad,
+                ppe_helmet_fa,
+                stock_helmet_fa,
+                today - timedelta(days=15),
+                {
+                    "quantity": 1,
+                    "serial_number": "",
+                    "condition_on_issue": "سالم",
+                    "replacement_due_on": today + timedelta(days=715),
+                    "status": PPEAssignment.Status.ACTIVE,
+                    "notes": "",
+                },
+            )
+            make_events(a, [(PPEAssignmentEvent.EventType.ISSUED, today - timedelta(days=15), {"quantity": 1, "condition": "سالم"})])
+        if emp_mohsen and ppe_harness_fa and stock_harness_fa:
+            a = seed_assignment(
+                emp_mohsen,
+                ppe_harness_fa,
+                stock_harness_fa,
+                today - timedelta(days=200),
+                {
+                    "quantity": 1,
+                    "serial_number": "HRN-FA-001",
+                    "condition_on_issue": "سالم",
+                    "replacement_due_on": today + timedelta(days=20),
+                    "status": PPEAssignment.Status.ACTIVE,
+                    "notes": "نیازمند بازرسی دوره‌ای پیش از کار بعدی.",
+                },
+            )
+            make_events(a, [(PPEAssignmentEvent.EventType.ISSUED, today - timedelta(days=200), {"quantity": 1, "condition": "سالم"})])
+        if emp_behrooz and ppe_harness_fa and stock_harness_fa:
+            a = seed_assignment(
+                emp_behrooz,
+                ppe_harness_fa,
+                stock_harness_fa,
+                today - timedelta(days=100),
+                {
+                    "quantity": 1,
+                    "serial_number": "HRN-FA-002",
+                    "condition_on_issue": "سالم",
+                    "replacement_due_on": today + timedelta(days=630),
+                    "status": PPEAssignment.Status.RETURNED,
+                    "returned_on": today - timedelta(days=2),
+                    "return_condition": "سالم؛ پایان کار پروژه",
+                    "notes": "",
+                },
+            )
+            make_events(a, [
+                (PPEAssignmentEvent.EventType.ISSUED, today - timedelta(days=100), {"quantity": 1, "condition": "سالم"}),
+                (PPEAssignmentEvent.EventType.RETURNED, today - timedelta(days=2), {"quantity": 1, "condition": "سالم"}),
+            ])
+        if emp_sara and ppe_helmet_sp and stock_helmet_sp:
+            a = seed_assignment(
+                emp_sara,
+                ppe_helmet_sp,
+                stock_helmet_sp,
+                today - timedelta(days=5),
+                {
+                    "quantity": 1,
+                    "serial_number": "",
+                    "condition_on_issue": "نو",
+                    "replacement_due_on": today + timedelta(days=725),
+                    "status": PPEAssignment.Status.ACTIVE,
+                    "notes": "",
+                },
+            )
+            make_events(a, [(PPEAssignmentEvent.EventType.ISSUED, today - timedelta(days=5), {"quantity": 1, "condition": "نو"})])
+        if emp_davood and ppe_resp_sp and stock_resp_sp:
+            a = seed_assignment(
+                emp_davood,
+                ppe_resp_sp,
+                stock_resp_sp,
+                today - timedelta(days=150),
+                {
+                    "quantity": 1,
+                    "serial_number": "RESP-SP-001",
+                    "condition_on_issue": "سالم",
+                    "replacement_due_on": today + timedelta(days=15),
+                    "status": PPEAssignment.Status.ACTIVE,
+                    "notes": "موعد تعویض نزدیک است.",
+                },
+            )
+            make_events(a, [(PPEAssignmentEvent.EventType.ISSUED, today - timedelta(days=150), {"quantity": 1, "condition": "سالم"})])
+        if emp_navid and ppe_glove_sp and stock_glove_sp:
+            a = seed_assignment(
+                emp_navid,
+                ppe_glove_sp,
+                stock_glove_sp,
+                today - timedelta(days=40),
+                {
+                    "quantity": 1,
+                    "serial_number": "",
+                    "condition_on_issue": "سالم",
+                    "replacement_due_on": today - timedelta(days=10),
+                    "status": PPEAssignment.Status.ACTIVE,
+                    "notes": "موعد تعویض گذشته؛ برای هشدار نمایشی.",
+                },
+            )
+            make_events(a, [(PPEAssignmentEvent.EventType.ISSUED, today - timedelta(days=40), {"quantity": 1, "condition": "سالم"})])
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Phase 10 workforce demo data seeded: employees, training, competencies, PTW rules and PPE."
+            )
+        )
 
         self.stdout.write(self.style.SUCCESS("All synthetic demo data seeded successfully with is_synthetic=True."))

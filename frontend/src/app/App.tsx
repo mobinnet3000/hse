@@ -3,6 +3,7 @@ import { AppLayout, type NavTab } from "../layouts/AppLayout";
 import { AuthProvider } from "../features/auth/AuthContext";
 import { HealthStatus } from "../features/health/HealthStatus";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
+import { WorkforcePage } from "../features/workforce/WorkforcePage";
 import { PermitsPage } from "../features/permits/PermitsPage";
 import { AssetsPage } from "../features/assets/AssetsPage";
 import { IncidentsPage } from "../features/incidents/IncidentsPage";
@@ -40,6 +41,12 @@ function AppContent() {
       {(activeTab === "all" || activeTab === "dashboard") && (
         <section id="dashboard" className="section-container" style={{ marginBottom: "2rem" }}>
           <DashboardPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "workforce") && (
+        <section id="workforce" className="section-container" style={{ marginBottom: "2rem" }}>
+          <WorkforcePage />
         </section>
       )}
 

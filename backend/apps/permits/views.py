@@ -55,7 +55,7 @@ def get_accessible_permit_or_404(pk: int, user) -> Permit:
                 "closed_by",
                 "controls_verified_by",
             )
-            .prefetch_related("related_hazards", "attachments")
+            .prefetch_related("related_hazards", "attachments", "assigned_employees")
             .get(pk=pk)
         )
     except Permit.DoesNotExist:
@@ -199,6 +199,18 @@ class PermitDetailView(generics.RetrieveAPIView):
             return Permit.objects.all()
         org_ids = accessible_organization_ids(user)
         return Permit.objects.filter(organization_id__in=org_ids)
+
+
+class PermitCompetencyStatusView(APIView):
+    """Read-only competency breakdown used by the PTW detail UI."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        permit = get_accessible_permit_or_404(pk, request.user)
+        from apps.workforce.services import validate_permit_competencies
+
+        return Response(validate_permit_competencies(permit))
 
 
 class PermitReviewView(APIView):

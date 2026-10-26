@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Permit, PermitAttachment, ShiftHandover
+from .models import Permit, PermitAttachment, PermitTypeCompetencyRequirement, ShiftHandover
 
 
 class PermitAttachmentInline(admin.TabularInline):
@@ -24,7 +24,15 @@ class PermitAdmin(admin.ModelAdmin):
     ]
     list_filter = ["organization", "status", "permit_type", "is_synthetic"]
     search_fields = ["reference_code", "title", "description", "work_area"]
+    filter_horizontal = ["assigned_employees"]
     inlines = [PermitAttachmentInline]
+
+
+@admin.register(PermitTypeCompetencyRequirement)
+class PermitTypeCompetencyRequirementAdmin(admin.ModelAdmin):
+    list_display = ["permit_type", "competency", "organization", "is_synthetic", "created_at"]
+    list_filter = ["organization", "permit_type", "is_synthetic"]
+    search_fields = ["competency__code", "competency__name", "notes"]
 
 
 @admin.register(ShiftHandover)

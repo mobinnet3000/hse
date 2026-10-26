@@ -1,5 +1,8 @@
 import csv
+from datetime import timedelta
+
 from django.http import HttpResponse
+from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,6 +13,11 @@ from apps.core.access import accessible_organization_ids, can_view_organization
 from apps.findings.models import NonConformity
 from apps.inspections.models import Inspection
 from apps.risks.models import RiskAssessment
+from apps.workforce.models import (
+    EmployeeCompetency,
+    PPEAssignment,
+    TrainingAttendance,
+)
 
 
 CALIBRATION_STATUS_LABELS = {
@@ -265,6 +273,208 @@ class ReportExportView(APIView):
                     ]
 
             return export_csv("assets_report.csv", headers, row_gen())
+
+        elif report_type == "training":
+            qs = TrainingAttendance.objects.select_related(
+                "organization",
+                "employee",
+                "employee__workplace",
+                "session",
+                "session__course",
+                "session__workplace",
+            ).all()
+            if target_orgs is not None:
+                qs = qs.filter(organization_id__in=target_orgs)
+            if workplace_id:
+                qs = qs.filter(session__workplace_id=workplace_id)
+            if status_filter:
+                qs = qs.filter(attendance_status=status_filter)
+            result_filter = request.query_params.get("result")
+            if result_filter:
+                qs = qs.filter(assessment_result=result_filter)
+            course_filter = request.query_params.get("course")
+            if course_filter and str(course_filter).isdigit():
+                qs = qs.filter(session__course_id=int(course_filter))
+            if date_from:
+                qs = qs.filter(session__scheduled_on__gte=date_from)
+            if date_to:
+                qs = qs.filter(session__scheduled_on__lte=date_to)
+
+            headers = [
+                "شناسه",
+                "سازمان",
+                "شماره پرسنلی",
+                "نام کارمند",
+                "محل کار",
+                "دوره",
+                "کد دوره",
+                "تاریخ برگزاری",
+                "وضعیت حضور",
+                "نتیجه ارزیابی",
+                "امتیاز",
+                "تاریخ تکمیل",
+                "داده سنتتیک",
+            ]
+
+            def row_gen():
+                for item in qs.iterator(chunk_size=200):
+                    yield [
+                        item.pk,
+                        item.organization.name if item.organization else "",
+                        item.employee.employee_no,
+                        item.employee.full_name,
+                        item.employee.workplace.name if item.employee.workplace else "—",
+                        item.session.course.title,
+                        item.session.course.code,
+                        item.session.scheduled_on.strftime("%Y-%m-%d") if item.session.scheduled_on else "",
+                        item.get_attendance_status_display(),
+                        item.get_assessment_result_display(),
+                        item.score if item.score is not None else "",
+                        item.completed_on.strftime("%Y-%m-%d") if item.completed_on else "",
+                        "بله" if item.is_synthetic else "خیر",
+                    ]
+
+            return export_csv("training_report.csv", headers, row_gen())
+
+        elif report_type == "competencies":
+            qs = EmployeeCompetency.objects.select_related(
+                "organization",
+                "employee",
+                "employee__workplace",
+                "competency",
+                "source_course",
+            ).all()
+            if target_orgs is not None:
+                qs = qs.filter(organization_id__in=target_orgs)
+            if workplace_id:
+                qs = qs.filter(employee__workplace_id=workplace_id)
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            expiry_filter = request.query_params.get("expiry")
+            if expiry_filter == "expired":
+                qs = qs.filter(status=EmployeeCompetency.Status.ACTIVE, expires_on__lt=timezone.localdate())
+            elif expiry_filter == "expiring":
+                today = timezone.localdate()
+                qs = qs.filter(
+                    status=EmployeeCompetency.Status.ACTIVE,
+                    expires_on__gte=today,
+                    expires_on__lte=today + timedelta(days=30),
+                )
+            if date_from:
+                qs = qs.filter(achieved_on__gte=date_from)
+            if date_to:
+                qs = qs.filter(achieved_on__lte=date_to)
+
+            headers = [
+                "شناسه",
+                "سازمان",
+                "شماره پرسنلی",
+                "نام کارمند",
+                "محل کار",
+                "کد صلاحیت",
+                "نام صلاحیت",
+                "تاریخ احراز",
+                "تاریخ انقضا",
+                "وضعیت موثر",
+                "شماره گواهی",
+                "دوره منبع",
+                "داده سنتتیک",
+            ]
+
+            def row_gen():
+                for item in qs.iterator(chunk_size=200):
+                    yield [
+                        item.pk,
+                        item.organization.name if item.organization else "",
+                        item.employee.employee_no,
+                        item.employee.full_name,
+                        item.employee.workplace.name if item.employee.workplace else "—",
+                        item.competency.code,
+                        item.competency.name,
+                        item.achieved_on.strftime("%Y-%m-%d") if item.achieved_on else "",
+                        item.expires_on.strftime("%Y-%m-%d") if item.expires_on else "",
+                        item.effective_status,
+                        item.certificate_number,
+                        item.source_course.title if item.source_course else "",
+                        "بله" if item.is_synthetic else "خیر",
+                    ]
+
+            return export_csv("competencies_report.csv", headers, row_gen())
+
+        elif report_type == "ppe":
+            qs = PPEAssignment.objects.select_related(
+                "organization",
+                "employee",
+                "employee__workplace",
+                "item",
+                "stock",
+                "issued_by",
+            ).prefetch_related("events").all()
+            if target_orgs is not None:
+                qs = qs.filter(organization_id__in=target_orgs)
+            if workplace_id:
+                qs = qs.filter(employee__workplace_id=workplace_id)
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            item_filter = request.query_params.get("item")
+            if item_filter and str(item_filter).isdigit():
+                qs = qs.filter(item_id=int(item_filter))
+            due_filter = request.query_params.get("due")
+            today = timezone.localdate()
+            if due_filter == "overdue":
+                qs = qs.filter(status=PPEAssignment.Status.ACTIVE, replacement_due_on__lt=today)
+            elif due_filter == "due_soon":
+                qs = qs.filter(
+                    status=PPEAssignment.Status.ACTIVE,
+                    replacement_due_on__gte=today,
+                    replacement_due_on__lte=today + timedelta(days=30),
+                )
+            if date_from:
+                qs = qs.filter(issued_on__gte=date_from)
+            if date_to:
+                qs = qs.filter(issued_on__lte=date_to)
+
+            headers = [
+                "شناسه",
+                "سازمان",
+                "شماره پرسنلی",
+                "نام کارمند",
+                "محل کار",
+                "کد قلم PPE",
+                "نام قلم PPE",
+                "تعداد",
+                "شماره سریال",
+                "تاریخ تحویل",
+                "موعد تعویض",
+                "وضعیت",
+                "وضعیت استفاده",
+                "شماره سریال فعال",
+                "تعداد رویداد",
+                "داده سنتتیک",
+            ]
+
+            def row_gen():
+                for item in qs.iterator(chunk_size=200):
+                    yield [
+                        item.pk,
+                        item.organization.name if item.organization else "",
+                        item.employee.employee_no,
+                        item.employee.full_name,
+                        item.employee.workplace.name if item.employee.workplace else "—",
+                        item.item.code,
+                        item.item.name,
+                        item.quantity,
+                        item.serial_number,
+                        item.issued_on.strftime("%Y-%m-%d") if item.issued_on else "",
+                        item.replacement_due_on.strftime("%Y-%m-%d") if item.replacement_due_on else "",
+                        item.get_status_display(),
+                        item.usage_status,
+                        "بله" if item.serial_number and item.status == PPEAssignment.Status.ACTIVE else "خیر",
+                        item.events.count(),
+                        "بله" if item.is_synthetic else "خیر",
+                    ]
+
+            return export_csv("ppe_report.csv", headers, row_gen())
 
         elif report_type == "corrective-actions":
             qs = CorrectiveAction.objects.select_related(

@@ -60,6 +60,38 @@ const REPORTS: ReportDefinition[] = [
     ],
   },
   {
+    id: "training",
+    name: "گزارش آموزش کارکنان",
+    description: "ثبت‌نام، حضور، قبولی/مردودی، امتیاز و تاریخ تکمیل دوره‌های آموزشی",
+    statusOptions: [
+      { value: "registered", label: "ثبت‌نام‌شده" },
+      { value: "attended", label: "حاضر" },
+      { value: "absent", label: "غایب" },
+      { value: "cancelled", label: "لغوشده" },
+    ],
+  },
+  {
+    id: "competencies",
+    name: "گزارش صلاحیت‌ها",
+    description: "صلاحیت معتبر، نزدیک انقضا، منقضی، تعلیق‌شده یا لغوشده به همراه گواهی و دوره منبع",
+    statusOptions: [
+      { value: "active", label: "فعال" },
+      { value: "suspended", label: "تعلیق‌شده" },
+      { value: "revoked", label: "لغوشده" },
+    ],
+  },
+  {
+    id: "ppe",
+    name: "گزارش تجهیزات حفاظت فردی",
+    description: "تحویل، برگشت، تعویض و وضعیت تعویض PPE به تفکیک کارمند و سریال",
+    statusOptions: [
+      { value: "active", label: "در استفاده" },
+      { value: "returned", label: "برگشت‌داده‌شده" },
+      { value: "replaced", label: "تعویض‌شده" },
+      { value: "disposed", label: "خارج از سرویس" },
+    ],
+  },
+  {
     id: "corrective-actions",
     name: "گزارش اقدامات اصلاحی (CAPA)",
     description: "اقدامات اصلاحی تعریف‌شده، مسئول اجرا، مهلت و نتیجه اثربخشی",

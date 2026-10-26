@@ -10,6 +10,8 @@ from apps.core.access import (
 from apps.organizations.models import Organization
 from apps.risks.models import Hazard
 from apps.risks.serializers import HazardSerializer
+from apps.workforce.models import Employee
+from apps.workforce.serializers import EmployeeReferenceSerializer
 from apps.workplaces.models import Workplace
 from .models import Permit, PermitAttachment, ShiftHandover
 
@@ -101,6 +103,8 @@ class PermitListSerializer(serializers.ModelSerializer):
 class PermitDetailSerializer(PermitListSerializer):
     related_hazards = HazardSerializer(many=True, read_only=True)
     attachments = PermitAttachmentSerializer(many=True, read_only=True)
+    assigned_employee_details = serializers.SerializerMethodField()
+    competency_validation = serializers.SerializerMethodField()
     responsible_supervisor_name = serializers.SerializerMethodField()
     controls_verified_by_name = serializers.SerializerMethodField()
     closed_by_name = serializers.SerializerMethodField()
@@ -114,6 +118,9 @@ class PermitDetailSerializer(PermitListSerializer):
             "work_area",
             "equipment_involved",
             "assigned_workers",
+            "assigned_employees",
+            "assigned_employee_details",
+            "competency_validation",
             "responsible_supervisor",
             "responsible_supervisor_name",
             "precautions_taken",
@@ -138,6 +145,16 @@ class PermitDetailSerializer(PermitListSerializer):
             "updated_at",
         ]
 
+    def get_assigned_employee_details(self, obj):
+        return EmployeeReferenceSerializer(
+            obj.assigned_employees.all(), many=True
+        ).data
+
+    def get_competency_validation(self, obj):
+        from apps.workforce.services import validate_permit_competencies
+
+        return validate_permit_competencies(obj)
+
     def get_responsible_supervisor_name(self, obj):
         if not obj.responsible_supervisor:
             return None
@@ -161,11 +178,20 @@ class PermitDetailSerializer(PermitListSerializer):
             return False
         if obj.status not in {Permit.Status.REQUESTED, Permit.Status.UNDER_REVIEW}:
             return False
+        validation = self.get_competency_validation(obj)
+        if validation["has_requirements"] and not validation["is_compliant"]:
+            return False
         return bool(can_approve_permits(user, obj.organization_id))
 
     def get_can_control(self, obj):
         user = self.context.get("request", None) and self.context["request"].user
-        return bool(user and can_control_permits(user, obj.organization_id))
+        if not user or not can_control_permits(user, obj.organization_id):
+            return False
+        if obj.status in {Permit.Status.APPROVED, Permit.Status.SUSPENDED}:
+            validation = self.get_competency_validation(obj)
+            if validation["has_requirements"] and not validation["is_compliant"]:
+                return False
+        return True
 
     def get_can_cancel(self, obj):
         user = self.context.get("request", None) and self.context["request"].user
@@ -196,6 +222,11 @@ class PermitCreateSerializer(serializers.ModelSerializer):
         required=False,
         write_only=True,
     )
+    assigned_employees = serializers.PrimaryKeyRelatedField(
+        queryset=Employee.objects.all(),
+        many=True,
+        required=False,
+    )
 
     reference_code = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
@@ -217,6 +248,7 @@ class PermitCreateSerializer(serializers.ModelSerializer):
             "valid_until",
             "responsible_supervisor",
             "assigned_workers",
+            "assigned_employees",
             "precautions_taken",
             "required_ppe",
             "gas_testing_required",
@@ -242,6 +274,12 @@ class PermitCreateSerializer(serializers.ModelSerializer):
         workplace = attrs.get("workplace")
         if workplace and workplace.organization_id != org.id:
             raise serializers.ValidationError({"workplace": "محل کار باید متعلق به همان سازمان باشد."})
+
+        assigned_employees = attrs.get("assigned_employees") or []
+        if any(employee.organization_id != org.id for employee in assigned_employees):
+            raise serializers.ValidationError(
+                {"assigned_employees": "کارکنان معرفی‌شده باید متعلق به همان سازمان باشند."}
+            )
 
         valid_from = attrs.get("valid_from")
         valid_until = attrs.get("valid_until")

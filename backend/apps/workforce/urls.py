@@ -1,0 +1,34 @@
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path("employees/", views.EmployeeListCreateView.as_view(), name="employee-list"),
+    path("employees/<int:pk>/", views.EmployeeDetailView.as_view(), name="employee-detail"),
+    path("employees/<int:pk>/training/", views.EmployeeTrainingHistoryView.as_view(), name="employee-training-history"),
+    path("employees/<int:pk>/competencies/", views.EmployeeCompetencyHistoryView.as_view(), name="employee-competency-history"),
+    path("employees/<int:pk>/ppe/", views.EmployeePPEHistoryView.as_view(), name="employee-ppe-history"),
+    path("courses/", views.TrainingCourseListCreateView.as_view(), name="training-course-list"),
+    path("courses/<int:pk>/", views.TrainingCourseDetailView.as_view(), name="training-course-detail"),
+    path("training-sessions/", views.TrainingSessionListCreateView.as_view(), name="training-session-list"),
+    path("training-sessions/<int:pk>/", views.TrainingSessionDetailView.as_view(), name="training-session-detail"),
+    path("training-attendances/", views.TrainingAttendanceListCreateView.as_view(), name="training-attendance-list"),
+    path("training-attendances/<int:pk>/", views.TrainingAttendanceDetailView.as_view(), name="training-attendance-detail"),
+    path("competencies/", views.CompetencyListCreateView.as_view(), name="competency-list"),
+    path("competencies/<int:pk>/", views.CompetencyDetailView.as_view(), name="competency-detail"),
+    path("employee-competencies/", views.EmployeeCompetencyListCreateView.as_view(), name="employee-competency-list"),
+    path("employee-competencies/<int:pk>/", views.EmployeeCompetencyDetailView.as_view(), name="employee-competency-detail"),
+    path("employee-competencies/<int:pk>/status/", views.EmployeeCompetencyStatusView.as_view(), name="employee-competency-status"),
+    path("permit-requirements/", views.PermitRequirementListCreateView.as_view(), name="permit-requirement-list"),
+    path("permit-requirements/<int:pk>/", views.PermitRequirementDetailView.as_view(), name="permit-requirement-detail"),
+    path("ppe-items/", views.PPEItemListCreateView.as_view(), name="ppe-item-list"),
+    path("ppe-items/<int:pk>/", views.PPEItemDetailView.as_view(), name="ppe-item-detail"),
+    path("ppe-stock/", views.PPEStockListCreateView.as_view(), name="ppe-stock-list"),
+    path("ppe-stock/<int:pk>/", views.PPEStockDetailView.as_view(), name="ppe-stock-detail"),
+    path("ppe-assignments/", views.PPEAssignmentListCreateView.as_view(), name="ppe-assignment-list"),
+    path("ppe-assignments/<int:pk>/", views.PPEAssignmentDetailView.as_view(), name="ppe-assignment-detail"),
+    path("ppe-assignments/<int:pk>/return/", views.PPEAssignmentReturnView.as_view(), name="ppe-assignment-return"),
+    path("ppe-assignments/<int:pk>/replace/", views.PPEAssignmentReplaceView.as_view(), name="ppe-assignment-replace"),
+    path("ppe-assignments/<int:pk>/dispose/", views.PPEAssignmentDisposeView.as_view(), name="ppe-assignment-dispose"),
+    path("stats/", views.WorkforceStatsView.as_view(), name="workforce-stats"),
+]

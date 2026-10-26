@@ -734,6 +734,55 @@ export function PermitsPage() {
               <p style={{ margin: "0.3rem 0 0" }}>{selectedPermit.description}</p>
             </div>
 
+            {/* Personnel & Competency Verification (Phase 10) */}
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: "6px", padding: "0.75rem", marginBottom: "1rem", fontSize: "0.9rem", background: selectedPermit.competency_validation?.is_compliant === false ? "#fff5f5" : "#f8fafc" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <strong>ارزیابی صلاحیت نفرات اجرایی (Competency Check):</strong>
+                {selectedPermit.competency_validation && (
+                  <span
+                    style={{
+                      padding: "0.2rem 0.6rem",
+                      borderRadius: "4px",
+                      fontSize: "0.8rem",
+                      fontWeight: "bold",
+                      backgroundColor: selectedPermit.competency_validation.is_compliant ? "#e8f5e9" : "#ffebee",
+                      color: selectedPermit.competency_validation.is_compliant ? "#2e7d32" : "#c62828",
+                    }}
+                  >
+                    {selectedPermit.competency_validation.has_requirements
+                      ? selectedPermit.competency_validation.is_compliant
+                        ? "✓ صلاحیت‌ها احراز شد"
+                        : "⚠️ عدم احراز صلاحیت الزامی"
+                      : "بدون الزام صلاحیت خاص"}
+                  </span>
+                )}
+              </div>
+
+              {selectedPermit.assigned_employee_details && selectedPermit.assigned_employee_details.length > 0 && (
+                <div style={{ marginTop: "0.5rem" }}>
+                  <span className="muted">کارکنان معرفی‌شده ساختاریافته:</span>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
+                    {selectedPermit.assigned_employee_details.map((emp) => (
+                      <span key={emp.id} style={{ background: "#e2e8f0", padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.8rem" }}>
+                        {emp.full_name} ({emp.employee_no}) - {emp.job_title}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedPermit.competency_validation?.blocking_reasons && selectedPermit.competency_validation.blocking_reasons.length > 0 && (
+                <div style={{ marginTop: "0.5rem", color: "#c62828", fontSize: "0.85rem" }}>
+                  <strong>موانع تأیید/فعال‌سازی مجوز:</strong>
+                  <ul style={{ margin: "0.25rem 0 0", paddingRight: "1.2rem" }}>
+                    {selectedPermit.competency_validation.blocking_reasons.map((r, idx) => (
+                      <li key={idx}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
             {/* Precautions & PPE */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem", fontSize: "0.9rem" }}>
               <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px" }}>

@@ -947,6 +947,15 @@ export interface PermitDetail extends PermitListItem {
   closed_by_name?: string | null;
   closed_at?: string | null;
   related_hazards: Hazard[];
+  assigned_employees?: number[];
+  assigned_employee_details?: Array<{
+    id: number;
+    employee_no: string;
+    full_name: string;
+    job_title: string;
+    is_active: boolean;
+  }>;
+  competency_validation?: PermitCompetencyValidation;
   attachments: Array<{
     id: number;
     title: string;
@@ -1514,3 +1523,548 @@ export function createCalibration(data: Record<string, unknown>) {
     body: JSON.stringify(data),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Phase 10: Workforce, Training, Competency & PPE
+// ---------------------------------------------------------------------------
+
+export interface Employee {
+  id: number;
+  organization: number;
+  organization_name?: string;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  employee_no: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  job_title: string;
+  user?: number | null;
+  user_detail?: { id: number; username: string; full_name?: string } | null;
+  is_active: boolean;
+  notes?: string;
+  training_count?: number;
+  active_competency_count?: number;
+  active_ppe_count?: number;
+  can_manage?: boolean;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type DeliveryType = "in_person" | "practical" | "online" | "blended";
+
+export interface TrainingCourse {
+  id: number;
+  organization: number;
+  code: string;
+  title: string;
+  category: string;
+  description: string;
+  objectives: string;
+  duration_minutes: number;
+  delivery_type: DeliveryType;
+  delivery_type_display?: string;
+  is_mandatory: boolean;
+  requires_renewal: boolean;
+  validity_months?: number | null;
+  is_active: boolean;
+  session_count?: number;
+  trained_employee_count?: number;
+  can_manage?: boolean;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type SessionStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
+
+export interface TrainingSession {
+  id: number;
+  organization: number;
+  course: number;
+  course_detail?: { id: number; code: string; title: string; duration_minutes: number };
+  workplace?: number | null;
+  workplace_name?: string | null;
+  scheduled_on: string;
+  trainer_name: string;
+  capacity?: number | null;
+  status: SessionStatus;
+  status_display?: string;
+  notes?: string;
+  attendance_count?: number;
+  capacity_remaining?: number | null;
+  can_train?: boolean;
+  can_manage?: boolean;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type AttendanceStatus = "registered" | "attended" | "absent" | "cancelled";
+export type AssessmentResult = "pending" | "passed" | "failed";
+
+export interface TrainingAttendance {
+  id: number;
+  organization: number;
+  session: number;
+  session_detail?: { id: number; course: number; course_title: string; scheduled_on: string; status: string };
+  employee: number;
+  employee_detail?: { id: number; employee_no: string; full_name: string; job_title: string };
+  attendance_status: AttendanceStatus;
+  attendance_status_display?: string;
+  assessment_result: AssessmentResult;
+  assessment_result_display?: string;
+  score?: number | null;
+  completed_on?: string | null;
+  notes?: string;
+  is_passed?: boolean;
+  can_edit?: boolean;
+  recorded_by_name?: string | null;
+  is_synthetic?: boolean;
+  created_at?: string;
+}
+
+export interface Competency {
+  id: number;
+  organization: number;
+  code: string;
+  name: string;
+  description: string;
+  allowed_activities: string;
+  is_mandatory: boolean;
+  validity_months?: number | null;
+  accepted_courses?: number[];
+  accepted_courses_detail?: Array<{ id: number; code: string; title: string }>;
+  is_active: boolean;
+  valid_record_count?: number;
+  expired_record_count?: number;
+  can_manage?: boolean;
+  is_synthetic?: boolean;
+  created_at?: string;
+}
+
+export type CompetencyStatus = "active" | "suspended" | "revoked";
+export type EffectiveCompetencyStatus = "valid" | "expiring_soon" | "expired" | "suspended" | "revoked";
+
+export interface EmployeeCompetency {
+  id: number;
+  organization: number;
+  employee: number;
+  employee_detail?: { id: number; employee_no: string; full_name: string; job_title: string };
+  competency: number;
+  competency_detail?: { id: number; code: string; name: string; validity_months?: number };
+  achieved_on: string;
+  expires_on?: string | null;
+  source_course?: number | null;
+  source_course_title?: string | null;
+  source_session?: number | null;
+  source_session_label?: string | null;
+  certificate_number?: string;
+  status: CompetencyStatus;
+  effective_status: EffectiveCompetencyStatus;
+  effective_status_display?: string;
+  days_until_expiry?: number | null;
+  is_valid: boolean;
+  notes?: string;
+  can_issue?: boolean;
+  recorded_by_name?: string | null;
+  is_synthetic?: boolean;
+  created_at?: string;
+}
+
+export interface PermitTypeCompetencyRequirement {
+  id: number;
+  organization: number;
+  permit_type: PermitType;
+  permit_type_display?: string;
+  competency: number;
+  competency_detail?: { id: number; code: string; name: string };
+  notes?: string;
+  can_manage?: boolean;
+  is_synthetic?: boolean;
+  created_at?: string;
+}
+
+export interface PermitCompetencyValidation {
+  permit_id: number;
+  permit_type: string;
+  has_requirements: boolean;
+  required_competencies: Array<{ id: number; code: string; name: string }>;
+  assigned_employees: Array<{ id: number; employee_no: string; full_name: string }>;
+  is_compliant: boolean;
+  blocking_reasons: string[];
+  matrix: Array<{
+    employee_id: number;
+    employee_name: string;
+    competency_id: number;
+    competency_name: string;
+    status: string;
+    is_valid: boolean;
+  }>;
+}
+
+export interface PPEItem {
+  id: number;
+  organization: number;
+  code: string;
+  name: string;
+  category: string;
+  description: string;
+  usage_requirements: string;
+  sizes: string;
+  replacement_interval_days?: number | null;
+  inspection_required: boolean;
+  is_durable: boolean;
+  tracks_serial: boolean;
+  is_active: boolean;
+  stock_total?: number;
+  active_assignment_count?: number;
+  can_manage?: boolean;
+  is_synthetic?: boolean;
+  created_at?: string;
+}
+
+export interface PPEStock {
+  id: number;
+  organization: number;
+  item: number;
+  item_code?: string;
+  item_name?: string;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  location_name: string;
+  quantity_on_hand: number;
+  quantity_minimum: number;
+  is_below_minimum?: boolean;
+  is_active: boolean;
+  can_manage?: boolean;
+  is_synthetic?: boolean;
+  created_at?: string;
+}
+
+export type PPEAssignmentStatus = "active" | "returned" | "replaced" | "disposed";
+
+export interface PPEAssignment {
+  id: number;
+  organization: number;
+  employee: number;
+  employee_detail?: { id: number; employee_no: string; full_name: string };
+  item: number;
+  item_code?: string;
+  item_name?: string;
+  item_category?: string;
+  tracks_serial?: boolean;
+  stock: number;
+  stock_location?: string;
+  quantity: number;
+  serial_number: string;
+  issued_on: string;
+  condition_on_issue: string;
+  replacement_due_on?: string | null;
+  returned_on?: string | null;
+  return_condition?: string;
+  status: PPEAssignmentStatus;
+  status_display?: string;
+  is_overdue?: boolean;
+  is_due_soon?: boolean;
+  notes?: string;
+  can_operate?: boolean;
+  events?: Array<{
+    id: number;
+    event_type: string;
+    event_type_display: string;
+    event_date: string;
+    actor_name?: string;
+    details?: Record<string, unknown>;
+  }>;
+  is_synthetic?: boolean;
+  created_at?: string;
+}
+
+export interface WorkforceStats {
+  employees_total: number;
+  employees_active: number;
+  employees_without_account: number;
+  courses_active: number;
+  sessions_upcoming: number;
+  sessions_completed: number;
+  attendance_passed: number;
+  attendance_failed: number;
+  attendance_absent: number;
+  attendance_pending: number;
+  competency_records_total: number;
+  competency_valid: number;
+  competency_expiring_soon: number;
+  competency_expired: number;
+  competency_suspended: number;
+  competency_revoked: number;
+  competency_due_soon_days: number;
+  ppe_items: number;
+  ppe_items_active: number;
+  ppe_stock_below_minimum: number;
+  ppe_active_assignments: number;
+  ppe_assignments_due_soon: number;
+  ppe_assignments_overdue: number;
+  ppe_replacement_due_soon_days: number;
+}
+
+function workforceQuery(params?: Record<string, string | number | undefined | boolean>) {
+  if (!params) return "";
+  const entries = Object.entries(params).filter(
+    ([, value]) => value !== undefined && value !== "",
+  );
+  if (entries.length === 0) return "";
+  const query = new URLSearchParams();
+  for (const [key, value] of entries) {
+    query.set(key, String(value));
+  }
+  return `?${query.toString()}`;
+}
+
+export function fetchWorkforceStats(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<WorkforceStats>(`/workforce/stats/${workforceQuery(params)}`, { signal });
+}
+
+export function fetchEmployees(
+  params?: Record<string, string | number | undefined | boolean>,
+  signal?: AbortSignal,
+) {
+  return request<Employee[]>(`/workforce/employees/${workforceQuery(params)}`, { signal });
+}
+
+export function createEmployee(data: Record<string, unknown>) {
+  return request<Employee>("/workforce/employees/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateEmployee(id: number, data: Record<string, unknown>) {
+  return request<Employee>(`/workforce/employees/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchEmployeeTrainingHistory(id: number, signal?: AbortSignal) {
+  return request<TrainingAttendance[]>(`/workforce/employees/${id}/training/`, { signal });
+}
+
+export function fetchEmployeeCompetencyHistory(id: number, signal?: AbortSignal) {
+  return request<EmployeeCompetency[]>(`/workforce/employees/${id}/competencies/`, { signal });
+}
+
+export function fetchEmployeePPEHistory(id: number, signal?: AbortSignal) {
+  return request<PPEAssignment[]>(`/workforce/employees/${id}/ppe/`, { signal });
+}
+
+export function fetchCourses(
+  params?: Record<string, string | number | undefined | boolean>,
+  signal?: AbortSignal,
+) {
+  return request<TrainingCourse[]>(`/workforce/courses/${workforceQuery(params)}`, { signal });
+}
+
+export function createCourse(data: Record<string, unknown>) {
+  return request<TrainingCourse>("/workforce/courses/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCourse(id: number, data: Record<string, unknown>) {
+  return request<TrainingCourse>(`/workforce/courses/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchTrainingSessions(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<TrainingSession[]>(`/workforce/training-sessions/${workforceQuery(params)}`, { signal });
+}
+
+export function createTrainingSession(data: Record<string, unknown>) {
+  return request<TrainingSession>("/workforce/training-sessions/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateTrainingSession(id: number, data: Record<string, unknown>) {
+  return request<TrainingSession>(`/workforce/training-sessions/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchTrainingAttendances(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<TrainingAttendance[]>(`/workforce/training-attendances/${workforceQuery(params)}`, { signal });
+}
+
+export function createTrainingAttendance(data: Record<string, unknown>) {
+  return request<TrainingAttendance>("/workforce/training-attendances/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateTrainingAttendance(id: number, data: Record<string, unknown>) {
+  return request<TrainingAttendance>(`/workforce/training-attendances/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchCompetencies(
+  params?: Record<string, string | number | undefined | boolean>,
+  signal?: AbortSignal,
+) {
+  return request<Competency[]>(`/workforce/competencies/${workforceQuery(params)}`, { signal });
+}
+
+export function createCompetency(data: Record<string, unknown>) {
+  return request<Competency>("/workforce/competencies/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCompetency(id: number, data: Record<string, unknown>) {
+  return request<Competency>(`/workforce/competencies/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchEmployeeCompetencies(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<EmployeeCompetency[]>(`/workforce/employee-competencies/${workforceQuery(params)}`, { signal });
+}
+
+export function issueEmployeeCompetency(data: Record<string, unknown>) {
+  return request<EmployeeCompetency>("/workforce/employee-competencies/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateEmployeeCompetencyStatus(id: number, data: { status: CompetencyStatus; reason?: string }) {
+  return request<EmployeeCompetency>(`/workforce/employee-competencies/${id}/status/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchPermitRequirements(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<PermitTypeCompetencyRequirement[]>(`/workforce/permit-requirements/${workforceQuery(params)}`, { signal });
+}
+
+export function createPermitRequirement(data: Record<string, unknown>) {
+  return request<PermitTypeCompetencyRequirement>("/workforce/permit-requirements/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deletePermitRequirement(id: number) {
+  return request<void>(`/workforce/permit-requirements/${id}/`, {
+    method: "DELETE",
+  });
+}
+
+export function fetchPPEItems(
+  params?: Record<string, string | number | undefined | boolean>,
+  signal?: AbortSignal,
+) {
+  return request<PPEItem[]>(`/workforce/ppe-items/${workforceQuery(params)}`, { signal });
+}
+
+export function createPPEItem(data: Record<string, unknown>) {
+  return request<PPEItem>("/workforce/ppe-items/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updatePPEItem(id: number, data: Record<string, unknown>) {
+  return request<PPEItem>(`/workforce/ppe-items/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchPPEStock(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<PPEStock[]>(`/workforce/ppe-stock/${workforceQuery(params)}`, { signal });
+}
+
+export function createPPEStock(data: Record<string, unknown>) {
+  return request<PPEStock>("/workforce/ppe-stock/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updatePPEStock(id: number, data: Record<string, unknown>) {
+  return request<PPEStock>(`/workforce/ppe-stock/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchPPEAssignments(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<PPEAssignment[]>(`/workforce/ppe-assignments/${workforceQuery(params)}`, { signal });
+}
+
+export function createPPEAssignment(data: Record<string, unknown>) {
+  return request<PPEAssignment>("/workforce/ppe-assignments/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function returnPPEAssignment(id: number, data: { condition?: string; returned_on?: string; notes?: string }) {
+  return request<PPEAssignment>(`/workforce/ppe-assignments/${id}/return/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function replacePPEAssignment(id: number, data: Record<string, unknown>) {
+  return request<PPEAssignment>(`/workforce/ppe-assignments/${id}/replace/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function disposePPEAssignment(id: number, data: { condition?: string; notes?: string }) {
+  return request<PPEAssignment>(`/workforce/ppe-assignments/${id}/dispose/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchPermitCompetencyStatus(permitId: number, signal?: AbortSignal) {
+  return request<PermitCompetencyValidation>(`/permits/${permitId}/competency-status/`, { signal });
+}
+

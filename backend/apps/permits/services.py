@@ -18,6 +18,13 @@ from apps.workplaces.models import Workplace
 from .models import Permit, ShiftHandover
 
 
+def _assert_competency_ready(permit):
+    """Re-evaluate professional competency at every approval/activation boundary."""
+    from apps.workforce.services import assert_permit_competencies
+
+    return assert_permit_competencies(permit)
+
+
 def generate_reference_code(organization: Organization, permit_type: str) -> str:
     now = timezone.now()
     ym = now.strftime("%Y%m")
@@ -52,6 +59,10 @@ def request_permit(organization: Organization, requester, data: dict) -> Permit:
     hazards = list(hazards)
     if any(hazard.organization_id != organization.id for hazard in hazards):
         raise ValidationError("خطرهای مرتبط باید متعلق به همین سازمان باشند.")
+
+    assigned_employees = list(data.get("assigned_employees") or [])
+    if any(employee.organization_id != organization.id for employee in assigned_employees):
+        raise ValidationError("کارکنان معرفی‌شده باید متعلق به همین سازمان باشند.")
 
     valid_from = data.get("valid_from")
     valid_until = data.get("valid_until")
@@ -91,6 +102,8 @@ def request_permit(organization: Organization, requester, data: dict) -> Permit:
 
     if hazards:
         permit.related_hazards.set(hazards)
+    if assigned_employees:
+        permit.assigned_employees.set(assigned_employees)
 
     log_event(
         organization=organization,
@@ -145,6 +158,8 @@ def approve_permit(permit: Permit, user, notes: str = "") -> Permit:
     if timezone.now() > permit.valid_until:
         raise ValidationError("زمان اعتبار مجوز به پایان رسیده و امکان تأیید آن وجود ندارد.")
 
+    competency_result = _assert_competency_ready(permit)
+
     permit.status = Permit.Status.APPROVED
     permit.approver = user
     if notes:
@@ -157,7 +172,11 @@ def approve_permit(permit: Permit, user, notes: str = "") -> Permit:
         action="permit.approved",
         entity_type="Permit",
         entity_id=permit.id,
-        details={"reference_code": permit.reference_code},
+        details={
+            "reference_code": permit.reference_code,
+            "competency_checked": competency_result["has_requirements"],
+            "competency_compliant": competency_result["is_compliant"],
+        },
     )
     return permit
 
@@ -172,6 +191,8 @@ def verify_controls_and_activate(permit: Permit, user, gas_results: str = "", lo
     now = timezone.now()
     if now > permit.valid_until:
         raise ValidationError("اعتبار زمانی مجوز منقضی شده است و امکان فعال‌سازی آن وجود ندارد.")
+
+    competency_result = _assert_competency_ready(permit)
 
     # Verify required gas testing
     if permit.gas_testing_required:
@@ -202,7 +223,11 @@ def verify_controls_and_activate(permit: Permit, user, gas_results: str = "", lo
         action="permit.activated",
         entity_type="Permit",
         entity_id=permit.id,
-        details={"reference_code": permit.reference_code},
+        details={
+            "reference_code": permit.reference_code,
+            "competency_checked": competency_result["has_requirements"],
+            "competency_compliant": competency_result["is_compliant"],
+        },
     )
     return permit
 
@@ -245,6 +270,8 @@ def resume_permit(permit: Permit, user) -> Permit:
     if timezone.now() > permit.valid_until:
         raise ValidationError("زمان اعتبار مجوز به پایان رسیده و امکان ازسرگیری آن وجود ندارد.")
 
+    competency_result = _assert_competency_ready(permit)
+
     permit.status = Permit.Status.ACTIVE
     permit.save(update_fields=["status", "updated_at"])
 
@@ -254,7 +281,11 @@ def resume_permit(permit: Permit, user) -> Permit:
         action="permit.resumed",
         entity_type="Permit",
         entity_id=permit.id,
-        details={"reference_code": permit.reference_code},
+        details={
+            "reference_code": permit.reference_code,
+            "competency_checked": competency_result["has_requirements"],
+            "competency_compliant": competency_result["is_compliant"],
+        },
     )
     return permit
 

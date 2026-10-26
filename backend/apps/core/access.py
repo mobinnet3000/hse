@@ -244,3 +244,64 @@ def can_calibrate_equipment(user, organization_id):
     if user.is_platform_admin:
         return True
     return membership_role(user, organization_id) in CALIBRATION_ROLES
+
+
+WORKFORCE_MANAGER_ROLES = {
+    Membership.Roles.ORG_ADMIN,
+    Membership.Roles.HSE_MANAGER,
+}
+
+TRAINING_OPERATOR_ROLES = {
+    Membership.Roles.ORG_ADMIN,
+    Membership.Roles.HSE_MANAGER,
+    Membership.Roles.HSE_INSPECTOR,
+}
+
+COMPETENCY_ISSUER_ROLES = {
+    Membership.Roles.ORG_ADMIN,
+    Membership.Roles.HSE_MANAGER,
+    Membership.Roles.HSE_INSPECTOR,
+}
+
+PPE_OPERATOR_ROLES = {
+    Membership.Roles.ORG_ADMIN,
+    Membership.Roles.HSE_MANAGER,
+    Membership.Roles.HSE_INSPECTOR,
+    Membership.Roles.WORKSHOP_SUPERVISOR,
+}
+
+
+def can_manage_workforce(user, organization_id):
+    """Manage personnel, course catalogue, competency definitions and PPE catalogue/stock."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    return membership_role(user, organization_id) in WORKFORCE_MANAGER_ROLES
+
+
+def can_conduct_training(user, organization_id):
+    """Create delivery sessions and record attendance/assessment results."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    return membership_role(user, organization_id) in TRAINING_OPERATOR_ROLES
+
+
+def can_issue_competency(user, organization_id):
+    """Issue, suspend or revoke employee competency records."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    return membership_role(user, organization_id) in COMPETENCY_ISSUER_ROLES
+
+
+def can_operate_ppe(user, organization_id):
+    """Issue, return or replace PPE assignments."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_platform_admin:
+        return True
+    return membership_role(user, organization_id) in PPE_OPERATOR_ROLES
