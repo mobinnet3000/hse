@@ -49,7 +49,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
 
-  if (options.body) {
+  if (options.body && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
   if (method !== "GET" && method !== "HEAD") {
@@ -3072,6 +3072,285 @@ export function fetchScaffoldTagCard(id: number, signal?: AbortSignal) {
   return request<ScaffoldTagCard>(`/scaffolds/scaffolds/${id}/tag-card/`, { signal });
 }
 
+// ==========================================
+// Phase 16: HSE Document Control, Versioning & Secure Archive
+// ==========================================
 
+export type DocumentCategoryType =
+  | "policy"
+  | "procedure"
+  | "work_instruction"
+  | "form"
+  | "sds"
+  | "risk_assessment"
+  | "permit_template"
+  | "certificate"
+  | "training_material"
+  | "inspection_audit"
+  | "technical_file"
+  | "environmental_record"
+  | "other";
 
+export type ConfidentialityType = "public" | "internal" | "confidential" | "strictly_confidential";
 
+export type DocumentStatusType =
+  | "draft"
+  | "submitted"
+  | "under_review"
+  | "approved"
+  | "effective"
+  | "rejected"
+  | "superseded"
+  | "expired"
+  | "archived"
+  | "withdrawn";
+
+export type VersionStatusType = "draft" | "under_review" | "approved" | "rejected" | "superseded" | "archived";
+
+export interface DocumentVersionItem {
+  id: number;
+  document: number;
+  version_number: string;
+  original_filename: string;
+  file_size_bytes: number;
+  file_hash_sha256: string;
+  mime_type: string;
+  change_summary: string;
+  uploaded_by?: number | null;
+  uploaded_by_name: string;
+  status: VersionStatusType;
+  status_display: string;
+  reviewed_by?: number | null;
+  reviewed_by_name: string;
+  reviewed_at?: string | null;
+  review_notes?: string;
+  created_at: string;
+  download_url: string;
+}
+
+export interface DocumentAcknowledgmentItem {
+  id: number;
+  document: number;
+  version: number;
+  version_number: string;
+  user: number;
+  user_name: string;
+  acknowledged_at: string;
+  signature_note?: string;
+}
+
+export interface DocumentReviewLogItem {
+  id: number;
+  document: number;
+  version?: number | null;
+  version_number: string;
+  reviewer?: number | null;
+  reviewer_name: string;
+  action: string;
+  action_display: string;
+  decision_reason: string;
+  created_at: string;
+}
+
+export interface DocumentLinkItem {
+  id: number;
+  document: number;
+  target_type: string;
+  target_type_display: string;
+  target_id: number;
+  link_title: string;
+  link_note: string;
+  created_by?: number | null;
+  created_by_name: string;
+  created_at: string;
+}
+
+export interface ControlledDocument {
+  id: number;
+  organization: number;
+  document_number: string;
+  title: string;
+  description?: string;
+  category: DocumentCategoryType;
+  category_display: string;
+  confidentiality: ConfidentialityType;
+  confidentiality_display: string;
+  status: DocumentStatusType;
+  status_display: string;
+  department: string;
+  workplace?: number | null;
+  workplace_name?: string;
+  owner?: number | null;
+  owner_name: string;
+  author?: number | null;
+  author_name: string;
+  assigned_reviewer?: number | null;
+  assigned_reviewer_name: string;
+  current_version_id?: number | null;
+  current_version_number: string;
+  current_version_filename: string;
+  current_version_size: number;
+  current_version_hash: string;
+  effective_date?: string | null;
+  next_review_date?: string | null;
+  expiry_date?: string | null;
+  retention_years?: number;
+  is_expired: boolean;
+  is_review_overdue: boolean;
+  is_review_due_soon: boolean;
+  is_effective: boolean;
+  requires_acknowledgment: boolean;
+  acknowledgments_count: number;
+  versions_count: number;
+  tags: string;
+  archived_at?: string | null;
+  archived_reason?: string;
+  archived_by_name?: string;
+  versions?: DocumentVersionItem[];
+  review_logs?: DocumentReviewLogItem[];
+  cross_links?: DocumentLinkItem[];
+  acknowledgments?: DocumentAcknowledgmentItem[];
+  updated_at: string;
+  created_at: string;
+}
+
+export interface DocumentSummary {
+  total_documents: number;
+  effective_documents: number;
+  under_review_documents: number;
+  draft_documents: number;
+  rejected_documents: number;
+  archived_documents: number;
+  expiring_soon: number;
+  review_due_soon: number;
+  total_acknowledgments: number;
+  categories_breakdown: Array<{ category: string; count: number }>;
+}
+
+function docQuery(params?: Record<string, string | number | undefined>): string {
+  if (!params) return "";
+  const filtered = Object.entries(params).filter(([, v]) => v !== undefined && v !== "");
+  if (!filtered.length) return "";
+  return `?${new URLSearchParams(filtered.map(([k, v]) => [k, String(v)])).toString()}`;
+}
+
+export function fetchDocumentSummary(organizationId?: number, signal?: AbortSignal) {
+  const p: Record<string, string | number | undefined> = {};
+  if (organizationId) p.organization = organizationId;
+  return request<DocumentSummary>(`/documents/summary/${docQuery(p)}`, { signal });
+}
+
+export function fetchDocuments(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal
+) {
+  return request<ControlledDocument[] | { results: ControlledDocument[] }>(
+    `/documents/documents/${docQuery(params)}`,
+    { signal }
+  ).then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function fetchDocumentDetail(id: number, signal?: AbortSignal) {
+  return request<ControlledDocument>(`/documents/documents/${id}/`, { signal });
+}
+
+export function createDocument(formData: FormData) {
+  return request<ControlledDocument>("/documents/documents/", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export function uploadDocumentRevision(id: number, formData: FormData) {
+  return request<{ message: string; version: DocumentVersionItem }>(
+    `/documents/documents/${id}/revisions/`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+}
+
+export function submitDocumentForReview(id: number) {
+  return request<{ message: string; document: ControlledDocument }>(
+    `/documents/documents/${id}/submit/`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function reviewDocument(
+  id: number,
+  data: {
+    action: "approve" | "reject";
+    notes?: string;
+    reason?: string;
+    effective_date?: string;
+    next_review_date?: string;
+    expiry_date?: string;
+  }
+) {
+  return request<{ message: string; document: ControlledDocument }>(
+    `/documents/documents/${id}/review/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export function archiveDocument(id: number, data: { reason: string }) {
+  return request<{ message: string; document: ControlledDocument }>(
+    `/documents/documents/${id}/archive/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export function restoreDocument(id: number, data?: { reason?: string }) {
+  return request<{ message: string; document: ControlledDocument }>(
+    `/documents/documents/${id}/restore/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    }
+  );
+}
+
+export function acknowledgeDocument(id: number, data?: { signature_note?: string }) {
+  return request<{ message: string; acknowledgment: DocumentAcknowledgmentItem }>(
+    `/documents/documents/${id}/acknowledge/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    }
+  );
+}
+
+export function linkDocument(
+  id: number,
+  data: {
+    target_type: string;
+    target_id: number;
+    link_title?: string;
+    link_note?: string;
+  }
+) {
+  return request<{ message: string; link: DocumentLinkItem }>(
+    `/documents/documents/${id}/link/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export function getDocumentDownloadUrl(docId: number, versionId?: number): string {
+  if (versionId) {
+    return `${API_BASE_URL}/documents/documents/${docId}/versions/${versionId}/download/`;
+  }
+  return `${API_BASE_URL}/documents/documents/${docId}/download/`;
+}

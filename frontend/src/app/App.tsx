@@ -17,6 +17,7 @@ import { KnowledgeBasePage } from "../features/knowledge/KnowledgeBasePage";
 import { AiAssistantPage } from "../features/ai/AiAssistantPage";
 import { EnvironmentPage } from "../features/environment/EnvironmentPage";
 import { ScaffoldsPage } from "../features/scaffolds/ScaffoldsPage";
+import { DocumentsPage } from "../features/documents/DocumentsPage";
 import { fetchNotifications } from "../services/api";
 
 function AppContent() {
@@ -80,6 +81,12 @@ function AppContent() {
       {(activeTab === "all" || activeTab === "environment") && (
         <section id="environment" className="section-container" style={{ marginBottom: "2rem" }}>
           <EnvironmentPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "documents") && (
+        <section id="documents" className="section-container" style={{ marginBottom: "2rem" }}>
+          <DocumentsPage />
         </section>
       )}
 

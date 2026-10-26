@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.workforce",
     "apps.environment",
     "apps.scaffolds",
+    "apps.documents",
 ]
 
 MIDDLEWARE = [

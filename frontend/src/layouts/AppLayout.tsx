@@ -18,6 +18,7 @@ export type NavTab =
   | "notifications"
   | "knowledge"
   | "environment"
+  | "documents"
   | "ai"
   | "audit";
 

@@ -18,6 +18,7 @@ import {
   History,
   Leaf,
   Hammer,
+  FileText,
   X,
   LogOut,
 } from "lucide-react";
@@ -69,8 +70,9 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    groupTitle: "دانش و هوش مصنوعی",
+    groupTitle: "اسناد و دانش",
     items: [
+      { id: "documents", label: "کنترل مدارک و آرشیو", icon: <FileText size={18} /> },
       { id: "knowledge", label: "پایگاه دانش و مقررات", icon: <BookOpen size={18} /> },
       { id: "ai", label: "دستیار هوشمند HSE", icon: <Sparkles size={18} /> },
     ],

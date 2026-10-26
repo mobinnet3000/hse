@@ -56,6 +56,18 @@ from apps.environment.services import (
 )
 from apps.scaffolds.models import Scaffold, ScaffoldInspection, ScaffoldTagLog
 from apps.scaffolds.services import record_scaffold_inspection, change_scaffold_tag
+from django.core.files.base import ContentFile
+from apps.documents.models import (
+    ConfidentialityLevel,
+    Document,
+    DocumentAcknowledgment,
+    DocumentCategory,
+    DocumentLink,
+    DocumentReviewLog,
+    DocumentStatus,
+    DocumentVersion,
+    VersionStatus,
+)
 
 
 DEMO_PASSWORD = "Pass-12345-abc"
@@ -3460,5 +3472,513 @@ class Command(BaseCommand):
             )
         )
 
-        self.stdout.write(self.style.SUCCESS("All synthetic demo data seeded successfully with is_synthetic=True."))
+        # ==========================================
+        # Phase 16: HSE Document Control, Versioning & Secure Archive
+        # ==========================================
+        self.stdout.write(self.style.NOTICE("Seeding Phase 16: HSE Document Control, Versioning & Secure Archive..."))
 
+        # Helper to create/get sample file content
+        def sample_pdf_content(title_text, version_label):
+            return ContentFile(
+                f"%PDF-1.4 HSE GUARD CONTROLLED DOCUMENT\nDocument: {title_text}\nVersion: {version_label}\nSecurity: Tamper-Evident SHA-256\n".encode("utf-8"),
+                name=f"{version_label}.pdf",
+            )
+
+        # 1. Approved Effective Procedure with Multiple Revisions (DOC-SOP-HSE-001)
+        doc_height, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-SOP-HSE-001",
+            defaults={
+                "title": "دستورالعمل جامع ایمنی کار در ارتفاع و پیشگیری از سقوط",
+                "description": "پروتکل اجرایی الزامات کار در ارتفاع بالای ۱.۸ متر، استفاده از هارنس، لایف‌لاین، بازرسی تگ داربست و سامانه توقف سقوط.",
+                "category": DocumentCategory.PROCEDURE,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.EFFECTIVE,
+                "department": "واحد ایمنی و حفاظت فنی",
+                "workplace": wp_roll,
+                "owner": hse_mgr_user,
+                "author": inspector_user,
+                "assigned_reviewer": hse_mgr_user,
+                "effective_date": today - timedelta(days=15),
+                "next_review_date": today + timedelta(days=350),
+                "expiry_date": today + timedelta(days=715),
+                "retention_years": 7,
+                "tags": "ارتفاع, داربست, هارنس, لایف‌لاین, سقوط",
+                "requires_acknowledgment": True,
+                "is_synthetic": True,
+            },
+        )
+
+        # Revision 1.0 (Superseded)
+        v1_height, _ = DocumentVersion.objects.update_or_create(
+            document=doc_height,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("کار در ارتفاع", "v1.0"),
+                "original_filename": "SOP_Work_At_Height_v1.0.pdf",
+                "file_size_bytes": 1024 * 125,
+                "file_hash_sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+                "mime_type": "application/pdf",
+                "change_summary": "تدوین اولیه دستورالعمل طبق آیین‌نامه ایمنی کار در ارتفاع وزارت تعاون، کار و رفاه اجتماعی",
+                "uploaded_by": inspector_user,
+                "status": VersionStatus.SUPERSEDED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=90),
+                "review_notes": "نگارش اولیه تصویب شد.",
+                "is_synthetic": True,
+            },
+        )
+
+        # Revision 2.0 (Approved, Current Effective)
+        v2_height, _ = DocumentVersion.objects.update_or_create(
+            document=doc_height,
+            version_number="2.0",
+            defaults={
+                "file": sample_pdf_content("کار در ارتفاع", "v2.0"),
+                "original_filename": "SOP_Work_At_Height_v2.0_Final.pdf",
+                "file_size_bytes": 1024 * 240,
+                "file_hash_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "mime_type": "application/pdf",
+                "change_summary": "یکپارچه‌سازی فرآیند با سیستم بازرسی ۷ گانه تگ داربست (فاز ۱۵) و اعمال کنترل‌های صلاحیت نفرات مجاز داربست‌بندی",
+                "uploaded_by": inspector_user,
+                "status": VersionStatus.APPROVED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=15),
+                "review_notes": "بازنگری با موفقیت انجام شد؛ بندهای بازرسی تگ داربست و الزام هارنس متصل به لایف‌لاین مستقل تأیید گردید.",
+                "is_synthetic": True,
+            },
+        )
+        if doc_height.current_version != v2_height:
+            doc_height.current_version = v2_height
+            doc_height.save(update_fields=["current_version"])
+
+        # Review Logs for doc_height
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_height,
+            version=v1_height,
+            action=DocumentReviewLog.Action.APPROVED,
+            defaults={"reviewer": hse_mgr_user, "decision_reason": "تصویب نگارش ۱.۰ اولیه"},
+        )
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_height,
+            version=v1_height,
+            action=DocumentReviewLog.Action.SUPERSEDED,
+            defaults={"reviewer": hse_mgr_user, "decision_reason": "جایگزین‌شده با نگارش جدید ۲.۰"},
+        )
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_height,
+            version=v2_height,
+            action=DocumentReviewLog.Action.APPROVED,
+            defaults={"reviewer": hse_mgr_user, "decision_reason": "تصویب و ابلاغ نگارش ۲.۰"},
+        )
+
+        # 2. Draft Awaiting Review (DOC-WI-CS-004)
+        doc_cs, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-WI-CS-004",
+            defaults={
+                "title": "دستورالعمل فنی ورود به فضاهای بسته و مخازن فرآیندی (Confined Space)",
+                "description": "چک‌لیست اتمسفر سنجی اکسیژن/گازهای قابل اشتعال، قفل و نشانه‌گذاری (LOTO) و الزام نفر مراقب بیرونی (Standby Person).",
+                "category": DocumentCategory.WORK_INSTRUCTION,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.UNDER_REVIEW,
+                "department": "بهره‌برداری کوره و تأسیسات گاز",
+                "workplace": wp_cast,
+                "owner": supervisor_user,
+                "author": supervisor_user,
+                "assigned_reviewer": hse_mgr_user,
+                "retention_years": 5,
+                "tags": "فضای بسته, مخزن, اکسیژن, گازسنجی, LOTO",
+                "requires_acknowledgment": True,
+                "is_synthetic": True,
+            },
+        )
+        v1_cs, _ = DocumentVersion.objects.update_or_create(
+            document=doc_cs,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("ورود به فضای بسته", "v1.0"),
+                "original_filename": "WI_Confined_Space_Entry_Draft.pdf",
+                "file_size_bytes": 1024 * 180,
+                "file_hash_sha256": "8a35626a54041b3dfaef3d2efad7c5055b85a363db761005a3089d81d45145b2",
+                "mime_type": "application/pdf",
+                "change_summary": "پیش‌نویس اولیه ارسالی جهت ممیزی مدیر ایمنی و اعمال ملاحظات دستگاه‌های گازسنج پرتابل ۴ گازه",
+                "uploaded_by": supervisor_user,
+                "status": VersionStatus.UNDER_REVIEW,
+                "is_synthetic": True,
+            },
+        )
+        if doc_cs.current_version != v1_cs:
+            doc_cs.current_version = v1_cs
+            doc_cs.save(update_fields=["current_version"])
+
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_cs,
+            version=v1_cs,
+            action=DocumentReviewLog.Action.SUBMITTED,
+            defaults={"reviewer": supervisor_user, "decision_reason": "ارسال اولیه جهت بررسی و ابلاغ سازمانی"},
+        )
+
+        # 3. Rejected Document with Review Reason (DOC-SOP-HOT-002)
+        doc_hot, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-SOP-HOT-002",
+            defaults={
+                "title": "دستورالعمل ایمنی عملیات گرم، جوشکاری و برش‌کاری در مجاورت مواد اشتعال‌پذیر",
+                "description": "الزامات ایمنی پروانه کار گرم، فاصله ایمنی ۱۱ متری و تجهیزات اطفاء حریق پشتیبان.",
+                "category": DocumentCategory.PROCEDURE,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.REJECTED,
+                "department": "تعمیرات مکانیک و نورد",
+                "workplace": wp_roll,
+                "owner": supervisor_user,
+                "author": supervisor_user,
+                "assigned_reviewer": hse_mgr_user,
+                "retention_years": 5,
+                "tags": "جوشکاری, برشکاری, حریق, کار گرم, اطفاء",
+                "requires_acknowledgment": False,
+                "is_synthetic": True,
+            },
+        )
+        v1_hot, _ = DocumentVersion.objects.update_or_create(
+            document=doc_hot,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("کار گرم و برشکاری", "v1.0"),
+                "original_filename": "SOP_Hot_Work_Safety_Draft.pdf",
+                "file_size_bytes": 1024 * 95,
+                "file_hash_sha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+                "mime_type": "application/pdf",
+                "change_summary": "تدوین اولیه روش اجرایی کار گرم",
+                "uploaded_by": supervisor_user,
+                "status": VersionStatus.REJECTED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=2),
+                "review_notes": "ماتریس ارزیابی فاصله ایمنی از مخازن گاز هیدروژن و فرم پایش مستمر دیده‌بان آتش (Fire Watch) تکمیل نشده است؛ لطفاً پس از افزودن چک‌لیست مجدداً ارسال فرمایید.",
+                "is_synthetic": True,
+            },
+        )
+        if doc_hot.current_version != v1_hot:
+            doc_hot.current_version = v1_hot
+            doc_hot.save(update_fields=["current_version"])
+
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_hot,
+            version=v1_hot,
+            action=DocumentReviewLog.Action.REJECTED,
+            defaults={
+                "reviewer": hse_mgr_user,
+                "decision_reason": "ماتریس ارزیابی فاصله ایمنی از مخازن گاز هیدروژن و فرم پایش مستمر دیده‌بان آتش (Fire Watch) تکمیل نشده است.",
+            },
+        )
+
+        # 4. Expiring Certificate (DOC-CERT-ISO-45001) - Expiring in 12 days
+        doc_iso, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-CERT-ISO-45001",
+            defaults={
+                "title": "گواهینامه بین‌المللی سیستم مدیریت ایمنی و بهداشت حرفه‌ای ISO 45001:2018",
+                "description": "گواهینامه تمدید سالانه استقرار الزامات بین‌المللی OHSAS صادر شده توسط مرجع معتبر توف نورد (TÜV NORD).",
+                "category": DocumentCategory.CERTIFICATE,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.EFFECTIVE,
+                "department": "مدیریت تضمین کیفیت و HSE کل",
+                "owner": hse_mgr_user,
+                "author": hse_mgr_user,
+                "assigned_reviewer": hse_mgr_user,
+                "effective_date": today - timedelta(days=353),
+                "next_review_date": today + timedelta(days=10),
+                "expiry_date": today + timedelta(days=12),  # Expiring soon!
+                "retention_years": 10,
+                "tags": "ISO45001, استاندارد, گواهینامه, توف, ممیزی",
+                "requires_acknowledgment": False,
+                "is_synthetic": True,
+            },
+        )
+        v1_iso, _ = DocumentVersion.objects.update_or_create(
+            document=doc_iso,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("گواهینامه ISO 45001", "v1.0"),
+                "original_filename": "ISO_45001_Certificate_Alborz_Steel.pdf",
+                "file_size_bytes": 1024 * 310,
+                "file_hash_sha256": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce",
+                "mime_type": "application/pdf",
+                "change_summary": "ثبت گواهینامه صادره ممیزی خارجی دوره ۲۰۲۵-۲۰۲۶",
+                "uploaded_by": hse_mgr_user,
+                "status": VersionStatus.APPROVED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=353),
+                "review_notes": "گواهینامه معتبر ثبت شد.",
+                "is_synthetic": True,
+            },
+        )
+        if doc_iso.current_version != v1_iso:
+            doc_iso.current_version = v1_iso
+            doc_iso.save(update_fields=["current_version"])
+
+        # 5. Expired Environmental Record (DOC-CERT-ENV-2023) - Expired 20 days ago
+        doc_env_exp, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-CERT-ENV-2023",
+            defaults={
+                "title": "تأییدیه دوره‌ای سنجش آلاینده‌های خروجی دودکش کوره نورد و غبارگیرها ۱۴۰۳",
+                "description": "نتایج آنالیز آزمایشگاه معتمد سازمان حفاظت محیط زیست پیرامون غلظت ذرات معلق (PM) و گازهای SO2 و NOx خروجی.",
+                "category": DocumentCategory.ENVIRONMENTAL_RECORD,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.EXPIRED,
+                "department": "واحد بهداشت حرفه‌ای و محیط زیست",
+                "workplace": wp_roll,
+                "owner": hse_mgr_user,
+                "author": inspector_user,
+                "effective_date": today - timedelta(days=385),
+                "next_review_date": today - timedelta(days=30),
+                "expiry_date": today - timedelta(days=20),  # Expired
+                "retention_years": 5,
+                "tags": "محیط زیست, دودکش, ذرات معلق, آلایندگی, آزمایشگاه معتمد",
+                "requires_acknowledgment": False,
+                "is_synthetic": True,
+            },
+        )
+        v1_env, _ = DocumentVersion.objects.update_or_create(
+            document=doc_env_exp,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("تأییدیه محیط زیستی دودکش", "v1.0"),
+                "original_filename": "Emission_Stack_Test_Report_1403.pdf",
+                "file_size_bytes": 1024 * 145,
+                "file_hash_sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+                "mime_type": "application/pdf",
+                "change_summary": "گزارش سنجش سه ماهه چهارم ۱۴۰۳",
+                "uploaded_by": inspector_user,
+                "status": VersionStatus.APPROVED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=385),
+                "is_synthetic": True,
+            },
+        )
+        if doc_env_exp.current_version != v1_env:
+            doc_env_exp.current_version = v1_env
+            doc_env_exp.save(update_fields=["current_version"])
+
+        # 6. Confidential Document with Restricted Access (DOC-CONF-INV-2026-09)
+        doc_confidential, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-CONF-INV-2026-09",
+            defaults={
+                "title": "گزارش محرمانه تحلیل ریشه‌ای (RCA) و بازرسی حقوقی حادثه سقوط سرباره پاتیل",
+                "description": "گزارش فنی و حقوقی ویژه هیئت‌مدیره؛ دربرگیرنده تحلیل خطای انسانی، شبیه‌سازی حرارتی و استعلامات شرکت بیمه.",
+                "category": DocumentCategory.INSPECTION_AUDIT,
+                "confidentiality": ConfidentialityLevel.STRICTLY_CONFIDENTIAL,
+                "status": DocumentStatus.EFFECTIVE,
+                "department": "کمیته عالی سوانح و حوادث صنعتی",
+                "workplace": wp_cast,
+                "owner": hse_mgr_user,
+                "author": hse_mgr_user,
+                "effective_date": today - timedelta(days=10),
+                "retention_years": 15,
+                "tags": "محرمانه, حقوقی, RCA, بیمه, پاتیل, سرباره",
+                "requires_acknowledgment": False,
+                "is_synthetic": True,
+            },
+        )
+        v1_conf, _ = DocumentVersion.objects.update_or_create(
+            document=doc_confidential,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("گزارش محرمانه حادثه", "v1.0"),
+                "original_filename": "Confidential_RCA_Incident_Report_Slag_Drop.pdf",
+                "file_size_bytes": 1024 * 450,
+                "file_hash_sha256": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
+                "mime_type": "application/pdf",
+                "change_summary": "نسخه نهایی گزارش محرمانه تحلیل حادثه پس از استماع اظهارات اپراتورها",
+                "uploaded_by": hse_mgr_user,
+                "status": VersionStatus.APPROVED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=10),
+                "review_notes": "تأییدیه هیئت بررسی سوانح",
+                "is_synthetic": True,
+            },
+        )
+        if doc_confidential.current_version != v1_conf:
+            doc_confidential.current_version = v1_conf
+            doc_confidential.save(update_fields=["current_version"])
+
+        # 7. Document Requiring Employee Acknowledgment (DOC-ERP-PLAN-001)
+        doc_erp, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-ERP-PLAN-001",
+            defaults={
+                "title": "طرح جامع واکنش در شرایط اضطراری، حریق و تخلیه اضطراری سایت (ERP)",
+                "description": "دستورالعمل موقعیت نقاط تجمع امن (Muster Points)، فرکانس رادیویی تیم‌های امداد و نجات و وظایف سرپرستان کارگاه هنگام آژیر خطر.",
+                "category": DocumentCategory.POLICY,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.EFFECTIVE,
+                "department": "مدیریت بحران و پدافند غیرعامل",
+                "owner": hse_mgr_user,
+                "author": hse_mgr_user,
+                "effective_date": today - timedelta(days=60),
+                "next_review_date": today + timedelta(days=300),
+                "retention_years": 10,
+                "tags": "ERP, بحران, تخلیه, آژیر, حریق, نقطه تجمع",
+                "requires_acknowledgment": True,
+                "is_synthetic": True,
+            },
+        )
+        v1_erp, _ = DocumentVersion.objects.update_or_create(
+            document=doc_erp,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("طرح واکنش اضطراری ERP", "v1.0"),
+                "original_filename": "Emergency_Response_Plan_ERP_Alborz.pdf",
+                "file_size_bytes": 1024 * 512,
+                "file_hash_sha256": "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e",
+                "mime_type": "application/pdf",
+                "change_summary": "ابلاغ سراسری طرح واکنش در شرایط اضطراری ویرایش ۱۴۰۵",
+                "uploaded_by": hse_mgr_user,
+                "status": VersionStatus.APPROVED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=60),
+                "is_synthetic": True,
+            },
+        )
+        if doc_erp.current_version != v1_erp:
+            doc_erp.current_version = v1_erp
+            doc_erp.save(update_fields=["current_version"])
+
+        # Employee Acknowledgments (Read receipts)
+        DocumentAcknowledgment.objects.get_or_create(
+            document=doc_erp,
+            version=v1_erp,
+            user=supervisor_user,
+            defaults={
+                "signature_note": "کلیه مسیرهای فرار کارگاه نورد و موقعیت جعبه‌های F بازبینی شد و پرسنل توجیه شدند.",
+                "is_synthetic": True,
+            },
+        )
+        DocumentAcknowledgment.objects.get_or_create(
+            document=doc_erp,
+            version=v1_erp,
+            user=inspector_user,
+            defaults={
+                "signature_note": "فایل را مطالعه کردم و آموزش سناریوهای پناه‌گیری به تکنسین‌ها داده شد.",
+                "is_synthetic": True,
+            },
+        )
+
+        # 8. Archived Document and Complete Revision History (DOC-LEGACY-WASTE-2019)
+        doc_archived, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-LEGACY-WASTE-2019",
+            defaults={
+                "title": "آیین‌نامه مدیریت پسماندهای ویژه و بازیافت ضایعات فلزی (نسخه قدیم ۱۳۹۸)",
+                "description": "دستورالعمل قدیمی تفکیک قراضه و براده‌های روغنی پیش از راه‌اندازی خط تصفیه پساب صنعتی مدرن.",
+                "category": DocumentCategory.ENVIRONMENTAL_RECORD,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.ARCHIVED,
+                "department": "مدیریت خدمات عمومی و پسماند",
+                "workplace": wp_roll,
+                "owner": hse_mgr_user,
+                "author": inspector_user,
+                "archived_at": timezone.now() - timedelta(days=45),
+                "archived_reason": "منسوخ‌شدن فرم‌های دستی و جایگزینی با سیستم دیجیتال پسماند فاز ۱۴؛ اتمام دوره راکد نگهداری ۵ ساله سازمانی.",
+                "archived_by": hse_mgr_user,
+                "retention_years": 5,
+                "tags": "پسماند, ضایعات, بازیافت, قدیمی, بایگانی",
+                "requires_acknowledgment": False,
+                "is_synthetic": True,
+            },
+        )
+        v1_arch, _ = DocumentVersion.objects.update_or_create(
+            document=doc_archived,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("آیین‌نامه قدیمی پسماند", "v1.0"),
+                "original_filename": "Legacy_Waste_Management_1398.pdf",
+                "file_size_bytes": 1024 * 85,
+                "file_hash_sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                "mime_type": "application/pdf",
+                "change_summary": "نسخه مصوب سال ۱۳۹۸",
+                "uploaded_by": inspector_user,
+                "status": VersionStatus.ARCHIVED,
+                "is_synthetic": True,
+            },
+        )
+        if doc_archived.current_version != v1_arch:
+            doc_archived.current_version = v1_arch
+            doc_archived.save(update_fields=["current_version"])
+
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_archived,
+            version=v1_arch,
+            action=DocumentReviewLog.Action.ARCHIVED,
+            defaults={
+                "reviewer": hse_mgr_user,
+                "decision_reason": "بایگانی بر اساس استقرار فاز ۱۴ مدیریت زیست‌محیطی",
+            },
+        )
+
+        # 9. Cross-Organization Tenant Isolation Document (in org_petro)
+        doc_petro, _ = Document.objects.update_or_create(
+            organization=org_petro,
+            document_number="PETRO-SOP-POLY-01",
+            defaults={
+                "title": "دستورالعمل ایمنی فرآیندی واحد پلیمریزاسیون پتروشیمی سپهر",
+                "description": "پروتکل اختصاصی نظارت بر فشار رآکتور، سیستم مهار اضطراری شعله (Flare) و شستشوی خطوط منومر.",
+                "category": DocumentCategory.PROCEDURE,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.EFFECTIVE,
+                "department": "مهندسی فرآیند پتروشیمی",
+                "owner": petro_supervisor_user,
+                "author": petro_supervisor_user,
+                "effective_date": today - timedelta(days=40),
+                "next_review_date": today + timedelta(days=320),
+                "retention_years": 8,
+                "tags": "پتروشیمی, پلیمریزاسیون, فلر, فرآیند, منومر",
+                "requires_acknowledgment": True,
+                "is_synthetic": True,
+            },
+        )
+        v1_petro, _ = DocumentVersion.objects.update_or_create(
+            document=doc_petro,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("پلیمریزاسیون پتروشیمی", "v1.0"),
+                "original_filename": "Petro_Polymerization_Safety_v1.0.pdf",
+                "file_size_bytes": 1024 * 380,
+                "file_hash_sha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+                "mime_type": "application/pdf",
+                "change_summary": "تدوین اولیه دستورالعمل پلیمریزاسیون سپهر",
+                "uploaded_by": petro_supervisor_user,
+                "status": VersionStatus.APPROVED,
+                "is_synthetic": True,
+            },
+        )
+        if doc_petro.current_version != v1_petro:
+            doc_petro.current_version = v1_petro
+            doc_petro.save(update_fields=["current_version"])
+
+        # 10. Cross-Domain Links: Link Height SOP to Scaffold and PTW
+        DocumentLink.objects.get_or_create(
+            document=doc_height,
+            target_type=DocumentLink.TargetType.SCAFFOLD,
+            target_id=1,
+            defaults={"link_title": "الزام بازرسی تگ داربست", "link_note": "بند ۴.۲ دستورالعمل کار در ارتفاع"},
+        )
+        DocumentLink.objects.get_or_create(
+            document=doc_height,
+            target_type=DocumentLink.TargetType.PERMIT,
+            target_id=1,
+            defaults={"link_title": "مجوز کار در ارتفاع", "link_note": "پیوست الزامی پروانه کار گرم"},
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Phase 16 HSE Document Control & Secure Archive demo data seeded: "
+                "9 distinct scenarios (Multi-revision procedure, Draft under review, Rejected with reasons, "
+                "Expiring certificate, Expired record, Strictly confidential, Employee read receipts/acknowledgments, "
+                "Archived with audit trail, and Cross-tenant isolation in Petrochemistry)."
+            )
+        )
+
+        self.stdout.write(self.style.SUCCESS("All synthetic demo data seeded successfully with is_synthetic=True."))
