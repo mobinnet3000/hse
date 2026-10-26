@@ -195,8 +195,9 @@ export function fetchOrganizations(signal?: AbortSignal) {
   return request<Organization[]>("/organizations/", { signal });
 }
 
-export function fetchWorkplaces(organizationId: number, signal?: AbortSignal) {
-  return request<Workplace[]>(`/workplaces/?${query({ organization: organizationId })}`, {
+export function fetchWorkplaces(organizationId?: number, signal?: AbortSignal) {
+  const queryStr = organizationId ? `?${query({ organization: organizationId })}` : "";
+  return request<Workplace[]>(`/workplaces/${queryStr}`, {
     signal,
   });
 }

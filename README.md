@@ -42,7 +42,7 @@ npm run dev
 
 ---
 
-## ۳. قابلیت‌های تکمیل‌شده (فازهای ۱ تا ۹)
+## ۳. قابلیت‌های تکمیل‌شده (فازهای ۱ تا ۱۰)
 
 | ماژول | مسیر API | شرح عملکرد |
 |---|---|---|
@@ -62,6 +62,7 @@ npm run dev
 | **حوادث و شبه‌حوادث** | `/api/v1/incidents/` | ثبت حوادث، شبه‌حوادث، اعمال ناایمن، تحلیل ریشه‌ای (RCA)، اتصال به CAPA و مخاطرات و پیش‌شرط‌های اختتام |
 | **پروانه‌های کار و تحویل شیفت** | `/api/v1/permits/` | صدور مجوزهای کار گرم، ارتفاع، فضای بسته، حفاری، LOTO، تفکیک وظایف (SoD)، اعتبارسنجی کنترل‌ها و تحویل شیفت |
 | **تجهیزات، نگهداری و کالیبراسیون** | `/api/v1/assets/` | ثبت دارایی HSE با کد یکتا، برنامه نگهداری پیشگیرانه، دستورکار سرویس/تعمیر، کالیبراسیون با تاریخچه و جلوگیری از آماده‌سازی تجهیز ناایمن، KPI، فیلترهای سررسید و گزارش CSV |
+| **آموزش، صلاحیت و تجهیزات PPE** | `/api/v1/workforce/` | مدیریت پرسنل (با/بدون حساب سامانه)، دوره‌ها و نوبت‌های آموزشی، احراز صلاحیت، اتصال الزامات صلاحیت به مجوزهای پرخطر PTW، انبارداری و تحویل اتمیک تجهیزات PPE |
 
 ```powershell
 # بذرپاشی مقررات ملی و استانداردهای پیش‌فرض HSE
@@ -70,12 +71,11 @@ python manage.py seed_knowledge_base
 # بذرپاشی داده‌های نمایشی جامع و سناریوهای تستی چندمستأجری (با برچسب is_synthetic=True)
 python manage.py seed_demo_data
 
-# برای دموی فاز ۹ روی پایگاه داده ایزوله:
-DATABASE_PATH=/tmp/opencode/phase09-demo.sqlite3 python manage.py migrate
-DATABASE_PATH=/tmp/opencode/phase09-demo.sqlite3 python manage.py seed_demo_data
+# برای دموی فاز ۱۰:
+python manage.py seed_demo_data
 ```
 
-> کاربران و سناریوهای دموی فاز ۹ در `docs/reports/PHASE-09-DEMO-GUIDE.md` توضیح داده شده‌اند. جزئیات فنی و شواهد آزمون در `docs/reports/09_asset_maintenance_calibration.md` ثبت شده است. رمز اولیه حساب‌های دمو فقط در اولین ایجاد `Pass-12345-abc` است و اجرای مجدد seed بدون `--reset-demo-passwords` آن را تغییر نمی‌دهد.
+> کاربران و سناریوهای دموی فاز ۱۰ در `docs/reports/PHASE-10-DEMO-GUIDE.md` توضیح داده شده‌اند. جزئیات فنی و شواهد آزمون در `docs/reports/10_training_competency_ppe.md` ثبت شده است. رمز اولیه حساب‌های دمو فقط در اولین ایجاد `Pass-12345-abc` است و اجرای مجدد seed بدون `--reset-demo-passwords` آن را تغییر نمی‌دهد.
 
 ---
 
@@ -176,8 +176,8 @@ Compress-Archive -Path backend\media -DestinationPath "backups\media_backup_$(Ge
 |---|---|---|
 | `python manage.py check` | بررسی سلامت کدهای جنگو | ✅ 0 issues |
 | `python manage.py makemigrations --check` | بررسی نبود تغییرات مهاجرت‌نشده | ✅ No changes detected |
-| `python manage.py test` | اجرای کلیه آزمون‌های بک‌اند | ✅ ۱۱۶ تست موفق |
-| `npm test` | اجرای کلیه آزمون‌های فرانت‌اند | ✅ ۲۲ تست در ۴ فایل موفق |
-| `npm run build` | کامپایل TypeScript و بیلد نهایی Vite | ✅ بدون خطا در ۵۸۰ میلی‌ثانیه |
+| `python manage.py test` | اجرای کلیه آزمون‌های بک‌اند | ✅ ۲۱۱ تست موفق |
+| `npm test` | اجرای کلیه آزمون‌های فرانت‌اند | ✅ ۴۸ تست در ۱۰ فایل موفق |
+| `npm run build` | کامپایل TypeScript و بیلد نهایی Vite | ✅ بدون خطا در ۱.۳ ثانیه |
 | `npm audit` | بررسی آسیب‌پذیری‌های وابستگی‌های فرانت‌اند | ✅ 0 vulnerabilities |
 | `python manage.py check_deadlines` | بررسی و اجرای فرمان اعلان مهلت‌ها | ✅ موفق با صدور خروجی |

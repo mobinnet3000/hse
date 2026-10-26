@@ -743,7 +743,7 @@ class DemoSeedSafetyTests(TestCase):
         synthetic_permit_count = Permit.objects.filter(is_synthetic=True).count()
         handover_count = ShiftHandover.objects.count()
         user_count = User.objects.count()
-        self.assertEqual(synthetic_permit_count, 5)
+        self.assertEqual(synthetic_permit_count, 6)
         self.assertEqual(ShiftHandover.objects.filter(is_synthetic=True).count(), 2)
 
         # A deliberate password change by the operator must survive re-seeding.
@@ -819,6 +819,6 @@ class DemoSeedSafetyTests(TestCase):
         self.assertEqual(real_permit.title, "مجوز واقعی که نباید تغییر کند")
         self.assertFalse(real_permit.is_synthetic)
         self.assertEqual(real_permit.organization_id, real_org.id)
-        # One of the five fixed demo references was reserved by real data, so
-        # only the other four synthetic permits are created.
-        self.assertEqual(Permit.objects.filter(is_synthetic=True).count(), 4)
+        # One of the six fixed demo references was reserved by real data, so
+        # only the other five synthetic permits are created.
+        self.assertEqual(Permit.objects.filter(is_synthetic=True).count(), 5)

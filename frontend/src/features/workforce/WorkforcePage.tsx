@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  createCompetency,
   createCourse,
   createEmployee,
   createPermitRequirement,
@@ -9,7 +10,6 @@ import {
   createTrainingAttendance,
   createTrainingSession,
   deletePermitRequirement,
-  disposePPEAssignment,
   fetchCompetencies,
   fetchCourses,
   fetchEmployeeCompetencies,
@@ -27,7 +27,6 @@ import {
   fetchWorkforceStats,
   fetchWorkplaces,
   issueEmployeeCompetency,
-  replacePPEAssignment,
   returnPPEAssignment,
   updateEmployeeCompetencyStatus,
   type Competency,
@@ -537,6 +536,11 @@ export function WorkforcePage() {
           </h1>
           <p style={{ color: "#666", margin: "0.25rem 0 0" }}>
             ساماندهی شایستگی‌های حرفه‌ای، سوابق آموزشی و کنترل ایمنی تجهیزات کارگاه
+            {organizations.length > 0 && (
+              <span style={{ marginRight: "0.5rem", fontSize: "0.85rem", color: "#0056b3" }}>
+                ({organizations.map((o) => o.name).join("، ")})
+              </span>
+            )}
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -1356,6 +1360,27 @@ export function WorkforcePage() {
                 <label>عنوان دوره *</label>
                 <input required type="text" value={courseTitle} onChange={(e) => setCourseTitle(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
               </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>دسته‌بندی</label>
+                <input type="text" value={courseCategory} onChange={(e) => setCourseCategory(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                <div>
+                  <label>شیوه برگزاری</label>
+                  <select value={courseDelivery} onChange={(e) => setCourseDelivery(e.target.value as "in_person" | "practical" | "online" | "blended")} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                    <option value="in_person">حضوری</option>
+                    <option value="practical">عملی / کارگاهی</option>
+                    <option value="online">آنلاین</option>
+                    <option value="blended">ترکیبی</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1.5rem" }}>
+                    <input type="checkbox" checked={courseMandatory} onChange={(e) => setCourseMandatory(e.target.checked)} />
+                    دوره الزامی
+                  </label>
+                </div>
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
                 <div>
                   <label>مدت دوره (دقیقه)</label>
@@ -1463,6 +1488,10 @@ export function WorkforcePage() {
                   <input type="text" value={issuePPESerial} onChange={(e) => setIssuePPESerial(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
                 </div>
               </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>وضعیت فیزیکی هنگام تحویل</label>
+                <input type="text" value={issuePPECondition} onChange={(e) => setIssuePPECondition(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
                 <button type="button" className="button button-outline" onClick={() => setShowPPEIssueModal(false)}>
                   انصراف
@@ -1567,6 +1596,237 @@ export function WorkforcePage() {
                 </button>
                 <button type="submit" disabled={submitting} className="button button-primary">
                   {submitting ? "در حال ثبت..." : "ذخیره الزام"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL: Create Session */}
+      {showSessionModal && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+            <h3 style={{ marginTop: 0 }}>برنامه‌ریزی نوبت دوره آموزشی</h3>
+            {formError && <div className="alert alert-danger">{formError}</div>}
+            <form onSubmit={handleCreateSession}>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>دوره آموزشی *</label>
+                <select required value={sessCourse} onChange={(e) => setSessCourse(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                  <option value="">انتخاب دوره...</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.title} ({c.code})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>کارگاه / محل برگزاری</label>
+                <select value={sessWorkplace} onChange={(e) => setSessWorkplace(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                  <option value="">انتخاب محل (اختیاری)...</option>
+                  {workplaces.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                <div>
+                  <label>تاریخ برگزاری *</label>
+                  <input required type="date" value={sessDate} onChange={(e) => setSessDate(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+                <div>
+                  <label>ظرفیت</label>
+                  <input type="number" value={sessCapacity} onChange={(e) => setSessCapacity(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+              </div>
+              <div style={{ marginBottom: "1rem" }}>
+                <label>نام مدرس / مربی</label>
+                <input type="text" value={sessTrainer} onChange={(e) => setSessTrainer(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="button button-outline" onClick={() => setShowSessionModal(false)}>انصراف</button>
+                <button type="submit" disabled={submitting} className="button button-primary">
+                  {submitting ? "در حال ثبت..." : "ثبت نوبت"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Create Attendance */}
+      {showAttendanceModal && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+            <h3 style={{ marginTop: 0 }}>ثبت حضور و نتیجه شرکت‌کننده</h3>
+            {formError && <div className="alert alert-danger">{formError}</div>}
+            <form onSubmit={handleCreateAttendance}>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>کارمند شرکت‌کننده *</label>
+                <select required value={attEmployee} onChange={(e) => setAttEmployee(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                  <option value="">انتخاب کارمند...</option>
+                  {employees.filter((e) => e.is_active).map((e) => (
+                    <option key={e.id} value={e.id}>{e.full_name} ({e.employee_no})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                <div>
+                  <label>وضعیت حضور</label>
+                  <select value={attStatus} onChange={(e) => setAttStatus(e.target.value as "registered" | "attended" | "absent" | "cancelled")} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                    <option value="registered">ثبت‌نام شده</option>
+                    <option value="attended">حاضر در دوره</option>
+                    <option value="absent">غایب</option>
+                    <option value="cancelled">انصراف / لغو</option>
+                  </select>
+                </div>
+                <div>
+                  <label>نتیجه ارزیابی</label>
+                  <select value={attResult} onChange={(e) => setAttResult(e.target.value as "pending" | "passed" | "failed")} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                    <option value="pending">در انتظار آزمون</option>
+                    <option value="passed">قبول</option>
+                    <option value="failed">مردود</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
+                <div>
+                  <label>نمره آزمون (از ۱۰۰)</label>
+                  <input type="number" min="0" max="100" value={attScore} onChange={(e) => setAttScore(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+                <div>
+                  <label>تاریخ تکمیل / آزمون</label>
+                  <input type="date" value={attCompletedOn} onChange={(e) => setAttCompletedOn(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="button button-outline" onClick={() => setShowAttendanceModal(false)}>انصراف</button>
+                <button type="submit" disabled={submitting} className="button button-primary">
+                  {submitting ? "در حال ثبت..." : "ثبت نتیجه"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Create Competency */}
+      {showCompetencyModal && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+            <h3 style={{ marginTop: 0 }}>تعریف عنوان صلاحیت جدید</h3>
+            {formError && <div className="alert alert-danger">{formError}</div>}
+            <form onSubmit={handleCreateCompetency}>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>کد صلاحیت *</label>
+                <input required type="text" value={compCode} onChange={(e) => setCompCode(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>نام صلاحیت *</label>
+                <input required type="text" value={compName} onChange={(e) => setCompName(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>فعالیت‌های مجاز</label>
+                <textarea value={compActivities} onChange={(e) => setCompActivities(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ marginBottom: "1rem" }}>
+                <label>مدت اعتبار (ماه)</label>
+                <input type="number" value={compValidity} onChange={(e) => setCompValidity(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="button button-outline" onClick={() => setShowCompetencyModal(false)}>انصراف</button>
+                <button type="submit" disabled={submitting} className="button button-primary">
+                  {submitting ? "در حال ثبت..." : "ذخیره صلاحیت"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Create PPE Item */}
+      {showPPEItemModal && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+            <h3 style={{ marginTop: 0 }}>تعریف قلم جدید PPE</h3>
+            {formError && <div className="alert alert-danger">{formError}</div>}
+            <form onSubmit={handleCreatePPEItem}>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>کد قلم *</label>
+                <input required type="text" value={ppeCode} onChange={(e) => setPpeCode(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>نام تجهیز *</label>
+                <input required type="text" value={ppeName} onChange={(e) => setPpeName(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>دسته‌بندی</label>
+                <input type="text" value={ppeCategory} onChange={(e) => setPpeCategory(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
+                <div>
+                  <label>دوره تعویض (روز)</label>
+                  <input type="number" value={ppeInterval} onChange={(e) => setPpeInterval(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+                <div>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1.5rem" }}>
+                    <input type="checkbox" checked={ppeSerial} onChange={(e) => setPpeSerial(e.target.checked)} />
+                    ردیابی با شماره سریال
+                  </label>
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="button button-outline" onClick={() => setShowPPEItemModal(false)}>انصراف</button>
+                <button type="submit" disabled={submitting} className="button button-primary">
+                  {submitting ? "در حال ثبت..." : "ذخیره قلم"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Create PPE Stock */}
+      {showPPEStockModal && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+            <h3 style={{ marginTop: 0 }}>ثبت موجودی انبار PPE</h3>
+            {formError && <div className="alert alert-danger">{formError}</div>}
+            <form onSubmit={handleCreatePPEStock}>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>قلم PPE *</label>
+                <select required value={stockItem} onChange={(e) => setStockItem(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                  <option value="">انتخاب قلم...</option>
+                  {ppeItems.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name} ({item.code})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>کارگاه / محل انبار</label>
+                <select value={stockWorkplace} onChange={(e) => setStockWorkplace(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }}>
+                  <option value="">انتخاب کارگاه (اختیاری)...</option>
+                  {workplaces.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <label>نام انبار / موقعیت فیزیکی *</label>
+                <input required type="text" value={stockLocation} onChange={(e) => setStockLocation(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
+                <div>
+                  <label>موجودی فعلی *</label>
+                  <input required type="number" min="0" value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+                <div>
+                  <label>حداقل آستانه هشدار *</label>
+                  <input required type="number" min="0" value={stockMinimum} onChange={(e) => setStockMinimum(e.target.value)} style={{ width: "100%", padding: "0.5rem", marginTop: "0.25rem" }} />
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button type="button" className="button button-outline" onClick={() => setShowPPEStockModal(false)}>انصراف</button>
+                <button type="submit" disabled={submitting} className="button button-primary">
+                  {submitting ? "در حال ثبت..." : "ذخیره موجودی"}
                 </button>
               </div>
             </form>
