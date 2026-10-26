@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/v1/assets/", include("apps.assets.urls")),
     path("api/v1/workforce/", include("apps.workforce.urls")),
     path("api/v1/environment/", include("apps.environment.urls")),
+    path("api/v1/scaffolds/", include("apps.scaffolds.urls")),
     path("api/v1/", include("apps.core.urls")),
 ]
 

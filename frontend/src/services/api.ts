@@ -1024,7 +1024,8 @@ export function fetchIncidents(
   if (params?.date_from) q.set("date_from", params.date_from);
   if (params?.date_to) q.set("date_to", params.date_to);
   const qs = q.toString();
-  return request<IncidentListItem[]>(`/incidents/${qs ? `?${qs}` : ""}`, { signal });
+  return request<IncidentListItem[] | { results: IncidentListItem[] }>(`/incidents/${qs ? `?${qs}` : ""}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
 }
 
 export function fetchIncidentDetail(id: number, signal?: AbortSignal) {
@@ -1374,7 +1375,8 @@ export function fetchPermits(params?: Record<string, string | number>, signal?: 
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
         .join("&")
     : "";
-  return request<PermitListItem[]>(`/permits/${query}`, { signal });
+  return request<PermitListItem[] | { results: PermitListItem[] }>(`/permits/${query}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
 }
 
 export function fetchPermitDetail(id: number, signal?: AbortSignal) {
@@ -1442,7 +1444,8 @@ export function fetchSIMOPSConflicts(params?: Record<string, string | number>, s
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
         .join("&")
     : "";
-  return request<SIMOPSConflictItem[]>(`/permits/simops-conflicts/${query}`, { signal });
+  return request<SIMOPSConflictItem[] | { results: SIMOPSConflictItem[] }>(`/permits/simops-conflicts/${query}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
 }
 
 export function overrideSIMOPSConflict(id: number, data: { reason: string }) {
@@ -1497,7 +1500,8 @@ export function fetchShiftHandovers(params?: Record<string, string | number>, si
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
         .join("&")
     : "";
-  return request<ShiftHandoverItem[]>(`/permits/handovers/${query}`, { signal });
+  return request<ShiftHandoverItem[] | { results: ShiftHandoverItem[] }>(`/permits/handovers/${query}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
 }
 
 export function fetchShiftHandoverDetail(id: number, signal?: AbortSignal) {
@@ -2621,7 +2625,8 @@ export function fetchContractors(
   params?: Record<string, string | number | undefined>,
   signal?: AbortSignal,
 ) {
-  return request<ContractorCompany[]>(`/workforce/contractors/${workforceQuery(params)}`, { signal });
+  return request<ContractorCompany[] | { results: ContractorCompany[] }>(`/workforce/contractors/${workforceQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
 }
 export const fetchContractorCompanies = fetchContractors;
 
@@ -2636,7 +2641,8 @@ export function fetchContractorDocuments(
   params?: Record<string, string | number | undefined>,
   signal?: AbortSignal,
 ) {
-  return request<ContractorDocument[]>(`/workforce/contractor-documents/${workforceQuery(params)}`, { signal });
+  return request<ContractorDocument[] | { results: ContractorDocument[] }>(`/workforce/contractor-documents/${workforceQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
 }
 
 export function createContractorDocument(data: Record<string, unknown>) {
@@ -2657,7 +2663,8 @@ export function fetchContractorWorkers(
   params?: Record<string, string | number | undefined>,
   signal?: AbortSignal,
 ) {
-  return request<ContractorWorker[]>(`/workforce/contractor-workers/${workforceQuery(params)}`, { signal });
+  return request<ContractorWorker[] | { results: ContractorWorker[] }>(`/workforce/contractor-workers/${workforceQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
 }
 
 export function createContractorWorker(data: Record<string, unknown>) {
@@ -2671,7 +2678,8 @@ export function fetchContractorEvaluations(
   params?: Record<string, string | number | undefined>,
   signal?: AbortSignal,
 ) {
-  return request<ContractorEvaluation[]>(`/workforce/contractor-evaluations/${workforceQuery(params)}`, { signal });
+  return request<ContractorEvaluation[] | { results: ContractorEvaluation[] }>(`/workforce/contractor-evaluations/${workforceQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
 }
 
 export function createContractorEvaluation(data: Record<string, unknown>) {
@@ -2915,6 +2923,155 @@ export function createOccupationalHygiene(data: Record<string, unknown>) {
     body: JSON.stringify(data),
   });
 }
+
+// ==========================================
+// Phase 15: Scaffold Tag Management & Specialized Inspections
+// ==========================================
+
+export type Scaffold = {
+  id: number;
+  workplace: number;
+  workplace_name?: string;
+  tag_number: string;
+  scaffold_type: "tube_coupler" | "modular_system" | "mobile_tower" | "suspended" | "cantilever";
+  scaffold_type_display: string;
+  load_duty: "light_duty" | "medium_duty" | "heavy_duty" | "special_duty";
+  load_duty_display: string;
+  location_details: string;
+  height_meters: number;
+  length_meters: number;
+  width_meters: number;
+  contractor?: number | null;
+  contractor_name?: string;
+  erected_by?: string;
+  erection_date: string;
+  intended_use: string;
+  tag_status: "green_safe" | "yellow_restricted" | "red_unsafe" | "dismantled";
+  tag_status_display: string;
+  current_tag_valid_until?: string | null;
+  yellow_restrictions?: string;
+  inspection_interval_days: number;
+  last_inspection_date?: string | null;
+  next_inspection_due?: string | null;
+  is_inspection_overdue: boolean;
+  is_usable_for_work: boolean;
+  recent_inspections?: ScaffoldInspection[];
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ScaffoldInspection = {
+  id: number;
+  scaffold: number;
+  inspection_date: string;
+  inspector?: number | null;
+  inspector_name: string;
+  result_tag: "green_safe" | "yellow_restricted" | "red_unsafe";
+  result_tag_display: string;
+  validity_days: number;
+  base_plates_ok: boolean;
+  bracing_ok: boolean;
+  guardrails_ok: boolean;
+  toeboards_ok: boolean;
+  planks_decking_ok: boolean;
+  ties_anchors_ok: boolean;
+  ladder_access_ok: boolean;
+  findings?: string;
+  restrictions_notes?: string;
+  non_conformity?: number | null;
+  non_conformity_desc?: string;
+  is_synthetic?: boolean;
+  created_at: string;
+};
+
+export type ScaffoldTagLog = {
+  id: number;
+  scaffold: number;
+  previous_tag: string;
+  previous_tag_display: string;
+  new_tag: string;
+  new_tag_display: string;
+  changed_by?: number | null;
+  changed_by_name?: string;
+  reason: string;
+  valid_until?: string | null;
+  created_at: string;
+};
+
+export type ScaffoldSummary = {
+  total_scaffolds: number;
+  green_count: number;
+  yellow_count: number;
+  red_count: number;
+  dismantled_count: number;
+  overdue_inspections_count: number;
+};
+
+export type ScaffoldTagCard = {
+  tag_number: string;
+  organization_name: string;
+  workplace_name: string;
+  location_details: string;
+  scaffold_type_display: string;
+  load_duty_display: string;
+  tag_status: string;
+  tag_status_display: string;
+  valid_until?: string | null;
+  next_inspection_due?: string | null;
+  is_overdue: boolean;
+  restrictions?: string;
+  erected_by: string;
+  qr_payload: string;
+};
+
+function scfQuery(params?: Record<string, string | number | undefined>): string {
+  if (!params) return "";
+  const filtered = Object.entries(params).filter(([, v]) => v !== undefined && v !== "");
+  if (!filtered.length) return "";
+  return `?${new URLSearchParams(filtered.map(([k, v]) => [k, String(v)])).toString()}`;
+}
+
+export function fetchScaffoldSummary(organizationId?: number, signal?: AbortSignal) {
+  const p: Record<string, string | number | undefined> = {};
+  if (organizationId) p.organization = organizationId;
+  return request<ScaffoldSummary>(`/scaffolds/summary/${scfQuery(p)}`, { signal });
+}
+
+export function fetchScaffolds(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<Scaffold[] | { results: Scaffold[] }>(`/scaffolds/scaffolds/${scfQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createScaffold(data: Record<string, unknown>) {
+  return request<Scaffold>("/scaffolds/scaffolds/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function inspectScaffold(id: number, data: Record<string, unknown>) {
+  return request<ScaffoldInspection>(`/scaffolds/scaffolds/${id}/inspect/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function changeScaffoldTag(id: number, data: { new_tag: string; reason: string; yellow_restrictions?: string }) {
+  return request<Scaffold>(`/scaffolds/scaffolds/${id}/change-tag/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchScaffoldHistory(id: number, signal?: AbortSignal) {
+  return request<ScaffoldTagLog[]>(`/scaffolds/scaffolds/${id}/history/`, { signal });
+}
+
+export function fetchScaffoldTagCard(id: number, signal?: AbortSignal) {
+  return request<ScaffoldTagCard>(`/scaffolds/scaffolds/${id}/tag-card/`, { signal });
+}
+
 
 
 

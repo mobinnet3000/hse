@@ -415,6 +415,19 @@ def check_permit_gatekeeper_prerequisites(permit: Permit) -> dict:
     for w in warning_conflicts:
         checks["warnings"].append(f"هشدار SIMOPS: {w.description}")
 
+    # 7. Scaffold Tag & Inspection Check (Phase 15)
+    if permit.scaffold_id:
+        from apps.scaffolds.services import validate_scaffold_for_permit
+        is_safe, sc_msg, sc_details = validate_scaffold_for_permit(permit.scaffold)
+        checks["scaffold"] = sc_details
+        if not is_safe:
+            checks["is_ready_for_activation"] = False
+            checks["blockers"].append(sc_msg)
+        elif sc_details.get("status") == "warning":
+            checks["warnings"].append(sc_msg)
+    elif permit.permit_type == Permit.PermitType.WORK_AT_HEIGHT:
+        checks["warnings"].append("توجه: این مجوز از نوع کار در ارتفاع است اما داربست مشخصی به آن الصاق نشده است.")
+
     return checks
 
 

@@ -16,6 +16,7 @@ import { AuditLogPage } from "../features/auditlog/AuditLogPage";
 import { KnowledgeBasePage } from "../features/knowledge/KnowledgeBasePage";
 import { AiAssistantPage } from "../features/ai/AiAssistantPage";
 import { EnvironmentPage } from "../features/environment/EnvironmentPage";
+import { ScaffoldsPage } from "../features/scaffolds/ScaffoldsPage";
 import { fetchNotifications } from "../services/api";
 
 function AppContent() {
@@ -55,6 +56,12 @@ function AppContent() {
       {(activeTab === "all" || activeTab === "permits") && (
         <section id="permits" className="section-container" style={{ marginBottom: "2rem" }}>
           <PermitsPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "scaffolds") && (
+        <section id="scaffolds" className="section-container" style={{ marginBottom: "2rem" }}>
+          <ScaffoldsPage />
         </section>
       )}
 

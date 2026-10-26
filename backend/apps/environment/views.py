@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -50,9 +50,20 @@ class EnvironmentBaseViewSet(viewsets.ModelViewSet):
         return qs
 
     def _resolve_org(self):
-        org_id, error = resolve_organization(self.request, can_view_organization)
-        if error:
-            raise ValidationError({"organization": error})
+        org_param = self.request.data.get("organization") or self.request.query_params.get("organization")
+        user = self.request.user
+        org_ids = accessible_organization_ids(user)
+        if org_param:
+            try:
+                org_id = int(org_param)
+            except (ValueError, TypeError):
+                raise ValidationError({"organization": "شناسه سازمان نامعتبر است."})
+            if org_id not in org_ids:
+                raise PermissionDenied("دسترسی به این سازمان مجاز نیست.")
+        elif len(org_ids) >= 1:
+            org_id = list(org_ids)[0]
+        else:
+            raise ValidationError({"organization": "شناسه سازمان لازم است."})
         return Organization.objects.get(pk=org_id)
 
 
@@ -168,11 +179,35 @@ class EnvironmentalSummaryView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        org_id, error = resolve_organization(request, can_view_organization)
-        if error:
-            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
-        org = Organization.objects.get(pk=org_id)
-        summary = get_environmental_summary(org)
+        user = request.user
+        org_ids = accessible_organization_ids(user)
+        org_param = request.query_params.get("organization")
+        if org_param and org_param.isdigit():
+            org_id = int(org_param)
+            if org_id not in org_ids:
+                return Response(
+                    {"error": {"code": "forbidden", "message": "دسترسی به این سازمان مجاز نیست."}},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            orgs = Organization.objects.filter(pk=org_id)
+        else:
+            orgs = Organization.objects.filter(id__in=org_ids)
+
+        if not orgs.exists():
+            return Response({
+                "aspects_total": 0,
+                "aspects_significant": 0,
+                "waste_records_count": 0,
+                "hazardous_waste_kg": 0.0,
+                "non_hazardous_waste_kg": 0.0,
+                "active_stored_waste_count": 0,
+                "emission_records_count": 0,
+                "emission_exceedances_count": 0,
+                "hygiene_surveys_count": 0,
+                "hygiene_exceedances_count": 0,
+            })
+
+        summary = get_environmental_summary(orgs)
         return Response(summary)
 
 
@@ -180,9 +215,24 @@ class WasteExportCSVView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        org_id, error = resolve_organization(request, can_view_organization)
-        if error:
-            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+        user = request.user
+        org_ids = accessible_organization_ids(user)
+        org_param = request.query_params.get("organization")
+        if org_param and org_param.isdigit():
+            org_id = int(org_param)
+            if org_id not in org_ids:
+                return Response(
+                    {"error": {"code": "forbidden", "message": "دسترسی به این سازمان مجاز نیست."}},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        elif len(org_ids) >= 1:
+            org_id = list(org_ids)[0]
+        else:
+            return Response(
+                {"error": {"code": "organization_required", "message": "شناسه سازمان لازم است."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         org = Organization.objects.get(pk=org_id)
         csv_data = generate_waste_manifest_csv(org)
         response = HttpResponse(csv_data, content_type="text/csv; charset=utf-8-sig")

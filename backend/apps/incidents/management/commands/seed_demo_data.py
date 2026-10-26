@@ -54,6 +54,8 @@ from apps.environment.services import (
     evaluate_and_record_hygiene_survey,
     evaluate_and_record_wastewater_emission,
 )
+from apps.scaffolds.models import Scaffold, ScaffoldInspection, ScaffoldTagLog
+from apps.scaffolds.services import record_scaffold_inspection, change_scaffold_tag
 
 
 DEMO_PASSWORD = "Pass-12345-abc"
@@ -3307,6 +3309,154 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 "Phase 14 Environmental & Occupational Hygiene demo data seeded: thresholds, aspects, hazardous waste, emission exceedances with CAPA, and hygiene surveys."
+            )
+        )
+
+        # 15. Phase 15: Scaffold Tag Management & Specialized Inspections
+        # -------------------------------------------------------------
+        # 1. Green Tag Scaffold (SCF-CAST-001) - Modular System in Cast workshop, fully inspected and safe
+        scf_green, _ = Scaffold.objects.update_or_create(
+            organization=org_foolad,
+            tag_number="SCF-CAST-001",
+            defaults={
+                "workplace": wp_cast,
+                "scaffold_type": Scaffold.ScaffoldType.MODULAR_SYSTEM,
+                "load_duty": Scaffold.LoadDuty.HEAVY_DUTY,
+                "location_details": "تاج سوله ریخته‌گری، پای ستون شرقی جهت تعمیر ریل جرثقیل سقفی",
+                "height_meters": 14.50,
+                "length_meters": 12.00,
+                "width_meters": 2.50,
+                "contractor": cont_paydar,
+                "erected_by": "تیم داربست‌بندی شرکت مهندسی پایدار سازه",
+                "erection_date": today - timedelta(days=2),
+                "intended_use": "دسترسی به ریل و روشنایی جرثقیل سقفی ۳۰ تنی",
+                "tag_status": Scaffold.TagStatus.GREEN_SAFE,
+                "current_tag_valid_until": timezone.now() + timedelta(days=5),
+                "inspection_interval_days": 7,
+                "last_inspection_date": today - timedelta(days=2),
+                "next_inspection_due": today + timedelta(days=5),
+                "is_synthetic": True,
+            },
+        )
+
+        # Link Green Scaffold to Height Permit ptw2
+        if ptw2 and ptw2.is_synthetic:
+            ptw2.scaffold = scf_green
+            ptw2.save(update_fields=["scaffold"])
+
+        # Record valid inspection for scf_green
+        record_scaffold_inspection(
+            scaffold=scf_green,
+            inspector_name="مهندس قاسمی (بازرس ارشد ایمنی)",
+            result_tag=Scaffold.TagStatus.GREEN_SAFE,
+            inspection_date=today - timedelta(days=2),
+            validity_days=7,
+            base_plates_ok=True,
+            bracing_ok=True,
+            guardrails_ok=True,
+            toeboards_ok=True,
+            planks_decking_ok=True,
+            ties_anchors_ok=True,
+            ladder_access_ok=True,
+            findings="کلیه اجزای سازه‌ای و مهارها سالم و منطبق با استاندارد BS EN 12811 ارزیابی گردید.",
+            restrictions_notes="",
+            inspector=hse_mgr_user,
+            is_synthetic=True,
+        )
+
+        # 2. Yellow Tag Scaffold (SCF-ROLL-002) - Tube & Coupler in Roll workshop, restricted access
+        scf_yellow, _ = Scaffold.objects.update_or_create(
+            organization=org_foolad,
+            tag_number="SCF-ROLL-002",
+            defaults={
+                "workplace": wp_roll,
+                "scaffold_type": Scaffold.ScaffoldType.TUBE_COUPLER,
+                "load_duty": Scaffold.LoadDuty.MEDIUM_DUTY,
+                "location_details": "دیواره خروجی کوره پیش‌گرم نورد مقاطع",
+                "height_meters": 8.00,
+                "length_meters": 6.00,
+                "width_meters": 2.00,
+                "contractor": cont_paydar,
+                "erected_by": "اکبر حیدری (سرپرست داربست‌بندی)",
+                "erection_date": today - timedelta(days=1),
+                "intended_use": "عایق‌کاری جداره حرارتی کوره نورد",
+                "tag_status": Scaffold.TagStatus.YELLOW_RESTRICTED,
+                "current_tag_valid_until": timezone.now() + timedelta(days=6),
+                "yellow_restrictions": "فقط نفرات داربست‌بند با هارنس متصل به لایف‌لاین مستقل مجاز به کار روی سکوی سوم هستند.",
+                "inspection_interval_days": 7,
+                "last_inspection_date": today - timedelta(days=1),
+                "next_inspection_due": today + timedelta(days=6),
+                "is_synthetic": True,
+            },
+        )
+
+        record_scaffold_inspection(
+            scaffold=scf_yellow,
+            inspector_name="مهندس قاسمی (بازرس ارشد ایمنی)",
+            result_tag=Scaffold.TagStatus.YELLOW_RESTRICTED,
+            inspection_date=today - timedelta(days=1),
+            validity_days=7,
+            base_plates_ok=True,
+            bracing_ok=True,
+            guardrails_ok=True,
+            toeboards_ok=True,
+            planks_decking_ok=True,
+            ties_anchors_ok=True,
+            ladder_access_ok=True,
+            findings="برپایی سکوی سوم نیمه‌کاره است؛ تگ زرد الصاق و تردد محدود گردید.",
+            restrictions_notes="فقط نفرات داربست‌بند با هارنس متصل به لایف‌لاین مستقل مجاز به کار روی سکوی سوم هستند.",
+            inspector=hse_mgr_user,
+            is_synthetic=True,
+        )
+
+        # 3. Red Tag Scaffold (SCF-ROLL-003) - Mobile Tower in Roll workshop, unsafe with failed checks & overdue
+        scf_red, _ = Scaffold.objects.update_or_create(
+            organization=org_foolad,
+            tag_number="SCF-ROLL-003",
+            defaults={
+                "workplace": wp_roll,
+                "scaffold_type": Scaffold.ScaffoldType.MOBILE_TOWER,
+                "load_duty": Scaffold.LoadDuty.LIGHT_DUTY,
+                "location_details": "انبار ضایعات و قطعات یدکی نورد سنگین",
+                "height_meters": 6.20,
+                "length_meters": 3.00,
+                "width_meters": 3.00,
+                "contractor": None,
+                "erected_by": "واحد تأسیسات داخلی کارخانه",
+                "erection_date": today - timedelta(days=20),
+                "intended_use": "رنگ‌آمیزی ستون‌ها و دریچه‌های هوارسان",
+                "tag_status": Scaffold.TagStatus.RED_UNSAFE,
+                "current_tag_valid_until": None,
+                "yellow_restrictions": "",
+                "inspection_interval_days": 7,
+                "last_inspection_date": today - timedelta(days=14),
+                "next_inspection_due": today - timedelta(days=7),  # Overdue by 7 days
+                "is_synthetic": True,
+            },
+        )
+
+        record_scaffold_inspection(
+            scaffold=scf_red,
+            inspector_name="مهندس قاسمی (بازرس ارشد ایمنی)",
+            result_tag=Scaffold.TagStatus.RED_UNSAFE,
+            inspection_date=today - timedelta(days=14),
+            validity_days=7,
+            base_plates_ok=True,
+            bracing_ok=False,  # Failed check
+            guardrails_ok=False,  # Failed check
+            toeboards_ok=False,  # Failed check
+            planks_decking_ok=True,
+            ties_anchors_ok=True,
+            ladder_access_ok=True,
+            findings="عدم نصب تخته پاخور، شل بودن بادبندهای قطری و فقدان لوله حفاظ میانی در ارتفاع ۶ متری. تگ قرمز الصاق و کارگاه مسدود شد.",
+            restrictions_notes="",
+            inspector=hse_mgr_user,
+            is_synthetic=True,
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Phase 15 Scaffold Tag Management demo data seeded: 3-tag lifecycle (green safe, yellow restricted, red unsafe), 7-point inspections, tag logs, and PTW height linkage."
             )
         )
 

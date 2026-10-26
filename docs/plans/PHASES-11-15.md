@@ -128,5 +128,20 @@ graph TD
 | **Phase 11** | Advanced Risk, BowTie & HCMS | **VERIFIED** | 30/30 Pass | Clean (0 errors) | Verified | `11_advanced_risk_bowtie_hcms.md` |
 | **Phase 12** | Workforce, Contractors & Attendance | **VERIFIED** | 22/22 Pass | Clean (0 errors) | Verified | `12_workforce_contractors_attendance.md` |
 | **Phase 13** | Advanced PTW & SIMOPS | **VERIFIED** | 31/31 Pass | Clean (0 errors) | Verified | `13_advanced_ptw_and_simops.md` |
-| **Phase 14** | Environmental & Occupational Hygiene | IN PROGRESS | Pending | Pending | Pending | Pending |
-| **Phase 15** | Scaffold Tag Management | PLANNED | Pending | Pending | Pending | Pending |
+| **Phase 14** | Environmental & Occupational Hygiene | **VERIFIED** | 9/9 Pass | Clean (0 errors) | Verified | `14_environmental_and_hygiene.md` |
+| **Phase 15** | Scaffold Tag Management | **VERIFIED** | 8/8 Pass | Clean (0 errors) | Verified | `15_scaffold_tag_management.md` |
+
+---
+
+## 5. Master Integration Gate Status (Phases 11–15)
+- **All 5 Phases Complete & Fully Integrated**:
+  - Phase 11: Advanced Risk, BowTie, Barriers & HCMS — **VERIFIED**
+  - Phase 12: Workforce, Jobs, Contractors & Attendance — **VERIFIED**
+  - Phase 13: Advanced Permit to Work, Gatekeeper & SIMOPS Radar — **VERIFIED**
+  - Phase 14: Environmental Management, Wastewater/Emissions & Hygiene — **VERIFIED**
+  - Phase 15: Scaffold Tag Management, 7-Point Inspection & Height PTW Blocking — **VERIFIED**
+- **Full Backend Regression Suite**: 131 tests passing across all apps (`apps.scaffolds`, `apps.environment`, `apps.permits`, `apps.workforce`, `apps.risks`, `apps.findings`, `apps.incidents`, `apps.assets`).
+- **Full Frontend Regression Suite**: 66 tests passing across all 13 test suites.
+- **Production Build**: Clean Vite + TypeScript build (`tsc --noEmit && vite build`) with zero errors.
+- **Idempotent Synthetic Demo Seed**: Executed twice with code 0 (`is_synthetic=True` strictly enforced, real user passwords and data completely preserved).
+- **RTL & Persian-First UI**: Fully accessible, responsive, light/dark theme supported.

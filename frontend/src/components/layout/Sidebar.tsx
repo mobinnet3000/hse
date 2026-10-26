@@ -17,6 +17,7 @@ import {
   Bell,
   History,
   Leaf,
+  Hammer,
   X,
   LogOut,
 } from "lucide-react";
@@ -53,6 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
     groupTitle: "عملیات میدانی",
     items: [
       { id: "permits", label: "مجوزهای کار و تحویل شیفت", icon: <FileCheck size={18} /> },
+      { id: "scaffolds", label: "داربست‌ها و کار در ارتفاع", icon: <Hammer size={18} /> },
       { id: "inspections", label: "بازرسی‌ها و اقدامات", icon: <ClipboardCheck size={18} /> },
       { id: "incidents", label: "حوادث و شبه‌حوادث", icon: <AlertTriangle size={18} /> },
       { id: "environment", label: "محیط زیست و بهداشت", icon: <Leaf size={18} /> },

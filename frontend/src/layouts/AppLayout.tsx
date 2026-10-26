@@ -9,6 +9,7 @@ export type NavTab =
   | "dashboard"
   | "workforce"
   | "permits"
+  | "scaffolds"
   | "assets"
   | "incidents"
   | "risks"

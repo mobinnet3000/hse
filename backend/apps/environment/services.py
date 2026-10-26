@@ -271,10 +271,15 @@ def update_waste_status(
 
 def get_environmental_summary(organization) -> dict:
     """Compute KPI metrics for environmental & occupational hygiene dashboard."""
-    aspects = EnvironmentalAspect.objects.filter(organization=organization)
-    wastes = WasteRecord.objects.filter(organization=organization)
-    emissions = WastewaterEmissionRecord.objects.filter(organization=organization)
-    hygienes = OccupationalHygieneRecord.objects.filter(organization=organization)
+    if hasattr(organization, "__iter__") and not hasattr(organization, "_meta"):
+        org_filter = {"organization__in": organization}
+    else:
+        org_filter = {"organization": organization}
+
+    aspects = EnvironmentalAspect.objects.filter(**org_filter)
+    wastes = WasteRecord.objects.filter(**org_filter)
+    emissions = WastewaterEmissionRecord.objects.filter(**org_filter)
+    hygienes = OccupationalHygieneRecord.objects.filter(**org_filter)
 
     hazardous_waste_kg = sum(
         w.quantity for w in wastes.filter(waste_type=WasteRecord.WasteType.HAZARDOUS, unit=WasteRecord.Unit.KG)

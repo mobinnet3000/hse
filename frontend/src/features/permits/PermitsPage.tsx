@@ -246,7 +246,7 @@ export function PermitsPage() {
 
     Promise.all([fetchPermits(params), fetchPermitStats(selectedOrgId)])
       .then(([items, statsData]) => {
-        setPermits(items);
+        setPermits(Array.isArray(items) ? items : (items as any)?.results ?? []);
         setStats(statsData);
       })
       .catch((err) => setPermitsError(errorMessage(err)))
@@ -482,7 +482,7 @@ export function PermitsPage() {
             <div className="error-box" style={{ padding: "1rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px" }}>
               {permitsError}
             </div>
-          ) : permits.length === 0 ? (
+          ) : !Array.isArray(permits) || permits.length === 0 ? (
             <div className="empty-box" style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
               <p className="muted" style={{ fontSize: "1.1rem", margin: "0 0 1rem" }}>هیچ مجوزی مطابق با فیلترهای جاری یافت نشد.</p>
               <button
@@ -509,7 +509,7 @@ export function PermitsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {permits.map((p) => (
+                  {(Array.isArray(permits) ? permits : []).map((p) => (
                     <tr key={p.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
                       <td style={{ padding: "0.75rem", fontFamily: "monospace", fontWeight: "bold" }}>
                         {p.reference_code}
@@ -1852,7 +1852,7 @@ export function PermitsPage() {
           workplaces={workplaces}
           memberships={memberships}
           currentUserId={user?.id ?? null}
-          activePermits={permits.filter((p) => p.status === "active" || p.status === "suspended")}
+          activePermits={(Array.isArray(permits) ? permits : []).filter((p) => p.status === "active" || p.status === "suspended")}
           onClose={() => setIsCreateHandoverModalOpen(false)}
           onSuccess={() => {
             setIsCreateHandoverModalOpen(false);

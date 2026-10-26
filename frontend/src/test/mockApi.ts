@@ -329,3 +329,165 @@ export function environmentRoutes(overrides: Routes = {}): Routes {
     ...overrides,
   };
 }
+
+export function scaffoldRoutes(overrides: Routes = {}): Routes {
+  return {
+    "/auth/me/": () => jsonResponse(testUser),
+    "/health/": () => jsonResponse({ status: "ok", database: "ok" }),
+    "/organizations/": () => jsonResponse([testOrganization]),
+    "/workplaces/": () => jsonResponse([{ id: 1, name: "کارگاه نورد", code: "WP-01" }]),
+    "/workforce/contractors/": () =>
+      jsonResponse([
+        {
+          id: 1,
+          name: "شرکت فنی مهندسی سازه برتر",
+          registration_number: "101010",
+          status: "approved",
+          status_display: "تایید شده",
+          qualification_score: 85,
+        },
+      ]),
+    "/scaffolds/summary/": () =>
+      jsonResponse({
+        total_scaffolds: 3,
+        green_count: 1,
+        yellow_count: 1,
+        red_count: 1,
+        dismantled_count: 0,
+        overdue_inspections_count: 1,
+      }),
+    "/scaffolds/scaffolds/": (init) => {
+      if (init?.method === "POST") {
+        const body = JSON.parse(String(init?.body || "{}"));
+        return jsonResponse(
+          {
+            id: 99,
+            tag_number: body.tag_number || "SCF-TEST-099",
+            location_details: body.location_details || "تست کارگاه",
+            workplace: body.workplace || 1,
+            workplace_name: "کارگاه نورد",
+            scaffold_type: body.scaffold_type || "modular_system",
+            scaffold_type_display: "مدولار پیش‌ساخته",
+            load_duty: body.load_duty || "heavy_duty",
+            load_duty_display: "سنگین (۳۰۰ کیلوگرم بر متر مربع)",
+            tag_status: "red_unsafe",
+            tag_status_display: "قرمز (ناایمن - ورود اکیداً ممنوع)",
+            height_meters: 10,
+            length_meters: 12,
+            width_meters: 3,
+            inspection_interval_days: 7,
+            is_inspection_overdue: false,
+            erected_by: "علی شفیعی",
+            erection_date: "2026-10-25",
+            inspections: [],
+          },
+          201
+        );
+      }
+      return jsonResponse([
+        {
+          id: 1,
+          tag_number: "SCF-ROLL-001",
+          location_details: "پای ستون نورد اصلی",
+          workplace: 1,
+          workplace_name: "کارگاه نورد",
+          scaffold_type: "modular_system",
+          scaffold_type_display: "مدولار پیش‌ساخته",
+          load_duty: "heavy_duty",
+          load_duty_display: "سنگین (۳۰۰ کیلوگرم بر متر مربع)",
+          tag_status: "green_safe",
+          tag_status_display: "سبز (ایمن و تاییدشده)",
+          height_meters: 12.5,
+          length_meters: 15.0,
+          width_meters: 4.0,
+          inspection_interval_days: 7,
+          is_inspection_overdue: false,
+          last_inspection_date: "2026-10-25",
+          next_inspection_due: "2026-11-01",
+          erected_by: "مهندس شفیعی",
+          erection_date: "2026-10-24",
+          inspections: [],
+        },
+        {
+          id: 2,
+          tag_number: "SCF-CAST-002",
+          location_details: "مخزن ریخته‌گری",
+          workplace: 1,
+          workplace_name: "کارگاه ریخته‌گری",
+          scaffold_type: "tube_coupler",
+          scaffold_type_display: "لوله و بست",
+          load_duty: "medium_duty",
+          load_duty_display: "متوسط (۲۰۰ کیلوگرم بر متر مربع)",
+          tag_status: "yellow_restricted",
+          tag_status_display: "زرد (دسترسی مشروط)",
+          yellow_restrictions: "فقط نفرات داربست‌بند با هارنس کامل مجاز به تردد هستند",
+          height_meters: 8.0,
+          length_meters: 6.0,
+          width_meters: 2.5,
+          inspection_interval_days: 7,
+          is_inspection_overdue: false,
+          last_inspection_date: null,
+          next_inspection_due: null,
+          erected_by: "اکبر حیدری",
+          erection_date: "2026-10-25",
+          inspections: [],
+        },
+        {
+          id: 3,
+          tag_number: "SCF-TWR-003",
+          location_details: "برج هوایی کوره",
+          workplace: 1,
+          workplace_name: "کارگاه نورد",
+          scaffold_type: "mobile_tower",
+          scaffold_type_display: "برجک متحرک",
+          load_duty: "light_duty",
+          load_duty_display: "سبک (۱۵۰ کیلوگرم بر متر مربع)",
+          tag_status: "red_unsafe",
+          tag_status_display: "قرمز (ناایمن - ورود اکیداً ممنوع)",
+          yellow_restrictions: "نقص در مهاربندی و عدم نصب تخته پنجه",
+          height_meters: 6.0,
+          length_meters: 3.0,
+          width_meters: 3.0,
+          inspection_interval_days: 7,
+          is_inspection_overdue: true,
+          last_inspection_date: "2026-10-15",
+          next_inspection_due: "2026-10-22",
+          erected_by: "مهندس شفیعی",
+          erection_date: "2026-10-10",
+          inspections: [],
+        },
+      ]);
+    },
+    "/scaffolds/scaffolds/1/tag-card/": () =>
+      jsonResponse({
+        tag_number: "SCF-ROLL-001",
+        organization_name: "سازمان الف",
+        workplace_name: "کارگاه نورد",
+        location_details: "پای ستون نورد اصلی",
+        scaffold_type_display: "مدولار پیش‌ساخته",
+        load_duty_display: "سنگین (۳۰۰ کیلوگرم بر متر مربع)",
+        tag_status: "green_safe",
+        tag_status_display: "سبز (ایمن و آماده کار)",
+        valid_until: "2026-11-01",
+        next_inspection_due: "2026-11-01",
+        is_overdue: false,
+        restrictions: "",
+        erected_by: "مهندس شفیعی",
+        qr_payload: "HSE-GUARD:SCAFFOLD:1:SCF-ROLL-001",
+      }),
+    "/scaffolds/scaffolds/1/inspect/": () =>
+      jsonResponse({
+        id: 10,
+        inspector_name: "مهندس ایمنی",
+        result_tag: "green_safe",
+        inspection_date: "2026-10-26",
+      }),
+    "/scaffolds/scaffolds/1/change-tag/": () =>
+      jsonResponse({
+        id: 1,
+        tag_status: "red_unsafe",
+      }),
+    ...overrides,
+  };
+}
+

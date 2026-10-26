@@ -153,6 +153,16 @@ class Permit(models.Model):
         help_text="شرکت پیمانکار مجری در صورت برون‌سپاری فعالیت",
     )
 
+    # Scaffold Integration (Phase 15)
+    scaffold = models.ForeignKey(
+        "scaffolds.Scaffold",
+        on_delete=models.SET_NULL,
+        related_name="permits",
+        null=True,
+        blank=True,
+        help_text="داربست مستقر در محل فعالیت (در صورت کار در ارتفاع)",
+    )
+
     # Weather and Environmental Check
     weather_condition_ok = models.BooleanField(
         default=True,
@@ -250,6 +260,9 @@ class Permit(models.Model):
 
         if self.contractor_id and self.contractor.organization_id != self.organization_id:
             raise ValidationError({"contractor": "شرکت پیمانکار باید متعلق به همان سازمان باشد."})
+
+        if self.scaffold_id and self.scaffold.organization_id != self.organization_id:
+            raise ValidationError({"scaffold": "داربست باید متعلق به همان سازمان باشد."})
 
 
 class PermitTypeCompetencyRequirement(models.Model):
