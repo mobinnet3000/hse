@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 
 class NonConformity(models.Model):
@@ -12,7 +13,26 @@ class NonConformity(models.Model):
     class Source(models.TextChoices):
         INSPECTION = "inspection", "بازرسی"
         MANUAL = "manual", "ثبت دستی"
+        ANOMALY_REPORT = "anomaly_report", "گزارش ناهنجاری / مشاهده"
+        INCIDENT = "incident", "حادثه / شبه‌حادثه"
+        AUDIT = "audit", "ممیزی"
         OTHER = "other", "سایر"
+
+    class AnomalyType(models.TextChoices):
+        UNSAFE_ACT = "unsafe_act", "عمل ناایمن (Unsafe Act)"
+        UNSAFE_CONDITION = "unsafe_condition", "شرایط ناایمن (Unsafe Condition)"
+        NEAR_MISS = "near_miss", "مشاهده شبه‌حادثه (Near Miss)"
+        INSPECTION_FINDING = "inspection_finding", "یافته بازرسی (Inspection Finding)"
+        CONTRACTOR_DEVIATION = "contractor_deviation", "انحراف پیمانکار (Contractor Deviation)"
+        EQUIPMENT_DEFECT = "equipment_defect", "نقص فنی تجهیز (Equipment Defect)"
+        ENVIRONMENTAL_DEVIATION = "environmental_deviation", "انحراف زیست‌محیطی (Environmental Deviation)"
+        PROCEDURAL_VIOLATION = "procedural_violation", "نقض دستورالعمل / روش اجرایی (Procedural Violation)"
+
+    class Priority(models.TextChoices):
+        LOW = "low", "عادی / کم"
+        MEDIUM = "medium", "متوسط"
+        HIGH = "high", "بالا / فوری"
+        URGENT = "urgent", "بحرانی / اضطراری"
 
     class Status(models.TextChoices):
         OPEN = "open", "باز"
@@ -53,11 +73,23 @@ class NonConformity(models.Model):
         null=True,
         blank=True,
     )
+    reference_number = models.CharField(max_length=60, blank=True, db_index=True)
     description = models.TextField()
-    severity = models.CharField(max_length=16, choices=Severity.choices)
-    source = models.CharField(
-        max_length=16, choices=Source.choices, default=Source.MANUAL
+    anomaly_type = models.CharField(
+        max_length=40, choices=AnomalyType.choices, default=AnomalyType.INSPECTION_FINDING
     )
+    severity = models.CharField(max_length=16, choices=Severity.choices, default=Severity.MEDIUM)
+    priority = models.CharField(max_length=20, choices=Priority.choices, default=Priority.MEDIUM)
+    source = models.CharField(
+        max_length=20, choices=Source.choices, default=Source.MANUAL
+    )
+    reporter_name = models.CharField(max_length=150, blank=True)
+    location_details = models.CharField(max_length=255, blank=True)
+    department = models.CharField(max_length=150, blank=True)
+    risk_score = models.IntegerField(default=1)
+    immediate_containment = models.TextField(blank=True, help_text="اقدام مهار و کنترل فوری در صحنه")
+    target_deadline = models.DateField(null=True, blank=True)
+
     responsible = models.ForeignKey(
         "accounts.User",
         on_delete=models.SET_NULL,
@@ -84,12 +116,18 @@ class NonConformity(models.Model):
         blank=True,
     )
     closed_at = models.DateTimeField(null=True, blank=True)
+    reopened_count = models.IntegerField(default=0)
+    reopened_reason = models.TextField(blank=True)
+    is_synthetic = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
-        indexes = [models.Index(fields=["organization", "status"])]
+        indexes = [
+            models.Index(fields=["organization", "status"]),
+            models.Index(fields=["organization", "anomaly_type"]),
+        ]
 
     def clean(self):
         if self.workplace_id and self.workplace.organization_id != self.organization_id:
@@ -108,5 +146,33 @@ class NonConformity(models.Model):
         ):
             raise ValidationError({"equipment": "محل استقرار تجهیز با محل عدم‌انطباق هم‌خوان نیست."})
 
+    def save(self, *args, **kwargs):
+        if not self.reference_number:
+            prefix = "ANO" if self.anomaly_type != self.AnomalyType.INSPECTION_FINDING else "NC"
+            year = timezone.now().year
+            count = NonConformity.objects.filter(organization=self.organization).count() + 1
+            self.reference_number = f"{prefix}-{year}-{count:04d}"
+        super().save(*args, **kwargs)
+
+    @property
+    def is_overdue(self) -> bool:
+        if self.status != self.Status.CLOSED and self.target_deadline:
+            return timezone.now().date() > self.target_deadline
+        return False
+
     def __str__(self):
-        return f"عدم‌انطباق #{self.pk}"
+        return f"{self.reference_number or f'عدم‌انطباق #{self.pk}'}: {self.description[:40]}"
+
+
+class AnomalyEvidence(models.Model):
+    non_conformity = models.ForeignKey(
+        NonConformity,
+        on_delete=models.CASCADE,
+        related_name="evidences",
+    )
+    file = models.FileField(upload_to="anomalies/%Y/%m/")
+    caption = models.CharField(max_length=200, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Evidence for {self.non_conformity_id}"

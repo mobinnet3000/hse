@@ -50,6 +50,12 @@ INSTALLED_APPS = [
     "apps.environment",
     "apps.scaffolds",
     "apps.documents",
+    "apps.calculators",
+    "apps.lifting",
+    "apps.pssr",
+    "apps.surveys",
+    "apps.chat",
+    "apps.fleet_energy",
 ]
 
 MIDDLEWARE = [

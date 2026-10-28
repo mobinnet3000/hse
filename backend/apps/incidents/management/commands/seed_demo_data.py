@@ -68,6 +68,17 @@ from apps.documents.models import (
     DocumentVersion,
     VersionStatus,
 )
+from apps.organizations.models import SubscriptionPlan, OrganizationSubscription, ModuleEntitlement
+from apps.calculators.models import CalculationRecord
+from apps.lifting.models import CraneSpecification, LiftingPlan
+from apps.pssr.models import PSSRReview, PSSRChecklistItem, PSSROutstandingAction
+from apps.pssr.services import populate_default_checklist
+from apps.surveys.models import Survey, SurveyQuestion, SurveyQuestionOption, SurveySubmission, SurveyAnswer
+from apps.chat.models import ChatConversation, ChatParticipant, ChatMessage
+from apps.fleet_energy.models import FleetVehicle, FleetFuelLog, EnergyConsumptionLog, ExcavationOperation
+from apps.findings.models import AnomalyEvidence
+from apps.dashboard.models import HSEIndicatorConfig
+
 
 
 DEMO_PASSWORD = "Pass-12345-abc"
@@ -1651,18 +1662,29 @@ class Command(BaseCommand):
 
         def seed_assignment(employee, item, stock, issued_on, defaults):
             serial_number = defaults.pop("serial_number", "")
-            existing = PPEAssignment.objects.filter(
-                organization=employee.organization,
-                employee=employee,
-                item=item,
-                serial_number=serial_number,
-                issued_on=issued_on,
-                is_synthetic=True,
-            ).first()
+            if serial_number:
+                existing = PPEAssignment.objects.filter(
+                    organization=employee.organization,
+                    item=item,
+                    serial_number=serial_number,
+                    is_synthetic=True,
+                ).first()
+            else:
+                existing = PPEAssignment.objects.filter(
+                    organization=employee.organization,
+                    employee=employee,
+                    item=item,
+                    serial_number=serial_number,
+                    issued_on=issued_on,
+                    is_synthetic=True,
+                ).first()
             # Real assignments with a similar natural key are never overwritten;
             # a separately marked synthetic row is created instead.
             payload = {
                 **defaults,
+                "employee": employee,
+                "stock": stock,
+                "issued_on": issued_on,
                 "serial_number": serial_number,
                 "is_synthetic": True,
                 "issued_by": hse_mgr_user,
@@ -1675,10 +1697,7 @@ class Command(BaseCommand):
                 return existing
             assignment = PPEAssignment(
                 organization=employee.organization,
-                employee=employee,
                 item=item,
-                stock=stock,
-                issued_on=issued_on,
                 **payload,
             )
             assignment.full_clean()
@@ -3972,12 +3991,489 @@ class Command(BaseCommand):
             defaults={"link_title": "مجوز کار در ارتفاع", "link_note": "پیوست الزامی پروانه کار گرم"},
         )
 
+        # =========================================================================
+        # PHASE 17 SEEDING: COMPLETE PLATFORM FINALIZATION & MISSING MODULES
+        # =========================================================================
+        self.stdout.write("Seeding Phase 17 modules (Subscriptions, Calculators, Lifting, PSSR, Surveys, Chat, Fleet & Energy)...")
+
+        # 1. Subscriptions & Module Entitlements
+        plan_free, _ = SubscriptionPlan.objects.update_or_create(
+            code="free",
+            defaults={
+                "name": "طرح پایه رایگان",
+                "price_monthly_irr": 0,
+                "max_users": 10,
+                "max_workplaces": 2,
+                "included_modules": [],
+                "is_active": True,
+            },
+        )
+        plan_pro, _ = SubscriptionPlan.objects.update_or_create(
+            code="pro",
+            defaults={
+                "name": "طرح حرفه‌ای صنعتی",
+                "price_monthly_irr": 15000000,
+                "max_users": 50,
+                "max_workplaces": 10,
+                "included_modules": [
+                    "lifting_plans",
+                    "pssr",
+                    "surveys",
+                    "chat",
+                    "fleet_energy",
+                    "anomalies",
+                    "indicators",
+                ],
+                "is_active": True,
+            },
+        )
+        plan_ent, _ = SubscriptionPlan.objects.update_or_create(
+            code="enterprise",
+            defaults={
+                "name": "طرح جامع پیشرفته پتروشیمی و فولاد",
+                "price_monthly_irr": 35000000,
+                "max_users": 200,
+                "max_workplaces": 50,
+                "included_modules": list(ModuleEntitlement.COMMERCIAL_MODULES.keys()),
+                "is_active": True,
+            },
+        )
+
+        sub_foolad, _ = OrganizationSubscription.objects.update_or_create(
+            organization=org_foolad,
+            defaults={
+                "plan": plan_pro,
+                "status": OrganizationSubscription.Status.ACTIVE,
+                "valid_from": timezone.now().date() - timedelta(days=30),
+                "valid_until": timezone.now().date() + timedelta(days=335),
+            },
+        )
+
+        for mod_code in ModuleEntitlement.COMMERCIAL_MODULES:
+            ModuleEntitlement.objects.update_or_create(
+                organization=org_foolad,
+                module_code=mod_code,
+                defaults={
+                    "is_enabled": True,
+                    "source": ModuleEntitlement.Source.PLAN,
+                    "valid_until": timezone.now().date() + timedelta(days=335),
+                },
+            )
+
+        # 2. Engineering Calculators Records
+        CalculationRecord.objects.get_or_create(
+            organization=org_foolad,
+            calculator_type=CalculationRecord.CalculatorType.HSE_RATES,
+            title="محاسبه نرخ شاخص‌های حوادث فصل بهار ۱۴۰۵",
+            defaults={
+                "user": hse_mgr_user,
+                "input_params": {
+                    "exposure_hours": 250000,
+                    "lost_time_injuries": 1,
+                    "total_recordable_incidents": 3,
+                    "lost_days": 14,
+                },
+                "results": {
+                    "ltifr": 4.0,
+                    "trir": 12.0,
+                    "severity_rate": 56.0,
+                    "fsi": 0.473,
+                },
+                "notes": "گزارش ۳ ماهه نورد البرز جهت ارسال به اداره کار و امور اجتماعی",
+                "is_synthetic": True,
+            },
+        )
+        CalculationRecord.objects.get_or_create(
+            organization=org_foolad,
+            calculator_type=CalculationRecord.CalculatorType.RIGGING_CRANE,
+            title="محاسبه کشش اسلینگ باربرداری شمش‌های ریخته‌گری",
+            defaults={
+                "user": supervisor_user,
+                "input_params": {
+                    "load_weight_kg": 12000,
+                    "num_legs": 2,
+                    "angle_to_horizontal_deg": 60,
+                },
+                "results": {
+                    "tension_per_leg_kg": 6928.2,
+                    "warning": None,
+                },
+                "notes": "استفاده از اسلینگ زنجیری گرید ۸۰ دوشاخه",
+                "is_synthetic": True,
+            },
+        )
+        CalculationRecord.objects.get_or_create(
+            organization=org_foolad,
+            calculator_type=CalculationRecord.CalculatorType.NOISE,
+            title="ترکیب تراز فشار صوت ایستگاه سنگ‌زنی و برشکاری",
+            defaults={
+                "user": inspector_user,
+                "input_params": {"sound_levels_dba": [85.0, 88.0, 82.0]},
+                "results": {"combined_spl_dba": 90.35},
+                "notes": "تراز بالاتر از حد مجاز ۸۵ دسی‌بل - الزام گوشی محافظ صوت",
+                "is_synthetic": True,
+            },
+        )
+
+        # 3. Lifting Plans & Crane Specifications
+        crane_tadano, _ = CraneSpecification.objects.update_or_create(
+            organization=org_foolad,
+            model_name="Tadano GR-550XL (بوم ۵۵ تن)",
+            defaults={
+                "manufacturer": "Tadano",
+                "max_capacity_tonnes": 55.0,
+                "boom_length_min_m": 10.7,
+                "boom_length_max_m": 42.0,
+                "load_chart_data": [
+                    {"boom_length_m": 16.0, "radius_m": 6.0, "capacity_kg": 28000.0},
+                    {"boom_length_m": 16.0, "radius_m": 8.0, "capacity_kg": 22000.0},
+                    {"boom_length_m": 16.0, "radius_m": 10.0, "capacity_kg": 17000.0},
+                    {"boom_length_m": 24.0, "radius_m": 12.0, "capacity_kg": 12000.0},
+                    {"boom_length_m": 24.0, "radius_m": 16.0, "capacity_kg": 8500.0},
+                ],
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+        crane_liebherr, _ = CraneSpecification.objects.update_or_create(
+            organization=org_foolad,
+            model_name="Liebherr LTM 1100-4.2 (بوم ۱۰۰ تن)",
+            defaults={
+                "manufacturer": "Liebherr",
+                "max_capacity_tonnes": 100.0,
+                "boom_length_min_m": 11.5,
+                "boom_length_max_m": 60.0,
+                "load_chart_data": [
+                    {"boom_length_m": 22.0, "radius_m": 8.0, "capacity_kg": 45000.0},
+                    {"boom_length_m": 22.0, "radius_m": 12.0, "capacity_kg": 32000.0},
+                    {"boom_length_m": 30.0, "radius_m": 16.0, "capacity_kg": 20000.0},
+                    {"boom_length_m": 38.0, "radius_m": 20.0, "capacity_kg": 14000.0},
+                ],
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        lift_1, _ = LiftingPlan.objects.update_or_create(
+            organization=org_foolad,
+            plan_number="LP-2026-001",
+            defaults={
+                "workplace": wp_roll,
+                "title": "باربرداری و استقرار مخزن روغن هیدرولیک نورد",
+                "category": LiftingPlan.LiftCategory.STANDARD,
+                "status": LiftingPlan.Status.APPROVED,
+                "planned_date": timezone.now().date() + timedelta(days=2),
+                "crane": crane_tadano,
+                "boom_length_m": 16.0,
+                "lift_radius_m": 8.0,
+                "load_description": "مخزن هیدرولیک فشار قوی روغن دستگاه رولیک",
+                "load_weight_kg": 10000.0,
+                "rigging_hardware_weight_kg": 350.0,
+                "hook_block_weight_kg": 450.0,
+                "total_gross_weight_kg": 10800.0,
+                "crane_capacity_at_radius_kg": 22000.0,
+                "crane_utilization_pct": 49.1,
+                "sling_type": LiftingPlan.SlingType.WIRE_ROPE,
+                "num_sling_legs": 2,
+                "sling_angle_to_horizontal_deg": 60.0,
+                "sling_rated_wll_kg": 8500.0,
+                "tension_per_leg_kg": 6235.4,
+                "allowable_ground_pressure_kpa": 350.0,
+                "outrigger_pad_area_sqm": 1.2,
+                "ground_bearing_pressure_kpa": 125.0,
+                "wind_speed_limit_mps": 9.0,
+                "created_by": supervisor_user,
+                "approved_by": hse_mgr_user,
+                "approval_notes": "طرح مورد بررسی مهندسی قرار گرفت و تایید شد.",
+            },
+        )
+        lift_2, _ = LiftingPlan.objects.update_or_create(
+            organization=org_foolad,
+            plan_number="LP-2026-002",
+            defaults={
+                "workplace": wp_cast,
+                "title": "باربرداری بحرانی ترانسفورماتور پست ۶۳ کیلوولت کارگاه ریخته‌گری",
+                "category": LiftingPlan.LiftCategory.CRITICAL,
+                "status": LiftingPlan.Status.UNDER_REVIEW,
+                "planned_date": timezone.now().date() + timedelta(days=5),
+                "crane": crane_liebherr,
+                "boom_length_m": 22.0,
+                "lift_radius_m": 12.0,
+                "load_description": "ترانسفورماتور اصلی کوره القایی به همراه روغن عایق",
+                "load_weight_kg": 26000.0,
+                "rigging_hardware_weight_kg": 800.0,
+                "hook_block_weight_kg": 1200.0,
+                "total_gross_weight_kg": 28000.0,
+                "crane_capacity_at_radius_kg": 32000.0,
+                "crane_utilization_pct": 87.5,
+                "sling_type": LiftingPlan.SlingType.CHAIN,
+                "num_sling_legs": 4,
+                "sling_angle_to_horizontal_deg": 60.0,
+                "sling_rated_wll_kg": 20000.0,
+                "tension_per_leg_kg": 16165.8,
+                "allowable_ground_pressure_kpa": 400.0,
+                "outrigger_pad_area_sqm": 2.0,
+                "ground_bearing_pressure_kpa": 185.0,
+                "wind_speed_limit_mps": 7.5,
+                "created_by": supervisor_user,
+            },
+        )
+
+        # 4. PSSR (Pre-Startup Safety Review)
+        pssr_1, created = PSSRReview.objects.update_or_create(
+            organization=org_foolad,
+            pssr_number="PSSR-2026-001",
+            defaults={
+                "workplace": wp_roll,
+                "project_or_system_name": "بررسی ایمنی پیش از راه‌اندازی خط تکمیلی نورد شماره ۲",
+                "review_type": PSSRReview.ReviewType.MAJOR_MODIFICATION,
+                "status": PSSRReview.Status.IN_PROGRESS,
+                "target_startup_date": timezone.now().date() + timedelta(days=4),
+                "leader": hse_mgr_user,
+                "is_synthetic": True,
+            },
+        )
+        if created or not pssr_1.checklist_items.exists():
+            populate_default_checklist(pssr_1)
+            pssr_1.checklist_items.filter(category="mechanical_completion").update(
+                verification_status=PSSRChecklistItem.VerificationStatus.COMPLIANT,
+                verified_by=supervisor_user,
+            )
+            pssr_1.checklist_items.filter(category="process_safety").update(
+                verification_status=PSSRChecklistItem.VerificationStatus.COMPLIANT,
+                verified_by=hse_mgr_user,
+            )
+            PSSROutstandingAction.objects.get_or_create(
+                pssr=pssr_1,
+                title="نصب حفاظ مشبک رولیک ورودی اره برش داغ",
+                defaults={
+                    "description": "حفاظ فیزیکی بر اساس استاندارد ISO 14120 نصب و قفل میکروسوئیچ تست گردد.",
+                    "responsible": supervisor_user,
+                    "target_date": timezone.now().date() + timedelta(days=2),
+                    "is_pre_startup": True,
+                    "status": PSSROutstandingAction.ActionStatus.OPEN,
+                },
+            )
+
+        # 5. Surveys & Scored Exams
+        survey_culture, _ = Survey.objects.update_or_create(
+            organization=org_foolad,
+            title="سنجش دوره‌ای فرهنگ و مشارکت ایمنی پرسنل (Safety Culture Index)",
+            defaults={
+                "survey_type": Survey.SurveyType.SAFETY_CLIMATE,
+                "is_anonymous": True,
+                "description": "نظرسنجی کاملاً ناشناس جهت سنجش ادراک ایمنی و گزارش‌دهی آزادانه در خطوط تولید",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+        q1, _ = SurveyQuestion.objects.update_or_create(
+            survey=survey_culture,
+            order=1,
+            defaults={
+                "question_text": "آیا مدیران و سرپرستان ارشد در عمل به رعایت دستورالعمل‌های HSE پایبند هستند؟",
+                "question_type": SurveyQuestion.QuestionType.RATING_SCALE,
+                "points": 5.0,
+                "is_required": True,
+            },
+        )
+        q2, _ = SurveyQuestion.objects.update_or_create(
+            survey=survey_culture,
+            order=2,
+            defaults={
+                "question_text": "در صورت مشاهده شرایط ناایمن، تا چه حد بدون ترس از سرزنش آن را گزارش می‌کنید؟",
+                "question_type": SurveyQuestion.QuestionType.RATING_SCALE,
+                "points": 5.0,
+                "is_required": True,
+            },
+        )
+        q3, _ = SurveyQuestion.objects.update_or_create(
+            survey=survey_culture,
+            order=3,
+            defaults={
+                "question_text": "پیشنهاد عملیاتی شما جهت ارتقای بهداشت و ایمنی در واحد شما چیست؟",
+                "question_type": SurveyQuestion.QuestionType.TEXT,
+                "points": 0.0,
+                "is_required": False,
+            },
+        )
+
+        exam_height, _ = Survey.objects.update_or_create(
+            organization=org_foolad,
+            title="آزمون سنجش شایستگی الزامات ایمنی کار در ارتفاع و نجات پرسنل",
+            defaults={
+                "survey_type": Survey.SurveyType.EXAM,
+                "is_anonymous": False,
+                "pass_percentage": 75.0,
+                "description": "آزمون کتبی ۴ گزینه‌ای برای تمدید صلاحیت کار روی داربست و ارتفاع",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+        eq1, _ = SurveyQuestion.objects.update_or_create(
+            survey=exam_height,
+            order=1,
+            defaults={
+                "question_text": "طبق آیین‌نامه کار در ارتفاع، حداقل ارتفاع نیازمند سامانه متوقف‌کننده سقوط چقدر است؟",
+                "question_type": SurveyQuestion.QuestionType.SINGLE_CHOICE,
+                "points": 25.0,
+                "is_required": True,
+            },
+        )
+        SurveyQuestionOption.objects.update_or_create(
+            question=eq1,
+            order=1,
+            defaults={"option_text": "۱.۲ متر", "is_correct": False, "score_weight": 0.0},
+        )
+        SurveyQuestionOption.objects.update_or_create(
+            question=eq1,
+            order=2,
+            defaults={"option_text": "۱.۸ متر و بالاتر", "is_correct": True, "score_weight": 25.0},
+        )
+        SurveyQuestionOption.objects.update_or_create(
+            question=eq1,
+            order=3,
+            defaults={"option_text": "۲.۵ متر", "is_correct": False, "score_weight": 0.0},
+        )
+
+        eq2, _ = SurveyQuestion.objects.update_or_create(
+            survey=exam_height,
+            order=2,
+            defaults={
+                "question_text": "حداقل مقاومت نقطه لنگرگاه (Anchor Point) برای اتصال هارنس چقدر باید باشد؟",
+                "question_type": SurveyQuestion.QuestionType.SINGLE_CHOICE,
+                "points": 25.0,
+                "is_required": True,
+            },
+        )
+        SurveyQuestionOption.objects.update_or_create(
+            question=eq2,
+            order=1,
+            defaults={"option_text": "۱۰ کیلونیوتن", "is_correct": False, "score_weight": 0.0},
+        )
+        SurveyQuestionOption.objects.update_or_create(
+            question=eq2,
+            order=2,
+            defaults={"option_text": "۲۲.۲ کیلونیوتن (حدود ۲.۲ تن)", "is_correct": True, "score_weight": 25.0},
+        )
+
+        # 6. Internal Chat & Collaboration
+        conv_safety, _ = ChatConversation.objects.update_or_create(
+            organization=org_foolad,
+            title="کانال پایش و هماهنگی اضطراری شیفت",
+            defaults={
+                "conversation_type": ChatConversation.ConversationType.CHANNEL,
+                "created_by": hse_mgr_user,
+                "is_synthetic": True,
+            },
+        )
+        ChatParticipant.objects.update_or_create(
+            conversation=conv_safety, user=hse_mgr_user,
+            defaults={"role": ChatParticipant.Role.ADMIN}
+        )
+        ChatParticipant.objects.update_or_create(
+            conversation=conv_safety, user=supervisor_user,
+            defaults={"role": ChatParticipant.Role.MEMBER}
+        )
+        ChatParticipant.objects.update_or_create(
+            conversation=conv_safety, user=inspector_user,
+            defaults={"role": ChatParticipant.Role.MEMBER}
+        )
+        ChatMessage.objects.get_or_create(
+            conversation=conv_safety,
+            sender=hse_mgr_user,
+            content="با توجه به اخطار هواشناسی مبنی بر وزش باد شدید (بیش از ۱۲ متر بر ثانیه)، کلیه عملیات باربرداری تاپیک جرثقیل و داربست در محوطه باز متوقف گردید.",
+            defaults={"is_synthetic": True},
+        )
+        ChatMessage.objects.get_or_create(
+            conversation=conv_safety,
+            sender=supervisor_user,
+            content="پیام دریافت شد. جک‌های جرثقیل جمع و بوم در حالت خوابیده و ایمن قفل شد. کارگران به سالن سرپوشیده منتقل شدند.",
+            defaults={"is_synthetic": True},
+        )
+
+        # 7. Fleet, Energy & Excavation
+        veh_patrol, _ = FleetVehicle.objects.update_or_create(
+            organization=org_foolad,
+            vehicle_code="VP-01",
+            defaults={
+                "plate_number": "ایران ۶۸ - ۲۵۴ ب ۱۲",
+                "model_name": "تویوتا هایلوکس دو دیفرانسیل گشت ایمنی",
+                "vehicle_type": FleetVehicle.VehicleType.PICKUP,
+                "fuel_type": FleetVehicle.FuelType.GASOLINE,
+                "current_odometer_km": 48250.0,
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+        FleetFuelLog.objects.get_or_create(
+            organization=org_foolad,
+            vehicle=veh_patrol,
+            log_date=timezone.now().date() - timedelta(days=5),
+            defaults={
+                "odometer_km": 47800.0,
+                "fuel_liters": 65.0,
+                "total_cost_irr": 1950000,
+                "distance_traveled_km": 540.0,
+                "consumption_rate_l_per_100km": 12.04,
+                "is_synthetic": True,
+            },
+        )
+        FleetFuelLog.objects.get_or_create(
+            organization=org_foolad,
+            vehicle=veh_patrol,
+            log_date=timezone.now().date() - timedelta(days=1),
+            defaults={
+                "odometer_km": 48250.0,
+                "fuel_liters": 52.0,
+                "total_cost_irr": 1560000,
+                "distance_traveled_km": 450.0,
+                "consumption_rate_l_per_100km": 11.56,
+                "is_synthetic": True,
+            },
+        )
+
+        EnergyConsumptionLog.objects.get_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            meter_identifier="MTR-ROLL-MAIN-01",
+            period_start=timezone.now().date() - timedelta(days=30),
+            defaults={
+                "utility_type": EnergyConsumptionLog.UtilityType.ELECTRICITY,
+                "period_end": timezone.now().date(),
+                "consumption_value": 185000.0,
+                "unit": "kWh",
+                "tariff_rate_irr": 5000.0,
+                "is_synthetic": True,
+            },
+        )
+
+        ExcavationOperation.objects.update_or_create(
+            organization=org_foolad,
+            reference_code="EXC-2026-001",
+            defaults={
+                "workplace": wp_cast,
+                "project_name": "احداث حوضچه پمپ هیدرولیک کوره",
+                "soil_type": ExcavationOperation.SoilType.TYPE_B,
+                "depth_m": 2.8,
+                "top_width_m": 4.5,
+                "bottom_width_m": 2.0,
+                "length_m": 12.0,
+                "protective_system": ExcavationOperation.ProtectiveSystem.SHORING,
+                "status": ExcavationOperation.Status.ACTIVE,
+                "is_synthetic": True,
+            },
+        )
+
+        # 8. Anomalies
+        NonConformity.objects.filter(organization=org_foolad, reference_number__isnull=True).update(
+            reference_number="ANO-2026-0001",
+            anomaly_type=NonConformity.AnomalyType.UNSAFE_CONDITION,
+        )
+
         self.stdout.write(
             self.style.SUCCESS(
-                "Phase 16 HSE Document Control & Secure Archive demo data seeded: "
-                "9 distinct scenarios (Multi-revision procedure, Draft under review, Rejected with reasons, "
-                "Expiring certificate, Expired record, Strictly confidential, Employee read receipts/acknowledgments, "
-                "Archived with audit trail, and Cross-tenant isolation in Petrochemistry)."
+                "Phase 17 full modules seeded: Subscriptions, Entitlements, Calculators, Lifting, PSSR, Surveys, Chat, Fleet & Energy."
             )
         )
 

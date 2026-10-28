@@ -404,3 +404,68 @@ class NonConformityCloseView(APIView):
             entity_id=nc.pk,
         )
         return Response(NonConformitySerializer(nc).data)
+
+
+class NonConformityReopenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from .models import AnomalyEvidence
+        nc = NonConformity.objects.filter(pk=pk).first()
+        if nc is None or not can_view_organization(request.user, nc.organization_id):
+            return Response(NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+        if not can_review(request.user, nc.organization_id):
+            return Response(FORBIDDEN, status=status.HTTP_403_FORBIDDEN)
+        if nc.status != NonConformity.Status.CLOSED:
+            return Response(
+                {"error": {"code": "not_closed", "message": "فقط موارد بسته شده قابلیت بازگشایی مجدد دارند."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        reason = request.data.get("reopened_reason", "").strip()
+        if not reason:
+            return Response(
+                {"error": {"code": "reason_required", "message": "ذکر دلیل بازگشایی مجدد عدم‌انطباق الزامی است."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        nc.status = NonConformity.Status.OPEN
+        nc.reopened_count += 1
+        nc.reopened_reason = reason
+        nc.closed_by = None
+        nc.closed_at = None
+        nc.save()
+        log_event(
+            organization=nc.organization,
+            actor=request.user,
+            action="nonconformity.reopen",
+            entity_type="nonconformity",
+            entity_id=nc.pk,
+            details={"reopened_reason": reason},
+        )
+        return Response(NonConformitySerializer(nc).data)
+
+
+class NonConformityEvidenceUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from .models import AnomalyEvidence
+        nc = NonConformity.objects.filter(pk=pk).first()
+        if nc is None or not can_view_organization(request.user, nc.organization_id):
+            return Response(NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+        file_obj = request.FILES.get("file")
+        if not file_obj:
+            return Response(
+                {"error": {"code": "no_file", "message": "فایل مدرک پیوست نشده است."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        caption = request.data.get("caption", "")
+        evidence = AnomalyEvidence.objects.create(
+            non_conformity=nc,
+            file=file_obj,
+            caption=caption,
+        )
+        return Response(
+            {"id": evidence.id, "file": evidence.file.url, "caption": evidence.caption},
+            status=status.HTTP_201_CREATED,
+        )
+
