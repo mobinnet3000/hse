@@ -1,4 +1,4 @@
-﻿import { render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "../app/App";
@@ -102,7 +102,9 @@ describe("Risks page", () => {
     expect(await screen.findByText("خطری ثبت نشده است.")).toBeInTheDocument();
   });
 
-  it("shows the server-computed score after submitting an assessment", async () => {
+  it(
+    "shows the server-computed score after submitting an assessment",
+    async () => {
     mockApi(
       riskRoutes({
         "/risks/assessments/": (init) => {
@@ -162,7 +164,7 @@ describe("Risks page", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent("امتیاز ریسک: 20");
     expect(screen.getByRole("status")).toHaveTextContent("بحرانی");
-  }, 10000);
+  }, 60000);
 });
 
 

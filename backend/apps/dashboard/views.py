@@ -189,7 +189,7 @@ class PersonalWorkspaceAPIView(APIView):
             Permit.objects.filter(
                 organization_id__in=org_ids,
                 status="submitted",
-            ).values("id", "permit_number", "title", "permit_type", "created_at")[:10]
+            ).values("id", "reference_code", "title", "permit_type", "created_at")[:10]
         )
 
         from apps.lifting.models import LiftingPlan
@@ -197,7 +197,7 @@ class PersonalWorkspaceAPIView(APIView):
             LiftingPlan.objects.filter(
                 organization_id__in=org_ids,
                 status__in=["submitted", "under_review"],
-            ).values("id", "plan_number", "title", "lift_category", "created_at")[:10]
+            ).values("id", "plan_number", "title", "category", "created_at")[:10]
         )
 
         from apps.pssr.models import PSSRReview
@@ -205,7 +205,7 @@ class PersonalWorkspaceAPIView(APIView):
             PSSRReview.objects.filter(
                 organization_id__in=org_ids,
                 status="submitted",
-            ).values("id", "reference_number", "title", "category", "target_startup_date")[:10]
+            ).values("id", "pssr_number", "project_or_system_name", "review_type", "target_startup_date")[:10]
         )
 
         # 2. My Tasks
@@ -237,10 +237,13 @@ class PersonalWorkspaceAPIView(APIView):
         from apps.notifications.models import Notification
         unread_notifications = Notification.objects.filter(user=user, is_read=False).count()
 
-        from apps.chat.models import ChatParticipant
-        unread_messages_count = sum(
-            part.unread_count for part in ChatParticipant.objects.filter(user=user, is_active=True)
-        )
+        from apps.chat.models import ChatParticipant, ChatMessage
+        unread_messages_count = 0
+        for part in ChatParticipant.objects.filter(user=user).select_related("conversation"):
+            msg_filter = Q(conversation=part.conversation) & ~Q(sender=user)
+            if part.last_read_at:
+                msg_filter &= Q(created_at__gt=part.last_read_at)
+            unread_messages_count += ChatMessage.objects.filter(msg_filter).count()
 
         return Response({
             "user": {

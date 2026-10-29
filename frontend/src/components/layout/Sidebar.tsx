@@ -21,6 +21,15 @@ import {
   FileText,
   X,
   LogOut,
+  UserCheck,
+  MessageSquare,
+  AlertCircle,
+  Anchor,
+  CheckSquare,
+  Calculator,
+  Truck,
+  HelpCircle,
+  CreditCard,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -47,13 +56,18 @@ const NAV_GROUPS: NavGroup[] = [
   {
     groupTitle: "اصلی",
     items: [
-      { id: "dashboard", label: "داشبورد", icon: <LayoutDashboard size={18} /> },
+      { id: "dashboard", label: "داشبورد و شاخص‌ها", icon: <LayoutDashboard size={18} /> },
+      { id: "workspace", label: "کارتابل وظایف من", icon: <UserCheck size={18} /> },
+      { id: "chat", label: "پیام‌رسان سازمانی", icon: <MessageSquare size={18} /> },
       { id: "all", label: "همه بخش‌ها", icon: <Layers size={18} /> },
     ],
   },
   {
-    groupTitle: "عملیات میدانی",
+    groupTitle: "عملیات و ایمنی فنی",
     items: [
+      { id: "anomalies", label: "ناهنجاری‌ها و مشاهدات", icon: <AlertCircle size={18} /> },
+      { id: "lifting", label: "باربرداری و شبیه‌سازی", icon: <Anchor size={18} /> },
+      { id: "pssr", label: "راه‌اندازی ایمن (PSSR)", icon: <CheckSquare size={18} /> },
       { id: "permits", label: "مجوزهای کار و تحویل شیفت", icon: <FileCheck size={18} /> },
       { id: "scaffolds", label: "داربست‌ها و کار در ارتفاع", icon: <Hammer size={18} /> },
       { id: "inspections", label: "بازرسی‌ها و اقدامات", icon: <ClipboardCheck size={18} /> },
@@ -62,11 +76,14 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    groupTitle: "سرمایه و منابع",
+    groupTitle: "مهندسی و منابع",
     items: [
+      { id: "calculators", label: "ماشین‌حساب‌های مهندسی", icon: <Calculator size={18} /> },
+      { id: "fleet_energy", label: "ناوگان، انرژی و گودبرداری", icon: <Truck size={18} /> },
+      { id: "surveys", label: "آزمون‌ها و سنجش فرهنگ", icon: <HelpCircle size={18} /> },
       { id: "workforce", label: "کارکنان، آموزش و PPE", icon: <Users size={18} /> },
       { id: "assets", label: "تجهیزات و کالیبراسیون", icon: <Wrench size={18} /> },
-      { id: "risks", label: "ریسک‌ها", icon: <ShieldAlert size={18} /> },
+      { id: "risks", label: "مدیریت ریسک و پاپیونی", icon: <ShieldAlert size={18} /> },
     ],
   },
   {
@@ -81,6 +98,7 @@ const NAV_GROUPS: NavGroup[] = [
     groupTitle: "نظارت و مدیریت",
     items: [
       { id: "reports", label: "گزارش‌ها", icon: <BarChart3 size={18} /> },
+      { id: "subscriptions", label: "اشتراک و یکپارچه‌سازی", icon: <CreditCard size={18} /> },
       { id: "notifications", label: "اعلان‌ها", icon: <Bell size={18} /> },
       { id: "audit", label: "حسابرسی", icon: <History size={18} /> },
     ],

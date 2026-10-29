@@ -92,3 +92,27 @@ class DashboardTests(TestCase):
         # Inaccessible org
         res_forbidden = self.client.get(reverse("dashboard-metrics"), {"organization": self.org_b.id})
         self.assertEqual(res_forbidden.status_code, 404)
+
+    def test_proactive_indicators_api(self):
+        self.client.force_login(self.user_a)
+        res = self.client.get("/api/v1/dashboard/indicators/", {"organization": self.org_a.id, "days": 30})
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertIn("indicators", data)
+        self.assertIn("summary", data)
+        self.assertEqual(data["organization_id"], self.org_a.id)
+        self.assertGreater(len(data["indicators"]), 0)
+
+        # Cross-organization isolation
+        res_other = self.client.get("/api/v1/dashboard/indicators/", {"organization": self.org_b.id})
+        self.assertEqual(res_other.status_code, 404)
+
+    def test_personal_workspace_api(self):
+        self.client.force_login(self.user_a)
+        res = self.client.get("/api/v1/dashboard/workspace/")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertIn("pending_approvals", data)
+        self.assertIn("my_tasks", data)
+        self.assertIn("unread_counts", data)
+        self.assertEqual(data["user"]["id"], self.user_a.id)

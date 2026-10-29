@@ -522,16 +522,29 @@ export type NonConformity = {
   organization: number;
   workplace: number | null;
   inspection: number | null;
+  reference_number?: string;
   description: string;
+  anomaly_type?: string;
+  anomaly_type_display?: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   severity_display: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  priority_display?: string;
   source: string;
   source_display: string;
+  reporter_name?: string;
+  location_details?: string;
+  department?: string;
+  risk_score?: number;
+  immediate_containment?: string;
+  target_deadline?: string | null;
   responsible: number | null;
+  responsible_detail?: { id: number; full_name?: string; username: string };
   status: 'open' | 'in_progress' | 'ready_for_review' | 'closed';
   status_display: string;
   evidence_text: string;
   corrective_action_count: number;
+  reopened_count?: number;
 };
 export type CorrectiveAction = {
   id: number;
@@ -1955,6 +1968,7 @@ export interface TrainingSession {
   workplace?: number | null;
   workplace_name?: string | null;
   instructor_name: string;
+  trainer_name?: string;
   scheduled_on: string;
   duration_minutes?: number | null;
   capacity?: number | null;
@@ -2119,6 +2133,8 @@ export interface PPEStock {
   id: number;
   organization: number;
   item: number;
+  item_code?: string;
+  item_name?: string;
   item_detail?: { id: number; code: string; name: string; category: string; tracks_serial: boolean };
   workplace?: number | null;
   workplace_name?: string | null;
@@ -3403,3 +3419,637 @@ export function getDocumentDownloadUrl(docId: number, versionId?: number): strin
   }
   return `${API_BASE_URL}/documents/documents/${docId}/download/`;
 }
+
+// ==============================================================================
+// Phase 17: Platform Finalization & Advanced Modules
+// ==============================================================================
+
+// 1. Engineering & HSE Calculators
+export interface CalculationRecord {
+  id: number;
+  calculator_type: string;
+  calculator_type_display?: string;
+  inputs: Record<string, any>;
+  outputs: Record<string, any>;
+  reference_notes: string;
+  created_at: string;
+}
+
+export function calculateUnitConvert(data: { value: number; from_unit: string; to_unit: string; category: string }) {
+  return request<{ value: number; from_unit: string; to_unit: string; category: string; result: number; formula: string }>(
+    "/calculators/unit-convert/",
+    { method: "POST", body: JSON.stringify(data) }
+  );
+}
+
+export function calculateHSERates(data: { exposure_hours: number; lost_time_injuries: number; total_recordable_incidents: number; lost_days: number }) {
+  return request<{ ltifr: number; trir: number; severity_rate: number; formula_notes: string }>(
+    "/calculators/hse-rates/",
+    { method: "POST", body: JSON.stringify(data) }
+  );
+}
+
+export function calculateNoise(data: { spl_values: number[]; duration_hours?: number }) {
+  return request<{ total_spl_db: number; noise_dose_percentage: number; tsv_status: string; formula: string }>(
+    "/calculators/noise/",
+    { method: "POST", body: JSON.stringify(data) }
+  );
+}
+
+export function calculateRigging(data: {
+  load_weight_kg: number;
+  num_sling_legs: number;
+  sling_angle_deg: number;
+  crane_rated_capacity_kg?: number;
+  shackle_rated_wll_kg?: number;
+}) {
+  return request<{
+    tension_per_leg_kg: number;
+    total_load_kg: number;
+    crane_utilization_pct: number | null;
+    shackle_safety_factor: number | null;
+    is_safe: boolean;
+    formula: string;
+  }>("/calculators/rigging/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function calculateEnergyFleet(data: { electricity_kwh?: number; electricity_tariff?: number; fuel_liters?: number; distance_km?: number }) {
+  return request<{ total_electricity_cost_irr: number; fuel_efficiency_km_per_l: number; fuel_consumption_l_per_100km: number; formula: string }>(
+    "/calculators/energy-fleet/",
+    { method: "POST", body: JSON.stringify(data) }
+  );
+}
+
+export function calculateExcavation(data: { depth_m: number; length_m: number; soil_type: string; shoring_used?: boolean }) {
+  return request<{ safe_slope_ratio: string; top_width_m: number; excavation_volume_cum: number; shoring_mandatory: boolean; warning_notes: string }>(
+    "/calculators/excavation/",
+    { method: "POST", body: JSON.stringify(data) }
+  );
+}
+
+export function fetchCalculationRecords(params?: Record<string, any>, signal?: AbortSignal) {
+  const p = params ? `?${new URLSearchParams(params).toString()}` : "";
+  return request<CalculationRecord[] | { results: CalculationRecord[] }>(`/calculators/records/${p}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+// 2. Lifting Plans & Crane Simulation
+export interface CraneSpecification {
+  id: number;
+  organization: number;
+  crane_code: string;
+  model_name: string;
+  manufacturer: string;
+  max_capacity_ton: number;
+  max_boom_length_m: number;
+  is_active: boolean;
+}
+
+export interface LiftingPlan {
+  id: number;
+  organization: number;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  plan_number: string;
+  title: string;
+  category: "routine" | "critical" | "tandem" | "heavy";
+  category_display?: string;
+  status: "draft" | "submitted" | "under_review" | "approved" | "rejected" | "superseded";
+  status_display?: string;
+  load_weight_kg: number;
+  boom_length_m: number;
+  lift_radius_m: number;
+  crane?: number | null;
+  crane_name?: string | null;
+  crane_capacity_at_radius_kg: number;
+  total_gross_weight_kg: number;
+  crane_utilization_pct: number;
+  num_sling_legs: number;
+  sling_angle_to_horizontal_deg: number;
+  tension_per_leg_kg: number;
+  ground_bearing_pressure_kpa: number;
+  allowable_ground_pressure_kpa: number;
+  operator_name: string;
+  rigger_name: string;
+  planned_date: string;
+  rejection_reason?: string;
+  approval_notes?: string;
+  is_synthetic?: boolean;
+  created_at: string;
+}
+
+export interface LiftingSimulationData {
+  plan_number: string;
+  status: string;
+  crane_utilization_pct: number;
+  ground_bearing_pressure_kpa: number;
+  allowable_ground_pressure_kpa: number;
+  ground_pressure_safe: boolean;
+  boom_angle_deg: number;
+  coordinates: {
+    crane_base: { x: number; y: number };
+    boom_tip: { x: number; y: number };
+    hook_position: { x: number; y: number };
+    load_center: { x: number; y: number };
+    outriggers: Array<{ x: number; y: number; pad_area_sqm: number }>;
+  };
+}
+
+export function fetchLiftingPlans(params?: Record<string, any>, signal?: AbortSignal) {
+  const p = params ? `?${new URLSearchParams(params).toString()}` : "";
+  return request<LiftingPlan[] | { results: LiftingPlan[] }>(`/lifting/plans/${p}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function fetchLiftingPlanDetail(id: number, signal?: AbortSignal) {
+  return request<LiftingPlan>(`/lifting/plans/${id}/`, { signal });
+}
+
+export function createLiftingPlan(data: Record<string, any>) {
+  return request<LiftingPlan>("/lifting/plans/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function updateLiftingPlan(id: number, data: Record<string, any>) {
+  return request<LiftingPlan>(`/lifting/plans/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export function submitLiftingPlan(id: number) {
+  return request<LiftingPlan>(`/lifting/plans/${id}/submit/`, { method: "POST" });
+}
+
+export function approveLiftingPlan(id: number, notes?: string) {
+  return request<LiftingPlan>(`/lifting/plans/${id}/approve/`, { method: "POST", body: JSON.stringify({ notes }) });
+}
+
+export function rejectLiftingPlan(id: number, reason: string) {
+  return request<LiftingPlan>(`/lifting/plans/${id}/reject/`, { method: "POST", body: JSON.stringify({ reason }) });
+}
+
+export function fetchLiftingSimulationData(id: number, signal?: AbortSignal) {
+  return request<LiftingSimulationData>(`/lifting/plans/${id}/simulation_data/`, { signal });
+}
+
+export function fetchLiftingSummary(organizationId?: number, signal?: AbortSignal) {
+  const p = organizationId ? `?organization=${organizationId}` : "";
+  return request<{ total: number; approved: number; under_review: number; critical: number }>(`/lifting/plans/summary/${p}`, { signal });
+}
+
+export function fetchCraneSpecifications(params?: Record<string, any>, signal?: AbortSignal) {
+  const p = params ? `?${new URLSearchParams(params).toString()}` : "";
+  return request<CraneSpecification[] | { results: CraneSpecification[] }>(`/lifting/cranes/${p}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+// 3. Pre-Startup Safety Review (PSSR)
+export interface PSSRChecklistItem {
+  id: number;
+  pssr: number;
+  discipline: "mechanical" | "electrical" | "instrumentation" | "process" | "hse" | "operations";
+  item_text: string;
+  is_critical: boolean;
+  status: "pending" | "compliant" | "non_compliant" | "na";
+  verification_notes: string;
+  verified_by?: number | null;
+  verified_at?: string | null;
+}
+
+export interface PSSROutstandingAction {
+  id: number;
+  pssr: number;
+  description: string;
+  responsible_party: string;
+  target_date: string;
+  status: "open" | "in_progress" | "resolved";
+  resolution_notes: string;
+}
+
+export interface PSSRReview {
+  id: number;
+  organization: number;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  pssr_number: string;
+  project_or_system_name: string;
+  review_type: "new_facility" | "moc" | "major_overhaul" | "restart";
+  review_type_display?: string;
+  status: "draft" | "submitted" | "in_progress" | "approved" | "rejected";
+  status_display?: string;
+  target_startup_date: string;
+  actual_startup_date?: string | null;
+  leader_name?: string;
+  final_signoff_notes?: string;
+  rejection_reason?: string;
+  checklist_items?: PSSRChecklistItem[];
+  outstanding_actions?: PSSROutstandingAction[];
+  is_synthetic?: boolean;
+  created_at: string;
+}
+
+export function fetchPSSRReviews(params?: Record<string, any>, signal?: AbortSignal) {
+  const p = params ? `?${new URLSearchParams(params).toString()}` : "";
+  return request<PSSRReview[] | { results: PSSRReview[] }>(`/pssr/reviews/${p}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function fetchPSSRReviewDetail(id: number, signal?: AbortSignal) {
+  return request<PSSRReview>(`/pssr/reviews/${id}/`, { signal });
+}
+
+export function createPSSRReview(data: Record<string, any>) {
+  return request<PSSRReview>("/pssr/reviews/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function updatePSSRReview(id: number, data: Record<string, any>) {
+  return request<PSSRReview>(`/pssr/reviews/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export function initializePSSRChecklist(id: number) {
+  return request<PSSRReview>(`/pssr/reviews/${id}/initialize_checklist/`, { method: "POST" });
+}
+
+export function approvePSSRReview(id: number, notes?: string) {
+  return request<PSSRReview>(`/pssr/reviews/${id}/approve/`, { method: "POST", body: JSON.stringify({ notes }) });
+}
+
+export function rejectPSSRReview(id: number, reason: string) {
+  return request<PSSRReview>(`/pssr/reviews/${id}/reject/`, { method: "POST", body: JSON.stringify({ reason }) });
+}
+
+export function updatePSSRChecklistItem(id: number, data: { status: string; verification_notes?: string }) {
+  return request<PSSRChecklistItem>(`/pssr/items/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export function resolvePSSROutstandingAction(id: number, data: { resolution_notes: string }) {
+  return request<PSSROutstandingAction>(`/pssr/actions/${id}/resolve/`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export function fetchPSSRSummary(organizationId?: number, signal?: AbortSignal) {
+  const p = organizationId ? `?organization=${organizationId}` : "";
+  return request<{ total: number; approved: number; in_progress: number }>(`/pssr/reviews/summary/${p}`, { signal });
+}
+
+// 4. Surveys & Examinations
+export interface SurveyQuestion {
+  id: number;
+  question_text: string;
+  question_type: "multiple_choice" | "true_false" | "rating_scale" | "open_text";
+  options_json?: Array<{ text: string; is_correct?: boolean }>;
+  score_points: number;
+  order: number;
+}
+
+export interface Survey {
+  id: number;
+  organization: number;
+  title: string;
+  description: string;
+  survey_type: "climate_survey" | "exam" | "training_feedback" | "hazard_perception";
+  survey_type_display?: string;
+  is_anonymous: boolean;
+  is_active: boolean;
+  passing_score_percentage: number;
+  time_limit_minutes: number;
+  start_date?: string | null;
+  end_date?: string | null;
+  questions?: SurveyQuestion[];
+  created_at: string;
+}
+
+export interface SurveyAnalytics {
+  total_submissions: number;
+  avg_score_percentage: number;
+  passed_count: number;
+  failed_count: number;
+  pass_rate_percentage: number;
+}
+
+export function fetchSurveys(params?: Record<string, any>, signal?: AbortSignal) {
+  const p = params ? `?${new URLSearchParams(params).toString()}` : "";
+  return request<Survey[] | { results: Survey[] }>(`/surveys/surveys/${p}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function fetchSurveyDetail(id: number, signal?: AbortSignal) {
+  return request<Survey>(`/surveys/surveys/${id}/`, { signal });
+}
+
+export function createSurvey(data: Record<string, any>) {
+  return request<Survey>("/surveys/surveys/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function submitSurveyResponse(id: number, data: { respondent_name?: string; answers: Record<number, any> }) {
+  return request<{ message: string; score_pct: number; passed: boolean }>(`/surveys/surveys/${id}/submit/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchSurveyAnalytics(id: number, signal?: AbortSignal) {
+  return request<SurveyAnalytics>(`/surveys/surveys/${id}/analytics/`, { signal });
+}
+
+export function fetchSurveysSummary(organizationId?: number, signal?: AbortSignal) {
+  const p = organizationId ? `?organization=${organizationId}` : "";
+  return request<{ total: number; exams: number; active: number }>(`/surveys/surveys/summary/${p}`, { signal });
+}
+
+// 5. Internal Chat & Collaboration
+export interface ChatMessageItem {
+  id: number;
+  conversation: number;
+  sender?: number | null;
+  sender_name?: string;
+  content: string;
+  is_system: boolean;
+  created_at: string;
+}
+
+export interface ChatConversationItem {
+  id: number;
+  organization: number;
+  title: string;
+  conversation_type: "direct" | "group" | "channel";
+  conversation_type_display?: string;
+  created_by?: number | null;
+  is_active: boolean;
+  participants_count?: number;
+  unread_count?: number;
+  last_message?: ChatMessageItem | null;
+  updated_at: string;
+}
+
+export function fetchChatConversations(organizationId?: number, signal?: AbortSignal) {
+  const p = organizationId ? `?organization=${organizationId}` : "";
+  return request<ChatConversationItem[] | { results: ChatConversationItem[] }>(`/chat/conversations/${p}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createChatConversation(data: { organization: number; title: string; conversation_type?: string; participant_ids?: number[] }) {
+  return request<ChatConversationItem>("/chat/conversations/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function fetchChatMessages(conversationId: number, signal?: AbortSignal) {
+  return request<ChatMessageItem[] | { results: ChatMessageItem[] }>(`/chat/conversations/${conversationId}/messages/`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function sendChatMessage(conversationId: number, data: { content: string }) {
+  return request<ChatMessageItem>(`/chat/conversations/${conversationId}/messages/`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export function markChatConversationRead(conversationId: number) {
+  return request<{ message: string }>(`/chat/conversations/${conversationId}/read/`, { method: "POST" });
+}
+
+// 6. Fleet, Energy & Excavation Operations
+export interface FleetVehicleItem {
+  id: number;
+  organization: number;
+  vehicle_code: string;
+  plate_number: string;
+  model_name: string;
+  vehicle_type: "passenger" | "pickup" | "heavy_truck" | "bus" | "forklift";
+  fuel_type: "gasoline" | "diesel" | "cng" | "electric";
+  current_odometer_km: number;
+  is_active: boolean;
+}
+
+export interface FleetFuelLogItem {
+  id: number;
+  vehicle: number;
+  vehicle_code?: string;
+  fuel_amount_liters: number;
+  odometer_at_fueling_km: number;
+  cost_irr: number;
+  fueling_date: string;
+}
+
+export interface EnergyConsumptionLogItem {
+  id: number;
+  organization: number;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  meter_code: string;
+  utility_type: "electricity" | "natural_gas" | "water";
+  utility_type_display?: string;
+  consumption_value: number;
+  unit: string;
+  cost_irr: number;
+  period_start: string;
+  period_end: string;
+}
+
+export interface ExcavationOperationItem {
+  id: number;
+  organization: number;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  excavation_code: string;
+  location_description: string;
+  depth_m: number;
+  length_m: number;
+  soil_type: "type_a_clay" | "type_b_silt" | "type_c_sand" | "solid_rock";
+  shoring_system_installed: boolean;
+  gas_testing_passed: boolean;
+  status: "planned" | "in_progress" | "backfilled" | "closed";
+  status_display?: string;
+}
+
+export function fetchFleetVehicles(params?: Record<string, any>, signal?: AbortSignal) {
+  const p = params ? `?${new URLSearchParams(params).toString()}` : "";
+  return request<FleetVehicleItem[] | { results: FleetVehicleItem[] }>(`/fleet-energy/vehicles/${p}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createFleetVehicle(data: Record<string, any>) {
+  return request<FleetVehicleItem>("/fleet-energy/vehicles/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function fetchFleetFuelLogs(params?: Record<string, any>, signal?: AbortSignal) {
+  const p = params ? `?${new URLSearchParams(params).toString()}` : "";
+  return request<FleetFuelLogItem[] | { results: FleetFuelLogItem[] }>(`/fleet-energy/fuel-logs/${p}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createFleetFuelLog(data: Record<string, any>) {
+  return request<FleetFuelLogItem>("/fleet-energy/fuel-logs/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function fetchEnergyConsumptionLogs(params?: Record<string, any>, signal?: AbortSignal) {
+  const p = params ? `?${new URLSearchParams(params).toString()}` : "";
+  return request<EnergyConsumptionLogItem[] | { results: EnergyConsumptionLogItem[] }>(`/fleet-energy/energy-logs/${p}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createEnergyConsumptionLog(data: Record<string, any>) {
+  return request<EnergyConsumptionLogItem>("/fleet-energy/energy-logs/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function fetchExcavationOperations(params?: Record<string, any>, signal?: AbortSignal) {
+  const p = params ? `?${new URLSearchParams(params).toString()}` : "";
+  return request<ExcavationOperationItem[] | { results: ExcavationOperationItem[] }>(`/fleet-energy/excavations/${p}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createExcavationOperation(data: Record<string, any>) {
+  return request<ExcavationOperationItem>("/fleet-energy/excavations/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function fetchFleetEnergySummary(organizationId?: number, signal?: AbortSignal) {
+  const p = organizationId ? `?organization=${organizationId}` : "";
+  return request<{ total_kwh: number; total_gas_cum: number; active_vehicles: number; active_excavations: number }>(
+    `/fleet-energy/energy-logs/summary/${p}`,
+    { signal }
+  );
+}
+
+// 7. Proactive Leading Indicators & Personal Workspace
+export interface ProactiveIndicatorItem {
+  code: string;
+  name: string;
+  type: "leading" | "lagging";
+  value: number;
+  target: number;
+  unit: string;
+  status: "on_target" | "warning" | "critical";
+  description: string;
+}
+
+export interface ProactiveIndicatorsResponse {
+  organization_id: number;
+  organization_name: string;
+  period_days: number;
+  start_date: string;
+  end_date: string;
+  indicators: ProactiveIndicatorItem[];
+  summary: {
+    leading_count: number;
+    lagging_count: number;
+    on_target_count: number;
+    warning_count: number;
+    critical_count: number;
+  };
+}
+
+export function fetchProactiveIndicators(organizationId?: number, days: number = 90, signal?: AbortSignal) {
+  const p = organizationId ? `?organization=${organizationId}&days=${days}` : `?days=${days}`;
+  return request<ProactiveIndicatorsResponse>(`/dashboard/indicators/${p}`, { signal });
+}
+
+export interface PersonalWorkspaceResponse {
+  user: { id: number; username: string; full_name: string };
+  unread_counts: { notifications: number; messages: number };
+  pending_approvals: {
+    permits: Array<{ id: number; reference_code: string; title: string; permit_type: string; created_at: string }>;
+    lifting_plans: Array<{ id: number; plan_number: string; title: string; category: string; created_at: string }>;
+    pssr_reviews: Array<{ id: number; pssr_number: string; project_or_system_name: string; review_type: string; target_startup_date: string }>;
+    total: number;
+  };
+  my_tasks: {
+    actions: Array<{ id: number; description: string; due_date: string | null; status: string; is_overdue: boolean }>;
+    inspections: Array<{ id: number; title: string; scheduled_at: string | null; status: string }>;
+    total: number;
+  };
+}
+
+export function fetchPersonalWorkspace(signal?: AbortSignal) {
+  return request<PersonalWorkspaceResponse>("/dashboard/workspace/", { signal });
+}
+
+// 8. Subscriptions & Module Entitlements
+export interface SubscriptionPlanItem {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+  price_monthly_irr: number;
+  max_users: number;
+  max_workplaces: number;
+  included_modules: string[];
+  is_active: boolean;
+}
+
+export interface OrganizationSubscriptionItem {
+  id: number;
+  organization: number;
+  plan: number;
+  plan_code?: string;
+  plan_name?: string;
+  status: "active" | "trial" | "expired" | "suspended";
+  valid_from: string;
+  valid_until: string;
+  is_valid_period: boolean;
+}
+
+export interface ModuleEntitlementItem {
+  id: number;
+  organization: number;
+  module_code: string;
+  module_title?: string;
+  is_enabled: boolean;
+  source?: string;
+  valid_until?: string | null;
+  created_at?: string;
+}
+
+export function fetchSubscriptionPlans(signal?: AbortSignal) {
+  return request<SubscriptionPlanItem[]>("/organizations/plans/", { signal });
+}
+
+export function fetchOrganizationSubscription(orgId: number, signal?: AbortSignal) {
+  return request<OrganizationSubscriptionItem>(`/organizations/${orgId}/subscription/`, { signal });
+}
+
+export function fetchModuleEntitlements(orgId: number, signal?: AbortSignal) {
+  return request<ModuleEntitlementItem[]>(`/organizations/${orgId}/entitlements/`, { signal });
+}
+
+export function createSubscriptionPaymentRequest(orgId: number, data: { plan_id: number; amount_irr: number; payment_reference: string }) {
+  return request<{ message: string; payment_id: number }>(`/organizations/${orgId}/payment-requests/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+// 9. External Integrations
+export interface IntegrationAdapterStatus {
+  slug: string;
+  name: string;
+  description: string;
+  icon: string;
+  status: "healthy" | "degraded" | "unconfigured" | "disabled";
+  configured: boolean;
+  details: Record<string, any>;
+  last_checked: string;
+}
+
+export function fetchIntegrationsStatus(signal?: AbortSignal) {
+  return request<{ count: number; results: IntegrationAdapterStatus[] }>("/integrations/status/", { signal });
+}
+
+export function testIntegrationAdapter(slug: string) {
+  return request<{ success: boolean; status: string; message: string; latency_ms?: number }>("/integrations/test/", {
+    method: "POST",
+    body: JSON.stringify({ slug }),
+  });
+}
+
+// 10. Unified Anomaly Management
+export function fetchAnomalies(params?: Record<string, any>, signal?: AbortSignal) {
+  const p = params ? `?${new URLSearchParams(params).toString()}` : "";
+  return request<NonConformity[] | { results: NonConformity[] }>(`/non-conformities/${p}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createAnomaly(data: Record<string, any>) {
+  return request<NonConformity>("/non-conformities/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function closeAnomaly(id: number, data?: { closure_notes?: string }) {
+  return request<NonConformity>(`/non-conformities/${id}/close/`, { method: "POST", body: JSON.stringify(data || {}) });
+}
+
+export function reopenAnomaly(id: number, data: { reopened_reason: string }) {
+  return request<NonConformity>(`/non-conformities/${id}/reopen/`, { method: "POST", body: JSON.stringify(data) });
+}
+

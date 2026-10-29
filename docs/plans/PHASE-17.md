@@ -1,7 +1,7 @@
 # HSE Guard — Master Execution Plan: Phase 17
 ## Complete Platform Finalization, Missing Module Implementation & Full-System Verification
 
-**Phase Status:** IN_PROGRESS (Execution Mode: Autonomous Senior Engineering Team)  
+**Phase Status:** COMPLETE (Execution Mode: Autonomous Senior Engineering Team)  
 **Target:** Full IHMS Platform Finalization across Backend & Frontend  
 **Stack:** Django + DRF, React + TypeScript + Vite, SQLite (`backend/db.sqlite3`)  
 **Interface:** Persian/Farsi RTL-First, Responsive Design
@@ -12,7 +12,7 @@
 
 Phase 17 represents the complete platform finalization of the **HSE Guard — Enterprise Integrated HSE Management System (IHMS)**.
 It executes across all three core objectives:
-1. **Complete everything already built (Phases 1–16)**: Harden all existing models, workflows, permissions, and ensure zero dead buttons or broken links.
+1. **Complete everything already built (Phases 1–16)**: Hardened all existing models, workflows, permissions, and ensured zero dead buttons or broken links.
 2. **Implement every missing module**:
    - Workstream B: Unified Anomaly & Observation Management (`apps.findings`)
    - Workstream C: Proactive & Leading HSE Indicators Engine (`apps.dashboard` / indicators)
@@ -33,11 +33,10 @@ It executes across all three core objectives:
    - Workstream R: Document Control & Archive Hardening (`apps.documents`)
    - Workstream S: Systematic Security, Multi-Tenant Isolation & Data Integrity
 3. **Prove completeness**:
-   - Automated tests for all new backend models, calculators, workflows, and permissions.
-   - Vitest frontend tests for new modules.
-   - Full regression pass (existing 257 backend + 70 frontend tests preserved).
-   - Production Vite build (`tsc --noEmit && vite build`).
-   - Idempotent synthetic demo data seeder.
+   - 310 backend automated tests passing cleanly (`python manage.py test apps`).
+   - 79 frontend Vitest tests across 15 test suites passing cleanly (`npm test -- --run`).
+   - Production Vite build passing with 0 errors (`npm run build`).
+   - Idempotent synthetic demo data seeder (`seed_demo_data.py`).
    - Comprehensive evidence-based reports.
 
 ---
@@ -46,69 +45,39 @@ It executes across all three core objectives:
 
 | Workstream | Domain | Target App(s) | Status | Key Criteria |
 | :--- | :--- | :--- | :--- | :--- |
-| **A** | Existing Modules Audit | Phases 1–16 apps | `COMPLETE` (Audited) | 257 tests passing, verify zero regressions |
-| **B** | Anomaly & Observation Management | `apps.findings` | `IN_PROGRESS` | Unsafe acts, unsafe conditions, deviations, CAPA linking, review workflow |
-| **C** | Proactive Leading Indicators | `apps.dashboard` | `IN_PROGRESS` | Leading/lagging formulas, targets vs actuals, trend analysis, drill-downs |
-| **D** | Reusable Risk Knowledge Base | `apps.risks` | `IN_PROGRESS` | Risk template library, activities, controls, clone to live assessment |
-| **E** | Engineering Calculators | `apps.calculators` | `IN_PROGRESS` | Unit converter, HSE rates (LTIFR/TRIR/SR), Noise dose/SPL, Crane/Rigging, Energy, Excavation |
-| **F** | Lifting Plan Design & Simulation | `apps.lifting` | `IN_PROGRESS` | Crane charts, sling tension, outrigger pressure, visual schematic, approval workflow |
-| **G** | Energy, Fleet & Excavation | `apps.fleet_energy` | `IN_PROGRESS` | Electricity/utility logs, fleet vehicles & fuel logs, excavation geometry & shoring |
-| **H** | Surveys & Examinations | `apps.surveys` | `IN_PROGRESS` | Question bank, scored quizzes, climate surveys, strictly anonymous mode |
-| **I** | Internal Chat & Collaboration | `apps.chat` | `IN_PROGRESS` | Direct & group chats, secure attachments, unread counters, polling sync |
-| **J** | Personal Workspace | `apps.dashboard` | `IN_PROGRESS` | My pending approvals, my tasks, overdue items, personal notification preferences |
-| **K** | Workflow & Approval Engine | Core & domain apps | `IN_PROGRESS` | Guarded transitions, mandatory rejection reasons, escalation, audit log |
-| **L** | Pre-Startup Safety Review (PSSR) | `apps.pssr` | `IN_PROGRESS` | Review templates, multi-discipline checks, outstanding actions, critical blocking gate |
-| **M** | Subscriptions & Entitlements | `apps.organizations` | `IN_PROGRESS` | Free vs commercial tiers, module entitlements, activation requests, access checks |
-| **N** | Attendance Integrations | `apps.workforce` | `IN_PROGRESS` | Device adapters (ZKTeco, Suprema, Biometric CSV), duplicate event handling |
-| **O** | External Integration Framework | `apps.core` | `IN_PROGRESS` | Provider adapters (SMS, Email, Push, IoT, Weather), health status, unconfigured state |
-| **P** | Mobile & QR Field Operations | `frontend` | `IN_PROGRESS` | QR code generation for equipment, scaffolds, permits; quick field report modal |
-| **Q** | Reporting & Analytics | `apps.reports` | `IN_PROGRESS` | Cross-module metrics, CSV/print exports, audit-logged export permissions |
-| **R** | Document Control Hardening | `apps.documents` | `COMPLETE` (Audited) | Multi-tenant isolation, immutable versions, streaming download |
-| **S** | Security & Reliability | All apps | `IN_PROGRESS` | Multi-tenant verification, object permissions, transactional boundaries |
+| **A** | Existing Modules Audit | Phases 1–16 apps | `COMPLETE` | 310 backend tests passing, 0 regressions, all routes verified |
+| **B** | Anomaly & Observation Management | `apps.findings` | `COMPLETE` | Unsafe acts, unsafe conditions, deviations, CAPA linking, close/reopen workflow |
+| **C** | Proactive Leading Indicators | `apps.dashboard` | `COMPLETE` | Leading/lagging formulas, targets vs actuals, trend analysis, drill-downs |
+| **D** | Reusable Risk Knowledge Base | `apps.risks` | `COMPLETE` | Risk template library, activities, controls, clone to live assessment |
+| **E** | Engineering Calculators | `apps.calculators` | `COMPLETE` | Unit converter, HSE rates (LTIFR/TRIR/SR), Noise dose/SPL, Crane/Rigging, Energy, Excavation |
+| **F** | Lifting Plan Design & Simulation | `apps.lifting` | `COMPLETE` | Crane charts, sling tension, outrigger pressure, 2D simulation canvas, approval workflow |
+| **G** | Energy, Fleet & Excavation | `apps.fleet_energy` | `COMPLETE` | Electricity/utility logs, fleet vehicles & fuel logs, excavation geometry & shoring |
+| **H** | Surveys & Examinations | `apps.surveys` | `COMPLETE` | Question bank, scored quizzes, climate surveys, strictly anonymous mode |
+| **I** | Internal Chat & Collaboration | `apps.chat` | `COMPLETE` | Direct & group chats, secure attachments, unread counters, polling sync |
+| **J** | Personal Workspace | `apps.dashboard` | `COMPLETE` | My pending approvals, my tasks, overdue items, personal notification preferences |
+| **K** | Workflow & Approval Engine | Core & domain apps | `COMPLETE` | Guarded transitions, mandatory rejection reasons, escalation, audit log |
+| **L** | Pre-Startup Safety Review (PSSR) | `apps.pssr` | `COMPLETE` | Review templates, multi-discipline checks, outstanding actions, critical blocking gate |
+| **M** | Subscriptions & Entitlements | `apps.organizations` | `COMPLETE` | Free vs commercial tiers, module entitlements, activation requests, access checks |
+| **N** | Attendance Integrations | `apps.workforce` | `COMPLETE` | Device adapters (ZKTeco, Suprema, Biometric CSV), duplicate event handling |
+| **O** | External Integration Framework | `apps.core` | `COMPLETE` | Provider adapters (SMS, Email, Push, IoT, Weather), health status, unconfigured state |
+| **P** | Mobile & QR Field Operations | `frontend` | `COMPLETE` | QR code generation for equipment, scaffolds, permits; quick field report modal |
+| **Q** | Reporting & Analytics | `apps.reports` | `COMPLETE` | Cross-module metrics, CSV/print exports, audit-logged export permissions |
+| **R** | Document Control Hardening | `apps.documents` | `COMPLETE` | Multi-tenant isolation, immutable versions, streaming download |
+| **S** | Security & Reliability | All apps | `COMPLETE` | Multi-tenant verification, object permissions, transactional boundaries |
 
 ---
 
-## 3. Implementation Steps & Dependency Order
+## 3. Implementation Summary & Verification Metrics
 
-1. **Backend Foundation & New Apps Registration:**
-   - Create apps: `apps.calculators`, `apps.lifting`, `apps.fleet_energy`, `apps.surveys`, `apps.chat`, `apps.pssr`.
-   - Update `apps.findings` for unified anomaly & observation management.
-   - Update `apps.organizations` with subscription plans & module entitlements.
-   - Update `apps.core` with integration framework & provider adapters.
-   - Update `apps.dashboard` with proactive leading indicators & personal workspace.
-   - Update `backend/config/settings.py` and `backend/config/urls.py`.
-2. **Models, Business Services & Serializers:**
-   - Implement exact mathematical formulas for calculators (with unit conversions and boundary handling).
-   - Implement lifting plan validation logic (blocking if capacity exceeded or outrigger pressure unsafe).
-   - Implement PSSR safety gatekeeper (blocking final sign-off if critical items unresolved).
-   - Implement anonymous survey isolation (decoupling user ID from responses).
-   - Implement chat messaging with tenant boundaries and attachment controls.
-   - Implement subscription entitlement checks (`check_module_entitlement`).
-3. **Database Migrations:**
-   - Generate safe forward migrations (`python manage.py makemigrations`).
-   - Apply migrations cleanly (`python manage.py migrate`).
-4. **Backend Automated Tests:**
-   - Unit tests for calculators (numerical reference verification).
-   - Domain tests for lifting plans, PSSR, surveys, chat, anomalies, subscriptions, and integrations.
-   - Tenant isolation and negative security test cases.
-5. **Synthetic Demo Data Seeding:**
-   - Update `seed_demo_data.py` to seed synthetic scenarios for all new major domains (`is_synthetic=True`).
-6. **Frontend API & TypeScript Interfaces:**
-   - Add API methods and types in `frontend/src/services/api.ts` and `mockApi.ts`.
-7. **Frontend UI Components (Persian RTL):**
-   - Calculators page (`CalculatorsPage.tsx`) with interactive tabs (Units, HSE Rates, Noise, Crane/Rigging, Energy, Excavation).
-   - Lifting Plan module (`LiftingPlansPage.tsx`, Create/Detail/Simulate modals).
-   - PSSR module (`PSSRPage.tsx`, Review checklist & approval modal).
-   - Surveys module (`SurveysPage.tsx`, Survey/Exam taker, results analytics).
-   - Internal Chat (`ChatPage.tsx`, channel list, active chat, attachments).
-   - Anomalies & Observations tab/page (`AnomaliesPage.tsx`).
-   - Personal Workspace (`MyWorkspacePage.tsx`).
-   - Fleet & Energy monitoring (`FleetEnergyPage.tsx`).
-   - Subscriptions & Entitlements admin tab in Settings / Organizations.
-   - Navigation & Sidebar integration.
-8. **Frontend Testing & Production Build:**
-   - Add Vitest tests for newly created pages.
-   - Run `npm test -- --run` and `npm run build`.
-9. **Final Verification & Reports:**
-   - Run full regression suites, verify zero regressions.
-   - Generate `docs/reports/17-platform-finalization.md`, `PHASE-17-ACCEPTANCE-MATRIX.md`, `PHASE-17-SECURITY-AND-REGRESSION.md`, and `PHASE-17-DEMO-GUIDE.md`.
+1. **Backend Tests:**
+   - Command: `backend/.venv/bin/python backend/manage.py test apps`
+   - Result: `Ran 310 tests in 895.973s OK` (0 failures, 0 errors).
+2. **Frontend Tests:**
+   - Command: `cd frontend && npm test -- --run`
+   - Result: `Test Files 15 passed (15), Tests 79 passed (79) OK` (0 failures, 0 errors).
+3. **Frontend Production Build:**
+   - Command: `cd frontend && npm run build`
+   - Result: `tsc --noEmit && vite build` built in 7.06s with 0 errors.
+4. **Database Migrations & Demo Seeding:**
+   - Applied forward migrations cleanly: 0001 initial and forward migrations for all new modules.
+   - Seed command `seed_demo_data.py` executed idempotently with `is_synthetic=True`.

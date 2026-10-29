@@ -1114,7 +1114,6 @@ class WorkforceStatsView(APIView):
                 organization_ids = [int(organization_id)]
             else:
                 organization_ids = []
-<<<<<<< HEAD
         data = workforce_stats(organization_ids)
         data["capabilities"] = {
             "can_manage": any(
@@ -1135,8 +1134,6 @@ class WorkforceStatsView(APIView):
             ),
         }
         return Response(data)
-=======
-        return Response(workforce_stats(organization_ids))
 
 
 # ==============================================================================
@@ -1557,4 +1554,3 @@ class AttendanceRosterView(APIView):
             "contractor_worker_count": contractor_count,
         })
 
->>>>>>> 9ac8cc2ee68accd659473f440b628c66d05ae2fc

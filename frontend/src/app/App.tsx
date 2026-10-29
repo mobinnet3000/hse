@@ -18,6 +18,15 @@ import { AiAssistantPage } from "../features/ai/AiAssistantPage";
 import { EnvironmentPage } from "../features/environment/EnvironmentPage";
 import { ScaffoldsPage } from "../features/scaffolds/ScaffoldsPage";
 import { DocumentsPage } from "../features/documents/DocumentsPage";
+import { CalculatorsPage } from "../features/calculators/CalculatorsPage";
+import { LiftingPlansPage } from "../features/lifting/LiftingPlansPage";
+import { PSSRPage } from "../features/pssr/PSSRPage";
+import { SurveysPage } from "../features/surveys/SurveysPage";
+import { ChatPage } from "../features/chat/ChatPage";
+import { FleetEnergyPage } from "../features/fleet_energy/FleetEnergyPage";
+import { AnomaliesPage } from "../features/anomalies/AnomaliesPage";
+import { MyWorkspacePage } from "../features/workspace/MyWorkspacePage";
+import { SubscriptionsPage } from "../features/subscriptions/SubscriptionsPage";
 import { fetchNotifications } from "../services/api";
 
 function AppContent() {
@@ -48,6 +57,24 @@ function AppContent() {
         </section>
       )}
 
+      {(activeTab === "all" || activeTab === "workspace") && (
+        <section id="workspace" className="section-container" style={{ marginBottom: "2rem" }}>
+          <MyWorkspacePage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "chat") && (
+        <section id="chat" className="section-container" style={{ marginBottom: "2rem" }}>
+          <ChatPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "anomalies") && (
+        <section id="anomalies" className="section-container" style={{ marginBottom: "2rem" }}>
+          <AnomaliesPage />
+        </section>
+      )}
+
       {(activeTab === "all" || activeTab === "workforce") && (
         <section id="workforce" className="section-container" style={{ marginBottom: "2rem" }}>
           <WorkforcePage />
@@ -57,6 +84,42 @@ function AppContent() {
       {(activeTab === "all" || activeTab === "permits") && (
         <section id="permits" className="section-container" style={{ marginBottom: "2rem" }}>
           <PermitsPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "lifting") && (
+        <section id="lifting" className="section-container" style={{ marginBottom: "2rem" }}>
+          <LiftingPlansPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "pssr") && (
+        <section id="pssr" className="section-container" style={{ marginBottom: "2rem" }}>
+          <PSSRPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "calculators") && (
+        <section id="calculators" className="section-container" style={{ marginBottom: "2rem" }}>
+          <CalculatorsPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "fleet_energy") && (
+        <section id="fleet_energy" className="section-container" style={{ marginBottom: "2rem" }}>
+          <FleetEnergyPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "surveys") && (
+        <section id="surveys" className="section-container" style={{ marginBottom: "2rem" }}>
+          <SurveysPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "subscriptions") && (
+        <section id="subscriptions" className="section-container" style={{ marginBottom: "2rem" }}>
+          <SubscriptionsPage />
         </section>
       )}
 

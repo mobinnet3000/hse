@@ -16,9 +16,9 @@ from apps.incidents.models import Incident
 from apps.organizations.models import Membership, Organization
 from apps.permits.models import Permit, ShiftHandover, SIMOPSConflict
 from apps.risks.models import Hazard
-<<<<<<< HEAD
 from apps.workforce.models import (
     Competency,
+    ContractorCompany,
     Employee,
     EmployeeCompetency,
     PPEAssignment,
@@ -29,9 +29,6 @@ from apps.workforce.models import (
     TrainingCourse,
     TrainingSession,
 )
-=======
-from apps.workforce.models import ContractorCompany
->>>>>>> 9ac8cc2ee68accd659473f440b628c66d05ae2fc
 from apps.workplaces.models import Workplace
 
 
@@ -759,7 +756,6 @@ class DemoSeedSafetyTests(TestCase):
         synthetic_permit_count = Permit.objects.filter(is_synthetic=True).count()
         handover_count = ShiftHandover.objects.count()
         user_count = User.objects.count()
-<<<<<<< HEAD
         workforce_counts = {
             "employees": Employee.objects.filter(is_synthetic=True).count(),
             "courses": TrainingCourse.objects.filter(is_synthetic=True).count(),
@@ -773,10 +769,7 @@ class DemoSeedSafetyTests(TestCase):
             "ppe_events": PPEAssignmentEvent.objects.filter(is_synthetic=True).count(),
         }
         self.assertTrue(all(count > 0 for count in workforce_counts.values()))
-        self.assertEqual(synthetic_permit_count, 6)
-=======
         self.assertEqual(synthetic_permit_count, 8)
->>>>>>> 9ac8cc2ee68accd659473f440b628c66d05ae2fc
         self.assertEqual(ShiftHandover.objects.filter(is_synthetic=True).count(), 2)
 
         # A deliberate password change by the operator must survive re-seeding.
@@ -867,11 +860,6 @@ class DemoSeedSafetyTests(TestCase):
         self.assertEqual(real_permit.title, "مجوز واقعی که نباید تغییر کند")
         self.assertFalse(real_permit.is_synthetic)
         self.assertEqual(real_permit.organization_id, real_org.id)
-<<<<<<< HEAD
-        # One of the six fixed demo references was reserved by real data, so
-        # only the other five synthetic permits are created.
-        self.assertEqual(Permit.objects.filter(is_synthetic=True).count(), 5)
-=======
         # One of the fixed demo references was reserved by real data, so
         # only the other seven synthetic permits are created.
         self.assertEqual(Permit.objects.filter(is_synthetic=True).count(), 7)
@@ -1105,4 +1093,3 @@ class Phase13AdvancedPTWAndSIMOPSTests(TestCase):
         permit.refresh_from_db()
         self.assertEqual(permit.status, Permit.Status.ACTIVE)
         self.assertEqual(permit.resumption_notes, "پاکسازی روغن، شستشو با فوم و تایید سلامت اتصالات هیدرولیک")
->>>>>>> 9ac8cc2ee68accd659473f440b628c66d05ae2fc

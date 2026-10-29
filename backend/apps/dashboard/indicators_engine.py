@@ -60,13 +60,15 @@ def compute_organization_indicators(organization, days: int = 90) -> Dict[str, A
     )
     total_capas = capas_qs.count()
     closed_capas = capas_qs.filter(status="completed")
-    closed_on_time = closed_capas.filter(Q(completed_at__date__lte=models_due_date_or_fallback(capas_qs))).count()
+    closed_on_time = closed_capas.filter(
+        Q(due_date__isnull=True) | Q(updated_at__date__lte=models_due_date_or_fallback(capas_qs))
+    ).count()
     capa_closure_rate_pct = (
         round((closed_capas.count() / total_capas * 100.0), 1) if total_capas > 0 else 100.0
     )
 
     # 5. Barrier Health (from BowTie / Barrier Integrity)
-    barriers_qs = Barrier.objects.filter(organization=organization)
+    barriers_qs = Barrier.objects.filter(diagram__organization=organization)
     total_barriers = barriers_qs.count()
     effective_barriers = barriers_qs.filter(current_effectiveness="effective").count()
     barrier_health_pct = (
@@ -88,7 +90,7 @@ def compute_organization_indicators(organization, days: int = 90) -> Dict[str, A
     competencies_qs = EmployeeCompetency.objects.filter(employee__organization=organization)
     total_comp = competencies_qs.count()
     valid_comp = competencies_qs.filter(
-        Q(expires_at__isnull=True) | Q(expires_at__gte=end_date)
+        Q(expires_on__isnull=True) | Q(expires_on__gte=end_date)
     ).count()
     training_coverage_pct = (
         round((valid_comp / total_comp * 100.0), 1) if total_comp > 0 else 100.0
@@ -108,10 +110,10 @@ def compute_organization_indicators(organization, days: int = 90) -> Dict[str, A
         incident_type="injury",
     ).count()
     lost_days = sum(
-        inc.lost_workdays for inc in Incident.objects.filter(
+        inc.lost_time_days for inc in Incident.objects.filter(
             organization=organization,
             created_at__date__gte=start_date,
-            lost_workdays__isnull=False,
+            lost_time_days__isnull=False,
         )
     )
 

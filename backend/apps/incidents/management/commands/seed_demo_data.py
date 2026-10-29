@@ -1671,7 +1671,6 @@ class Command(BaseCommand):
 
         def seed_assignment(employee, item, stock, issued_on, defaults):
             serial_number = defaults.pop("serial_number", "")
-<<<<<<< HEAD
             # Never use a date in the lookup: demo dates move with "today".
             # A serial (when present) or the note/condition pair identifies the
             # synthetic assignment across repeated runs.
@@ -1687,24 +1686,6 @@ class Command(BaseCommand):
                 lookup["notes"] = defaults.get("notes", "")
                 lookup["condition_on_issue"] = defaults.get("condition_on_issue", "سالم")
             existing = PPEAssignment.objects.filter(**lookup).first()
-=======
-            if serial_number:
-                existing = PPEAssignment.objects.filter(
-                    organization=employee.organization,
-                    item=item,
-                    serial_number=serial_number,
-                    is_synthetic=True,
-                ).first()
-            else:
-                existing = PPEAssignment.objects.filter(
-                    organization=employee.organization,
-                    employee=employee,
-                    item=item,
-                    serial_number=serial_number,
-                    issued_on=issued_on,
-                    is_synthetic=True,
-                ).first()
->>>>>>> 9ac8cc2ee68accd659473f440b628c66d05ae2fc
             # Real assignments with a similar natural key are never overwritten;
             # a separately marked synthetic row is created instead.
             payload = {
@@ -1713,7 +1694,6 @@ class Command(BaseCommand):
                 "stock": stock,
                 "issued_on": issued_on,
                 "serial_number": serial_number,
-                "issued_on": issued_on,
                 "is_synthetic": True,
                 "issued_by": hse_mgr_user,
             }
@@ -1726,10 +1706,6 @@ class Command(BaseCommand):
             assignment = PPEAssignment(
                 organization=employee.organization,
                 item=item,
-<<<<<<< HEAD
-                stock=stock,
-=======
->>>>>>> 9ac8cc2ee68accd659473f440b628c66d05ae2fc
                 **payload,
             )
             assignment.full_clean()
@@ -4418,13 +4394,11 @@ class Command(BaseCommand):
             conversation=conv_safety,
             sender=hse_mgr_user,
             content="با توجه به اخطار هواشناسی مبنی بر وزش باد شدید (بیش از ۱۲ متر بر ثانیه)، کلیه عملیات باربرداری تاپیک جرثقیل و داربست در محوطه باز متوقف گردید.",
-            defaults={"is_synthetic": True},
         )
         ChatMessage.objects.get_or_create(
             conversation=conv_safety,
             sender=supervisor_user,
             content="پیام دریافت شد. جک‌های جرثقیل جمع و بوم در حالت خوابیده و ایمن قفل شد. کارگران به سالن سرپوشیده منتقل شدند.",
-            defaults={"is_synthetic": True},
         )
 
         # 7. Fleet, Energy & Excavation
