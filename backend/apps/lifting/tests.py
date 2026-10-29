@@ -165,3 +165,59 @@ class LiftingPlanAPITestCase(TestCase):
         self.assertEqual(response.data["lift_radius_m"], 10.0)
         self.assertEqual(response.data["boom_length_m"], 20.0)
         self.assertIn("tip_height_m", response.data)
+
+    def test_cannot_bypass_approval_via_direct_patch(self):
+        plan = LiftingPlan.objects.create(
+            organization=self.org,
+            workplace=self.workplace,
+            plan_number="LP-BYPASS-01",
+            title="تلاش برای دور زدن تایید",
+            planned_date=datetime.date.today(),
+            load_weight_kg=5000.0,
+            created_by=self.user,
+        )
+        response = self.client.patch(
+            f"/api/v1/lifting/plans/{plan.id}/",
+            {"status": "approved", "title": "عنوان جدید مجاز"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        plan.refresh_from_db()
+        # Status must remain draft, not approved
+        self.assertEqual(plan.status, LiftingPlan.Status.DRAFT)
+        self.assertEqual(plan.title, "عنوان جدید مجاز")
+
+    def test_foreign_workplace_rejected(self):
+        foreign_org = Organization.objects.create(name="سازمان بیگانه", code="lift-foreign-org", is_active=True)
+        foreign_wp = Workplace.objects.create(name="کارگاه بیگانه", organization=foreign_org)
+
+        response = self.client.post(
+            "/api/v1/lifting/plans/",
+            {
+                "workplace": foreign_wp.id,
+                "plan_number": "LP-FOREIGN-01",
+                "title": "باربرداری در کارگاه بیگانه",
+                "planned_date": str(datetime.date.today()),
+                "load_description": "تجهیز آزمایشی",
+                "load_weight_kg": 2000.0,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("کارگاه", str(response.data))
+
+    def test_missing_crane_capacity_blocks_approval(self):
+        plan = LiftingPlan.objects.create(
+            organization=self.org,
+            workplace=self.workplace,
+            plan_number="LP-NO-CAP-01",
+            title="طرح باربرداری فاقد ظرفیت نامی",
+            planned_date=datetime.date.today(),
+            load_description="بار بدون تناژ",
+            load_weight_kg=5000.0,
+            crane_capacity_at_radius_kg=0.0,
+            created_by=self.user,
+        )
+        with self.assertRaises(LiftingSafetyError) as ctx:
+            approve_lifting_plan(plan, self.user)
+        self.assertIn("ظرفیت نامی جرثقیل", str(ctx.exception))

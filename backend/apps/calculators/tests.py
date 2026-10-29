@@ -59,6 +59,11 @@ class CalculatorFormulasTestCase(TestCase):
         self.assertFalse(res_zero["is_valid"])
         self.assertEqual(res_zero["ltifr"], 0.0)
 
+        # Negative incidents handling
+        res_neg = calculate_hse_rates(100000, -1, 2, 5)
+        self.assertFalse(res_neg["is_valid"])
+        self.assertIn("منفی", res_neg["warning"])
+
     def test_noise_combination_and_dose(self):
         # Two identical 85 dBA sound sources combine to 88.01 dBA (+3 dB rule)
         combined = combine_noise_levels([85.0, 85.0])
@@ -72,6 +77,13 @@ class CalculatorFormulasTestCase(TestCase):
         )
         self.assertAlmostEqual(dose_res["total_dose_percent"], 100.0, places=1)
         self.assertAlmostEqual(dose_res["twa_dba"], 85.0, places=1)
+
+        # Non-positive exchange rate raises ValueError
+        with self.assertRaises(ValueError):
+            calculate_noise_dose_and_twa(
+                exposures=[{"duration_hours": 8.0, "sound_level_dba": 85.0}],
+                exchange_rate=0.0,
+            )
 
     def test_crane_and_sling_tension(self):
         # 10,000 kg load, 2 legs, 60 deg angle:
@@ -97,6 +109,14 @@ class CalculatorFormulasTestCase(TestCase):
         self.assertTrue(rigging_shallow["is_angle_critical_warning"])
         # At 30 deg, sin(30) = 0.5, so T = 10,000 / (2 * 0.5) = 10,000 kg per leg
         self.assertAlmostEqual(rigging_shallow["tension_per_leg_kg"], 10000.0, places=0)
+
+        # Zero or negative load weight raises ValueError
+        with self.assertRaises(ValueError):
+            calculate_sling_tension_and_rigging(
+                load_weight_kg=0.0,
+                num_sling_legs=2,
+                sling_angle_to_horizontal_deg=60.0,
+            )
 
     def test_crane_utilization_and_outrigger_pressure(self):
         res = calculate_crane_lift_parameters(

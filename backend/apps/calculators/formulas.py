@@ -146,6 +146,21 @@ def calculate_hse_rates(
             "is_valid": False,
         }
 
+    if lost_time_injuries < 0 or total_recordable_incidents < 0 or lost_days < 0:
+        return {
+            "exposure_hours": exposure_hours,
+            "multiplier": multiplier,
+            "lost_time_injuries": lost_time_injuries,
+            "total_recordable_incidents": total_recordable_incidents,
+            "lost_days": lost_days,
+            "ltifr": 0.0,
+            "trir": 0.0,
+            "severity_rate": 0.0,
+            "fsi": 0.0,
+            "warning": "تعداد حوادث یا روزهای از دست رفته نمی‌تواند منفی باشد.",
+            "is_valid": False,
+        }
+
     ltifr = (lost_time_injuries * multiplier) / exposure_hours
     trir = (total_recordable_incidents * multiplier) / exposure_hours
     severity_rate = (lost_days * multiplier) / exposure_hours
@@ -197,6 +212,11 @@ def calculate_noise_dose_and_twa(
     exposures: list of {"duration_hours": float, "sound_level_dba": float}
     Exchange rate: 3 dB (ISO/OSHA NIOSH recommended) or 5 dB (OSHA PEL).
     """
+    if exchange_rate <= 0:
+        raise ValueError("نرخ تبادل تراز صوتی (Exchange Rate) باید بزرگ‌تر از صفر باشد.")
+    if criterion_level <= 0:
+        raise ValueError("تراز مبنای دوز صدا (Criterion Level) باید بزرگ‌تر از صفر باشد.")
+
     total_dose_pct = 0.0
     for exp in exposures:
         duration = exp.get("duration_hours", 0.0)
@@ -302,6 +322,8 @@ def calculate_sling_tension_and_rigging(
     Also checks load factors and shackle capacities.
     """
     gross_load_kg = load_weight_kg + rigging_hardware_weight_kg + hook_block_weight_kg
+    if load_weight_kg <= 0 or gross_load_kg <= 0:
+        raise ValueError("وزن خالص و ناخالص بار باید بزرگ‌تر از صفر باشد.")
     if num_sling_legs <= 0:
         raise ValueError("تعداد شاخه‌های اسلینگ باید حداقل ۱ باشد.")
     if sling_angle_to_horizontal_deg <= 0 or sling_angle_to_horizontal_deg > 90:
@@ -451,6 +473,9 @@ def calculate_excavation_geometry(
     soil_type: str = "type_b",
 ) -> Dict[str, Any]:
     """Calculates excavation slope, top width, and volume based on OSHA 1926 Subpart P standards."""
+    if depth_m <= 0 or length_m <= 0 or bottom_width_m <= 0:
+        raise ValueError("عمق، طول و عرض کف گودبرداری باید بزرگ‌تر از صفر باشند.")
+
     soil_info = OSHA_SOIL_SLOPES.get(soil_type.lower(), OSHA_SOIL_SLOPES["type_b"])
     h_ratio = soil_info["h_ratio"]
 

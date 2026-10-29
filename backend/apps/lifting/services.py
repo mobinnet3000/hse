@@ -41,6 +41,14 @@ def approve_lifting_plan(lifting_plan: LiftingPlan, user, approval_notes: str = 
     """
     lifting_plan.recalculate_engineering_parameters()
 
+    # Gate 0: Valid Gross Load & Crane Capacity Data
+    if lifting_plan.total_gross_weight_kg <= 0:
+        raise LiftingSafetyError("خطای باربرداری: وزن ناخالص بار باید بزرگ‌تر از صفر باشد.")
+    if lifting_plan.crane_capacity_at_radius_kg <= 0:
+        raise LiftingSafetyError(
+            "خطای بحرانی ایمنی: ظرفیت نامی جرثقیل در شعاع کاری مربوطه مشخص یا معتبر نیست. تایید طرح باربرداری فاقد داده معتبر جدول بار ممنوع است."
+        )
+
     # Gate 1: Crane Capacity Overload
     if lifting_plan.crane_utilization_pct > 100.0:
         raise LiftingSafetyError(

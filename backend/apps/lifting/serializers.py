@@ -19,7 +19,18 @@ class CraneSpecificationSerializer(serializers.ModelSerializer):
             "is_synthetic",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "organization", "created_at"]
+
+    def validate_equipment(self, value):
+        request = self.context.get("request")
+        if request and hasattr(request, "user") and value:
+            from apps.organizations.models import Membership
+            user_org_ids = Membership.objects.filter(
+                user=request.user, is_active=True
+            ).values_list("organization_id", flat=True)
+            if value.organization_id not in user_org_ids:
+                raise serializers.ValidationError("تجهیز انتخاب‌شده متعلق به سازمان جاری نیست.")
+        return value
 
 
 class LiftApprovalLogSerializer(serializers.ModelSerializer):
@@ -91,6 +102,13 @@ class LiftingPlanSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "organization",
+            "status",
+            "created_by",
+            "reviewed_by",
+            "approved_by",
+            "approval_notes",
+            "rejection_reason",
             "total_gross_weight_kg",
             "tension_per_leg_kg",
             "crane_utilization_pct",
@@ -98,6 +116,33 @@ class LiftingPlanSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def _get_user_org_ids(self):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            from apps.organizations.models import Membership
+            return set(Membership.objects.filter(
+                user=request.user, is_active=True
+            ).values_list("organization_id", flat=True))
+        return set()
+
+    def validate_workplace(self, value):
+        org_ids = self._get_user_org_ids()
+        if org_ids and value and value.organization_id not in org_ids:
+            raise serializers.ValidationError("کارگاه انتخاب‌شده متعلق به سازمان جاری نیست.")
+        return value
+
+    def validate_crane(self, value):
+        org_ids = self._get_user_org_ids()
+        if org_ids and value and value.organization_id not in org_ids:
+            raise serializers.ValidationError("جرثقیل انتخاب‌شده متعلق به سازمان جاری نیست.")
+        return value
+
+    def validate_permit(self, value):
+        org_ids = self._get_user_org_ids()
+        if org_ids and value and value.organization_id not in org_ids:
+            raise serializers.ValidationError("مجوز کار انتخاب‌شده متعلق به سازمان جاری نیست.")
+        return value
 
 
 class LiftingPlanActionSerializer(serializers.Serializer):

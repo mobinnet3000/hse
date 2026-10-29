@@ -83,3 +83,55 @@ class PSSRWorkflowTestCase(TestCase):
     def test_reject_requires_reason(self):
         with self.assertRaises(PSSRSafetyError):
             reject_pssr_review(self.pssr, self.approver, reason="")
+
+
+class PSSRAPISecurityTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.org1 = Organization.objects.create(name="سازمان اول", code="pssr-org-1", is_active=True)
+        self.org2 = Organization.objects.create(name="سازمان دوم", code="pssr-org-2", is_active=True)
+        self.workplace1 = Workplace.objects.create(name="کارگاه ۱", organization=self.org1)
+        self.workplace2 = Workplace.objects.create(name="کارگاه ۲", organization=self.org2)
+
+        self.user = User.objects.create_user(username="pssr_user", password="pwd")
+        Membership.objects.create(user=self.user, organization=self.org1, role=Membership.Roles.WORKSHOP_SUPERVISOR)
+        self.client.force_authenticate(user=self.user)
+
+        self.pssr = PSSRReview.objects.create(
+            organization=self.org1,
+            workplace=self.workplace1,
+            pssr_number="PSSR-SEC-01",
+            project_or_system_name="تست امنیتی راه‌اندازی",
+            review_type=PSSRReview.ReviewType.NEW_INSTALLATION,
+            target_startup_date=datetime.date.today(),
+            leader=self.user,
+        )
+
+    def test_cannot_bypass_approval_via_direct_patch(self):
+        # Attempt to patch status directly to approved
+        response = self.client.patch(
+            f"/api/v1/pssr/reviews/{self.pssr.id}/",
+            {"status": "approved", "project_or_system_name": "تغییر نام مجاز"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.pssr.refresh_from_db()
+        # Status must remain draft, not approved
+        self.assertEqual(self.pssr.status, PSSRReview.Status.DRAFT)
+        self.assertEqual(self.pssr.project_or_system_name, "تغییر نام مجاز")
+
+    def test_foreign_workplace_rejected(self):
+        # Attempt to create PSSR review with workplace from org2
+        response = self.client.post(
+            "/api/v1/pssr/reviews/",
+            {
+                "workplace": self.workplace2.id,
+                "pssr_number": "PSSR-FOREIGN-01",
+                "project_or_system_name": "سیستم خارجی",
+                "review_type": "new_installation",
+                "target_startup_date": str(datetime.date.today()),
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("کارگاه", str(response.data))

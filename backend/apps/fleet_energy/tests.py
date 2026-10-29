@@ -80,3 +80,49 @@ class FleetEnergyTestCase(TestCase):
         # Volume = ((5+1)/2)*2 * 50 = 6 * 50 = 300 m3
         self.assertEqual(exc.top_width_m, 5.0)
         self.assertEqual(exc.volume_m3, 300.0)
+
+
+class FleetEnergyAPISecurityTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.org1 = Organization.objects.create(name="سازمان ترابری ۱", code="fleet-org-1", is_active=True)
+        self.org2 = Organization.objects.create(name="سازمان ترابری ۲", code="fleet-org-2", is_active=True)
+        self.workplace1 = Workplace.objects.create(name="کارگاه ۱", organization=self.org1)
+        self.workplace2 = Workplace.objects.create(name="کارگاه ۲", organization=self.org2)
+
+        self.user = User.objects.create_user(username="fleet_user", password="pwd")
+        Membership.objects.create(user=self.user, organization=self.org1, role=Membership.Roles.WORKSHOP_SUPERVISOR)
+        self.client.force_authenticate(user=self.user)
+
+    def test_foreign_workplace_rejected_on_vehicle_creation(self):
+        response = self.client.post(
+            "/api/v1/fleet-energy/vehicles/",
+            {
+                "workplace": self.workplace2.id,
+                "vehicle_code": "VH-FOREIGN-01",
+                "plate_number": "12A345-IR99",
+                "model_name": "تویوتا هایلوکس",
+                "vehicle_type": "pickup",
+                "fuel_type": "gasoline",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("کارگاه", str(response.data))
+
+    def test_foreign_workplace_rejected_on_excavation_creation(self):
+        response = self.client.post(
+            "/api/v1/fleet-energy/excavations/",
+            {
+                "workplace": self.workplace2.id,
+                "project_name": "گودبرداری غیرمجاز",
+                "reference_code": "EXC-FOREIGN-01",
+                "depth_m": 2.5,
+                "length_m": 20.0,
+                "bottom_width_m": 1.5,
+                "soil_type": "type_b",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("کارگاه", str(response.data))

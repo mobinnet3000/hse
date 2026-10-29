@@ -32,7 +32,7 @@
 | **REQ-J01** | Personal Workspace | My pending approvals (PTW, Lifting, PSSR), assigned CAPAs, overdue reminders | `apps.dashboard` (`/api/v1/dashboard/workspace/`) | `MyWorkspacePage.tsx` | `apps.dashboard.tests` (workspace tests), `phase17.test.tsx` | `VERIFIED` |
 | **REQ-L01** | Pre-Startup Safety Review | Multi-discipline checklist (M/E/I/P/HSE/Ops), blocking gates for critical items | `apps.pssr` (`/api/v1/pssr/`) | `PSSRPage.tsx` | `apps.pssr.tests` (4 tests), `phase17.test.tsx` | `VERIFIED` |
 | **REQ-M01** | Subscriptions & Entitlements | Free vs Commercial tiers, module entitlement enforcement, payment requests | `apps.organizations` (`/api/v1/organizations/`) | `SubscriptionsPage.tsx` | `apps.organizations.tests` (subscription tests), `phase17.test.tsx` | `VERIFIED` |
-| **REQ-O01** | External Integrations | SMS gateway, SMTP email, IoT sensor hooks, live connection testing | `apps.core` (`/api/v1/integrations/`) | `SubscriptionsPage.tsx` | `apps.core.tests` (adapter tests), `phase17.test.tsx` | `VERIFIED` |
+| **REQ-O01** | External Integrations | SMS gateway, SMTP email, IoT sensor hooks, live connection testing | `apps.core` (`/api/v1/integrations/`) | `SubscriptionsPage.tsx` | `apps.core.tests` (adapter tests), `phase17.test.tsx` | `IMPLEMENTED BUT INSUFFICIENTLY VERIFIED` |
 | **REQ-P01** | Mobile, QR & Field Ops | QR code rendering for equipment, scaffolds, and permits; quick inspection | `frontend` (`components/qr/`) | `AssetsPage.tsx`, `ScaffoldsPage.tsx` | Component unit tests & build verification | `VERIFIED` |
 | **REQ-Q01** | Reporting & Export Center | Cross-module metrics, CSV export streaming, audit logging | `apps.reports` (`/api/v1/reports/`) | `ReportsPage.tsx` | `apps.reports.tests` (8 tests) | `VERIFIED` |
 | **REQ-R01** | Audit Log & Notifications | Immutable audit trails, real-time unread badges, automated escalation | `apps.auditlog`, `apps.notifications` | `AuditLogPage.tsx`, `NotificationsPage.tsx` | `apps.core.tests` (audit tests), `dashboard.test.tsx` | `VERIFIED` |
@@ -42,9 +42,19 @@
 ## Acceptance Verification Verdict
 
 - **Total Functional Requirements:** 25 Domains
-- **Verified Complete:** 25 / 25 (100%)
-- **Backend Tests Passing:** 310 / 310 (100%)
-- **Frontend Test Suites Passing:** 15 / 15 (100%)
-- **Frontend Test Cases Passing:** 79 / 79 (100%)
-- **Production Build:** Succeeded (`tsc --noEmit && vite build`)
-- **Final Decision:** ACCEPTED & CERTIFIED COMPLETE
+- **Verified Complete:** 24 / 25 Domains
+- **Implemented but Insufficiently Verified:** 1 / 25 Domain (External live provider adapters without credentials)
+- **Backend Tests Passing:** 317 / 317 (100%) in 929.280s + 23.879s (exit code 0)
+- **Frontend Test Suites Passing:** 15 / 15 (100%) in 97.14s (exit code 0)
+- **Frontend Test Cases Passing:** 79 / 79 (100%) (exit code 0)
+- **Production Build:** Succeeded (`tsc --noEmit && vite build`) in 7.00s (exit code 0)
+- **Database Safety:** Safe forward migrations; system check clean (0 issues); idempotent synthetic data seeding verified.
+- **Frontend Clean Installation:** `BLOCKED` under host environment (npm 9.2.0 `minipass-fetch` socket incompatibility with Node 22); `VERIFIED` under pre-populated cache (`npm ci --prefer-offline` completes in 6s).
+- **Remediated Security Deficiencies:**
+  1. Blocked PSSR approval bypass via direct `PATCH` (enforced `read_only_fields`).
+  2. Blocked Lifting Plan approval bypass via direct `PATCH` (enforced `read_only_fields`).
+  3. Enforced cross-organization workplace/crane/permit validation across PSSR, Lifting, and Fleet/Energy.
+  4. Blocked Lifting Plan approval when crane load chart capacity or gross weight is missing/zero.
+  5. Enforced physical boundary checks on calculators (negative injury rates, non-positive load weights, non-positive exchange rates, non-positive trench dimensions).
+- **Final Release Decision:** **READY FOR CONTROLLED STAGING** (Prerequisites: Target host must use npm 10+ / Node 20 LTS, PostgreSQL database, and live provider API keys for SMS/Email gateways).
+

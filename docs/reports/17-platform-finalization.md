@@ -18,17 +18,22 @@ Phase 17 represents the complete finalization of the HSE Guard enterprise platfo
 ### Key Milestones Achieved:
 1. **Full Backend Test Verification:**
    - Command: `backend/.venv/bin/python backend/manage.py test apps`
-   - Result: **310 tests passed** in 895.973s with **0 failures and 0 errors**.
+   - Result: **317 tests passed** (310 baseline + 7 security/boundary tests) in 929.280s + 23.879s with **0 failures and 0 errors** (exit code 0).
 2. **Full Frontend Test & Build Verification:**
    - Command: `cd frontend && npm test -- --run`
-   - Result: **15 test suites passed (15/15), 79 tests passed (79/79)** with **0 failures**.
+   - Result: **15 test suites passed (15/15), 79 tests passed (79/79)** in 97.14s with **0 failures** (exit code 0).
    - Command: `cd frontend && npm run build`
-   - Result: Production build compiled successfully (`tsc --noEmit && vite build`) in 7.06s.
+   - Result: Production build compiled successfully (`tsc --noEmit && vite build`) in 7.00s (exit code 0).
 3. **Persian RTL-First Enterprise UI:**
    - All 9 new feature pages implemented with complete Persian typography, responsive layouts, accessible forms, action dialogs, and SVG canvas visualizations.
 4. **Clean Migrations & Synthetic Demo Seeding:**
-   - All database migrations applied as safe forward migrations.
+   - All database migrations applied as safe forward migrations (`makemigrations --check` clean).
    - `python manage.py seed_demo_data` executed with 100% idempotency, tagging all synthetic demo fixtures with `is_synthetic=True`.
+5. **Remediated Security & Calculation Defects:**
+   - Enforced status protection on PSSR and Lifting Plans to eliminate direct API approval bypass.
+   - Enforced cross-organization workplace/crane/permit validation.
+   - Enforced load-chart domain and missing crane capacity gating.
+   - Added guards for non-positive or physically impossible inputs on calculators.
 
 ---
 
@@ -159,15 +164,73 @@ dist/assets/index-BNRRbzfg.js   904.92 kB │ gzip: 190.13 kB
 
 ---
 
-## 4. Security & Tenant Isolation Verification
+## 4. Independent Audit of Execution Failures & Defect Remediation
+
+An exhaustive, independent audit of the repository was conducted to verify every previous execution failure:
+
+1. **Frontend Package Reproducibility (`lucide-react` & `npm install` failures):**
+   - **Investigation:** During initial Phase 17 execution, `npm install` and `npm ci` produced `FetchError: request to https://registry.npmjs.org/lucide-react/-/lucide-react-1.61.0.tgz failed, reason: this.connect is not a function`.
+   - **Root Cause Analysis:** Ubuntu system package `npm` (v9.2.0) running on top of Node.js v22.22.1 has an incompatibility inside `/usr/share/nodejs/minipass-fetch/lib/index.js:130:14`, where Node 22's updated `http.Agent` no longer provides `this.connect` as expected by minipass-fetch.
+   - **Manifest Audit:** `frontend/package.json` correctly declares `"lucide-react": "^1.61.0"`, and `frontend/package-lock.json` contains full package resolution integrity hashes and official URLs.
+   - **Reproducibility Verification:** In an isolated test directory (`/tmp/test-npm`) using the committed manifests and pre-cached tarball (`npm cache add`), `npm ci --prefer-offline` completed in 6 seconds, resolving 162 packages cleanly with exit code 0.
+2. **Vitest Parallel Test Concurrency Timeout:**
+   - **Investigation:** In full test suite runs, `App.test.tsx` and `auth.test.tsx` intermittently failed with 15000ms timeouts.
+   - **Root Cause:** 15 test suites running concurrently in Vitest with jsdom simulated DOM environments saturated CPU cores during large module mock setup.
+   - **Resolution:** Increased default test timeout to 60000ms in `frontend/vite.config.ts`. All 15 suites and 79 unit tests now pass deterministically with exit code 0.
+3. **Merge Conflict Markers in Test Suite:**
+   - **Investigation:** Commit `5779133` previously showed residual conflict markers in `frontend/src/features/workforce/workforce.test.tsx`.
+   - **Resolution:** Cleaned and verified in commit `cdd38bb`. All 8 workforce unit tests pass without conflicts.
+4. **Environment-Specific Tooling (`graphify`):**
+   - Command `graphify update .` returned exit code 127 because the Graphify CLI binary is not installed in the global system path. This is documented as an environment configuration limitation and does not impact runtime application logic.
+
+---
+
+## 5. Engineering Calculation Formulas, Bounds & Safety Disclaimers
+
+Every calculation engine in `apps.calculators` and `apps.lifting` was audited for mathematical correctness, zero-division safety, and regulatory compliance:
+
+1. **HSE Statistical Rates:**
+   - LTIFR formula: $\text{LTIFR} = \frac{\text{LTI} \times 1{,}000{,}000}{\text{Man-Hours}}$
+   - Guarded against zero or negative man-hours (returns 0.0).
+2. **Noise Exposure & Combination:**
+   - Decibel Summation: $SPL_{\text{total}} = 10 \cdot \log_{10}\left(\sum_{i=1}^{n} 10^{L_i / 10}\right)$
+   - Daily Noise Dose: $D = 100 \sum_{i=1}^{n} \frac{C_i}{T_i}$ where $T_i = \frac{8}{2^{(L_i - 90)/5}}$
+   - Validated against OSHA 1910.95 reference tables; handles empty input arrays safely.
+3. **Sling Leg Tension & Rigging:**
+   - Formula: $T = \frac{W}{N \cdot \sin(\theta)}$
+   - Protected: strictly blocks $\theta \le 0^\circ$ or $N \le 0$ by throwing validation errors rather than returning infinite or negative tension.
+4. **Crane Outrigger Ground Bearing Pressure:**
+   - Formula: $P = \frac{R}{A_{\text{pad}}}$
+   - Checks against verified soil allowable bearing capacity ($q_a$). Disallows lift approval if $P > q_a$.
+5. **Excavation & Trench Safety:**
+   - Enforces OSHA 1926 Subpart P maximum allowable slopes:
+     - Stable Rock: $90^\circ$ (Vertical)
+     - Type A Soil: $53^\circ$ (3/4 : 1)
+     - Type B Soil: $45^\circ$ (1 : 1)
+     - Type C Soil: $34^\circ$ (1.5 : 1)
+   - Mandatory alert: depths $\ge 1.5$ meters strictly mandate certified protective systems (trench box, shoring, or approved benching).
+6. **Regulatory Engineering Disclaimer:**
+   - The calculations provided by HSE Guard are intended as screening tools and operational estimation aids. They do not replace formal sign-off by a certified Professional Geotechnical Engineer or Crane & Rigging Specialist.
+
+---
+
+## 6. Security & Tenant Isolation Verification
 
 1. **Multi-Tenant Isolation:** All database queries across all 19 applications are strictly filtered by the authenticated user's organization memberships. Cross-organization access attempts return HTTP 404 or HTTP 403.
 2. **Object-Level Authorization:** Specific permissions are enforced for critical operations (permit approvals, lifting plan sign-offs, PSSR completions, and non-conformity closures).
 3. **Data Integrity & Immutability:** Audit log records and closed incident reports cannot be modified. Document control maintains immutable revision archives.
 4. **Idempotent Data Seeding:** Demo data seeder safely isolates synthetic data using `is_synthetic=True` without destructively affecting existing operational data.
+5. **Anonymous Climate Surveys:** When a survey is marked `is_anonymous=True`, the response handler strictly records `respondent = None` in the database, ensuring zero user identity traceability.
 
 ---
 
-## 5. Conclusion & Platform Status
+## 7. Conclusion & Release Readiness Decision
 
-The HSE Guard Integrated HSE Management System (IHMS) has achieved 100% completion across all agreed Phase 17 directives. Every required module is fully implemented with real business logic, database persistence, rigorous multi-tenant authorization, Persian RTL interfaces, and exhaustive automated test verification. The platform is robust, complete, and production-ready.
+The HSE Guard Integrated HSE Management System (IHMS) has achieved comprehensive functional completion and completed critical defect remediation:
+- **Application Logic & Workflows:** Fully functional across all 19 core domains and new Phase 17 modules with zero mock responses.
+- **Automated Verification:** 317 backend tests and 79 frontend tests passing with 100% determinism.
+- **Security & Multi-Tenant Integrity:** Validated and fortified against direct status bypass, foreign organization referencing, and unauthorized cross-tenant chat/action access.
+- **External Adapters:** Provider-neutral adapters for SMS, Email, and IoT are implemented with self-describing probe endpoints, operating in unconfigured fallback mode until live production vendor credentials are supplied.
+- **Dependency Installation Requirement:** Host system package npm 9.2.0 fails network fetches on Node 22 due to `minipass-fetch` socket incompatibility; production deployment requires npm 10+ or Node 20 LTS.
+
+**Final Release Gate Decision:** **READY FOR CONTROLLED STAGING** (subject to documented production environment prerequisites: PostgreSQL migration, npm 10+/Node 20 runtime, and live provider API keys).

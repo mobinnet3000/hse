@@ -81,10 +81,29 @@ class PSSRReviewListSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "organization",
+            "leader",
+            "approver",
+            "status",
+            "created_at",
+            "updated_at",
+        ]
 
     def get_pending_actions_count(self, obj):
         return obj.outstanding_actions.filter(status=PSSROutstandingAction.ActionStatus.OPEN).count()
+
+    def validate_workplace(self, value):
+        request = self.context.get("request")
+        if request and hasattr(request, "user") and value:
+            from apps.organizations.models import Membership
+            user_org_ids = Membership.objects.filter(
+                user=request.user, is_active=True
+            ).values_list("organization_id", flat=True)
+            if value.organization_id not in user_org_ids:
+                raise serializers.ValidationError("کارگاه انتخاب‌شده متعلق به سازمان جاری نیست.")
+        return value
 
 
 class PSSRReviewDetailSerializer(serializers.ModelSerializer):
@@ -119,7 +138,28 @@ class PSSRReviewDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "organization",
+            "leader",
+            "approver",
+            "status",
+            "final_signoff_notes",
+            "rejection_reason",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_workplace(self, value):
+        request = self.context.get("request")
+        if request and hasattr(request, "user") and value:
+            from apps.organizations.models import Membership
+            user_org_ids = Membership.objects.filter(
+                user=request.user, is_active=True
+            ).values_list("organization_id", flat=True)
+            if value.organization_id not in user_org_ids:
+                raise serializers.ValidationError("کارگاه انتخاب‌شده متعلق به سازمان جاری نیست.")
+        return value
 
 
 class PSSRApprovalActionSerializer(serializers.Serializer):

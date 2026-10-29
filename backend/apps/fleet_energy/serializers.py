@@ -2,6 +2,16 @@ from rest_framework import serializers
 from .models import EnergyConsumptionLog, ExcavationOperation, FleetFuelLog, FleetVehicle
 
 
+def _get_request_org_ids(serializer_instance):
+    request = serializer_instance.context.get("request")
+    if request and hasattr(request, "user"):
+        from apps.organizations.models import Membership
+        return set(Membership.objects.filter(
+            user=request.user, is_active=True
+        ).values_list("organization_id", flat=True))
+    return set()
+
+
 class FleetFuelLogSerializer(serializers.ModelSerializer):
     vehicle_code = serializers.CharField(source="vehicle.vehicle_code", read_only=True)
 
@@ -25,7 +35,13 @@ class FleetFuelLogSerializer(serializers.ModelSerializer):
             "is_synthetic",
             "created_at",
         ]
-        read_only_fields = ["id", "distance_traveled_km", "consumption_rate_l_per_100km", "created_at"]
+        read_only_fields = ["id", "organization", "distance_traveled_km", "consumption_rate_l_per_100km", "created_at"]
+
+    def validate_vehicle(self, value):
+        org_ids = _get_request_org_ids(self)
+        if org_ids and value and value.organization_id not in org_ids:
+            raise serializers.ValidationError("خودرو انتخاب‌شده متعلق به سازمان جاری نیست.")
+        return value
 
 
 class FleetVehicleSerializer(serializers.ModelSerializer):
@@ -52,7 +68,13 @@ class FleetVehicleSerializer(serializers.ModelSerializer):
             "is_synthetic",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "organization", "created_at"]
+
+    def validate_workplace(self, value):
+        org_ids = _get_request_org_ids(self)
+        if org_ids and value and value.organization_id not in org_ids:
+            raise serializers.ValidationError("کارگاه انتخاب‌شده متعلق به سازمان جاری نیست.")
+        return value
 
 
 class EnergyConsumptionLogSerializer(serializers.ModelSerializer):
@@ -77,7 +99,13 @@ class EnergyConsumptionLogSerializer(serializers.ModelSerializer):
             "is_synthetic",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "organization", "created_at"]
+
+    def validate_workplace(self, value):
+        org_ids = _get_request_org_ids(self)
+        if org_ids and value and value.organization_id not in org_ids:
+            raise serializers.ValidationError("کارگاه انتخاب‌شده متعلق به سازمان جاری نیست.")
+        return value
 
 
 class ExcavationOperationSerializer(serializers.ModelSerializer):
@@ -109,4 +137,16 @@ class ExcavationOperationSerializer(serializers.ModelSerializer):
             "is_synthetic",
             "created_at",
         ]
-        read_only_fields = ["id", "top_width_m", "volume_m3", "created_at"]
+        read_only_fields = ["id", "organization", "top_width_m", "volume_m3", "created_at"]
+
+    def validate_workplace(self, value):
+        org_ids = _get_request_org_ids(self)
+        if org_ids and value and value.organization_id not in org_ids:
+            raise serializers.ValidationError("کارگاه انتخاب‌شده متعلق به سازمان جاری نیست.")
+        return value
+
+    def validate_permit(self, value):
+        org_ids = _get_request_org_ids(self)
+        if org_ids and value and value.organization_id not in org_ids:
+            raise serializers.ValidationError("مجوز کار انتخاب‌شده متعلق به سازمان جاری نیست.")
+        return value
