@@ -15,7 +15,7 @@ from apps.incidents.models import Incident
 from apps.organizations.models import Organization
 from apps.risks.models import Hazard, RiskAssessment
 from apps.workplaces.models import Workplace
-from .models import Permit, ShiftHandover
+from .models import Permit, ShiftHandover, SIMOPSConflict
 
 
 def _assert_competency_ready(permit):
@@ -74,9 +74,16 @@ def request_permit(organization: Organization, requester, data: dict) -> Permit:
     permit_type = data.get("permit_type", Permit.PermitType.GENERAL_HIGH_RISK)
     ref_code = generate_reference_code(organization, permit_type)
 
+    contractor = data.get("contractor")
+    if contractor and contractor.organization_id != organization.id:
+        raise ValidationError("شرکت پیمانکار انتخابی متعلق به این سازمان نیست.")
+
     permit = Permit(
         organization=organization,
         workplace=workplace,
+        contractor=contractor,
+        weather_condition_ok=data.get("weather_condition_ok", True),
+        weather_notes=data.get("weather_notes", ""),
         reference_code=ref_code,
         permit_type=permit_type,
         title=data["title"],
@@ -181,6 +188,249 @@ def approve_permit(permit: Permit, user, notes: str = "") -> Permit:
     return permit
 
 
+INCOMPATIBLE_RULES = [
+    (
+        Permit.PermitType.HOT_WORK,
+        Permit.PermitType.CONFINED_SPACE,
+        SIMOPSConflict.Severity.CRITICAL_BLOCK,
+        SIMOPSConflict.ConflictType.INCOMPATIBLE_TYPES,
+        "همزمانی کار گرم با ورود به فضای بسته در یک کارگاه به دلیل خطرات تجمیع بخارات اشتعال‌پذیر و مسمومیت حاد بلاک است.",
+    ),
+    (
+        Permit.PermitType.CONFINED_SPACE,
+        Permit.PermitType.HOT_WORK,
+        SIMOPSConflict.Severity.CRITICAL_BLOCK,
+        SIMOPSConflict.ConflictType.INCOMPATIBLE_TYPES,
+        "همزمانی ورود به فضای بسته با کار گرم در یک کارگاه به دلیل خطرات تجمیع بخارات اشتعال‌پذیر و مسمومیت حاد بلاک است.",
+    ),
+    (
+        Permit.PermitType.WORK_AT_HEIGHT,
+        Permit.PermitType.EXCAVATION,
+        SIMOPSConflict.Severity.CRITICAL_BLOCK,
+        SIMOPSConflict.ConflictType.HEIGHT_OVERHEAD,
+        "کار در ارتفاع هم‌راستا با عملیات گودبرداری یا فعالیت زیرین به دلیل ریسک سقوط ابزار، اجسام و لغزش خاک ممنوع و بلاک است.",
+    ),
+    (
+        Permit.PermitType.EXCAVATION,
+        Permit.PermitType.WORK_AT_HEIGHT,
+        SIMOPSConflict.Severity.CRITICAL_BLOCK,
+        SIMOPSConflict.ConflictType.HEIGHT_OVERHEAD,
+        "عملیات گودبرداری در زیر فعالیت کار در ارتفاع به دلیل خطرات سقوط تجهیزات و ناپایداری بلاک است.",
+    ),
+    (
+        Permit.PermitType.HOT_WORK,
+        Permit.PermitType.HOT_WORK,
+        SIMOPSConflict.Severity.WARNING,
+        SIMOPSConflict.ConflictType.SPATIAL_OVERLAP,
+        "هم‌پوشانی دو عملیات کار گرم در یک کارگاه؛ نیازمند حضور تیم اطفای حریق مستقل برای هر نقطه و فاصله‌گذاری ایمن.",
+    ),
+    (
+        Permit.PermitType.ELECTRICAL_ISOLATION,
+        Permit.PermitType.HOT_WORK,
+        SIMOPSConflict.Severity.WARNING,
+        SIMOPSConflict.ConflictType.ISOLATION_CONFLICT,
+        "همزمانی ایزولاسیون با کار گرم؛ نیازمند بازبینی کامل نقاط دشارژ الکتریکی و تایید مجدد فرم LOTO است.",
+    ),
+]
+
+
+def evaluate_simops_conflicts(permit: Permit, persist: bool = True) -> list[SIMOPSConflict]:
+    """Detect spatial-temporal overlaps with active/approved/suspended permits in the same workplace."""
+    if not permit.workplace_id or not permit.valid_from or not permit.valid_until:
+        return []
+
+    overlapping_permits = (
+        Permit.objects.filter(
+            organization_id=permit.organization_id,
+            workplace_id=permit.workplace_id,
+            status__in=[Permit.Status.APPROVED, Permit.Status.ACTIVE, Permit.Status.SUSPENDED],
+            valid_from__lt=permit.valid_until,
+            valid_until__gt=permit.valid_from,
+        )
+        .exclude(pk=permit.pk)
+    )
+
+    detected_conflicts = []
+    for other in overlapping_permits:
+        rule_match = None
+        for p1, p2, sev, c_type, desc in INCOMPATIBLE_RULES:
+            if permit.permit_type == p1 and other.permit_type == p2:
+                rule_match = (sev, c_type, desc)
+                break
+
+        if not rule_match:
+            rule_match = (
+                SIMOPSConflict.Severity.WARNING,
+                SIMOPSConflict.ConflictType.SPATIAL_OVERLAP,
+                f"همزمانی اجرای مجوز «{permit.title}» با «{other.title}» در کارگاه یکسان ({permit.workplace.name if permit.workplace else 'کارگاه'}).",
+            )
+
+        severity, conflict_type, description = rule_match
+
+        if persist and permit.pk:
+            conflict, _ = SIMOPSConflict.objects.update_or_create(
+                organization_id=permit.organization_id,
+                permit_a=permit,
+                permit_b=other,
+                workplace_id=permit.workplace_id,
+                defaults={
+                    "conflict_type": conflict_type,
+                    "severity": severity,
+                    "description": description,
+                    "is_resolved": permit.simops_override_approved or other.simops_override_approved,
+                    "override_approved": permit.simops_override_approved,
+                    "override_by": permit.simops_override_by,
+                    "override_reason": permit.simops_override_reason,
+                    "override_at": permit.simops_override_at,
+                },
+            )
+            detected_conflicts.append(conflict)
+        else:
+            detected_conflicts.append(
+                SIMOPSConflict(
+                    organization_id=permit.organization_id,
+                    permit_a=permit,
+                    permit_b=other,
+                    workplace=permit.workplace,
+                    conflict_type=conflict_type,
+                    severity=severity,
+                    description=description,
+                    is_resolved=permit.simops_override_approved,
+                )
+            )
+
+    return detected_conflicts
+
+
+def check_permit_gatekeeper_prerequisites(permit: Permit) -> dict:
+    """Evaluate pre-job gatekeeper safety checks (contractor, competency, LOTO, gas, weather, SIMOPS)."""
+    checks = {
+        "is_ready_for_activation": True,
+        "blockers": [],
+        "warnings": [],
+        "contractor": {"status": "ok", "message": "پرسنل داخلی یا بدون پیمانکار"},
+        "competency": {"status": "ok", "message": "صلاحیت‌های الزامی احراز شده است"},
+        "loto": {"status": "ok", "message": "ایزولاسیون LOTO نیاز نیست یا انجام شده است"},
+        "gas_testing": {"status": "ok", "message": "گازسنجی نیاز نیست یا نتایج ثبت شده است"},
+        "weather": {"status": "ok", "message": "شرایط جوی مساعد است"},
+        "simops": {"status": "ok", "conflicts_count": 0, "conflicts": []},
+    }
+
+    # 1. Contractor check
+    if permit.contractor_id:
+        contractor = permit.contractor
+        from apps.workforce.models import ContractorCompany
+        if contractor.status != ContractorCompany.Status.APPROVED:
+            msg = f"شرکت پیمانکار «{contractor.name}» در وضعیت «{contractor.get_status_display()}» قرار دارد و مجاز به کار نیست."
+            checks["is_ready_for_activation"] = False
+            checks["blockers"].append(msg)
+            checks["contractor"] = {"status": "fail", "message": msg}
+        elif contractor.safety_score < 70.0:
+            msg = f"رتبه ایمنی پیمانکار ({contractor.safety_score}/100) کمتر از حد آستانه مجاز (۷۰) است."
+            checks["is_ready_for_activation"] = False
+            checks["blockers"].append(msg)
+            checks["contractor"] = {"status": "fail", "message": msg}
+        else:
+            checks["contractor"] = {
+                "status": "ok",
+                "message": f"پیمانکار تاییدشده «{contractor.name}» (رتبه ایمنی: {contractor.safety_score})",
+            }
+
+    # 2. Competencies
+    try:
+        from apps.workforce.services import assert_permit_competencies
+        comp_res = assert_permit_competencies(permit)
+        if comp_res.get("has_requirements") and not comp_res.get("is_compliant"):
+            missing = comp_res.get("missing_summary", "")
+            msg = f"نقص صلاحیت پرسنل: {missing}"
+            checks["is_ready_for_activation"] = False
+            checks["blockers"].append(msg)
+            checks["competency"] = {"status": "fail", "message": msg, "details": comp_res}
+        else:
+            checks["competency"] = {"status": "ok", "message": "صلاحیت پرسنل تایید شده است.", "details": comp_res}
+    except Exception as exc:
+        msg = f"عدم تطابق صلاحیت: {str(exc)}"
+        checks["is_ready_for_activation"] = False
+        checks["blockers"].append(msg)
+        checks["competency"] = {"status": "fail", "message": msg}
+
+    # 3. Gas testing
+    if permit.gas_testing_required:
+        if not permit.gas_testing_results or not permit.gas_testing_results.strip():
+            msg = "گازسنجی اتمسفر الزامی است اما نتایج اندازه‌گیری ثبت نشده است."
+            checks["is_ready_for_activation"] = False
+            checks["blockers"].append(msg)
+            checks["gas_testing"] = {"status": "fail", "message": msg}
+
+    # 4. LOTO isolation
+    if permit.isolation_loto_required:
+        if not permit.isolation_loto_details or not permit.isolation_loto_details.strip():
+            msg = "ایزولاسیون مکانیکی/برقی (LOTO) الزامی است اما جزئیات قطع انرژی ثبت نشده است."
+            checks["is_ready_for_activation"] = False
+            checks["blockers"].append(msg)
+            checks["loto"] = {"status": "fail", "message": msg}
+
+    # 5. Weather
+    if not permit.weather_condition_ok:
+        msg = f"شرایط جوی برای اجرای این مجوز نامساعد اعلام شده است ({permit.weather_notes or 'نامساعد'})."
+        checks["is_ready_for_activation"] = False
+        checks["blockers"].append(msg)
+        checks["weather"] = {"status": "fail", "message": msg}
+
+    # 6. SIMOPS
+    conflicts = evaluate_simops_conflicts(permit, persist=True)
+    blocking_conflicts = [
+        c for c in conflicts
+        if c.severity == SIMOPSConflict.Severity.CRITICAL_BLOCK and not c.is_resolved and not permit.simops_override_approved
+    ]
+    warning_conflicts = [
+        c for c in conflicts
+        if c.severity == SIMOPSConflict.Severity.WARNING or c.is_resolved or permit.simops_override_approved
+    ]
+
+    checks["simops"] = {
+        "status": "fail" if blocking_conflicts else ("warning" if warning_conflicts else "ok"),
+        "conflicts_count": len(conflicts),
+        "blocking_count": len(blocking_conflicts),
+        "conflicts": [
+            {
+                "id": c.id,
+                "other_permit_code": c.permit_b.reference_code,
+                "other_permit_title": c.permit_b.title,
+                "severity": c.severity,
+                "conflict_type": c.conflict_type,
+                "description": c.description,
+                "is_resolved": c.is_resolved,
+            }
+            for c in conflicts
+        ],
+    }
+
+    if blocking_conflicts:
+        checks["is_ready_for_activation"] = False
+        checks["blockers"].append(
+            f"تعارض بحرانی همزمانی عملیات (SIMOPS): {len(blocking_conflicts)} تداخل با مجوزهای فعال کارگاه وجود دارد که مانع از شروع کار است."
+        )
+
+    for w in warning_conflicts:
+        checks["warnings"].append(f"هشدار SIMOPS: {w.description}")
+
+    # 7. Scaffold Tag & Inspection Check (Phase 15)
+    if permit.scaffold_id:
+        from apps.scaffolds.services import validate_scaffold_for_permit
+        is_safe, sc_msg, sc_details = validate_scaffold_for_permit(permit.scaffold)
+        checks["scaffold"] = sc_details
+        if not is_safe:
+            checks["is_ready_for_activation"] = False
+            checks["blockers"].append(sc_msg)
+        elif sc_details.get("status") == "warning":
+            checks["warnings"].append(sc_msg)
+    elif permit.permit_type == Permit.PermitType.WORK_AT_HEIGHT:
+        checks["warnings"].append("توجه: این مجوز از نوع کار در ارتفاع است اما داربست مشخصی به آن الصاق نشده است.")
+
+    return checks
+
+
 def verify_controls_and_activate(permit: Permit, user, gas_results: str = "", loto_details: str = "") -> Permit:
     if not can_control_permits(user, permit.organization_id):
         raise ValidationError("شما مجوز اعتبارسنجی کنترل‌ها و فعال‌سازی این پروانه کار را ندارید.")
@@ -192,21 +442,16 @@ def verify_controls_and_activate(permit: Permit, user, gas_results: str = "", lo
     if now > permit.valid_until:
         raise ValidationError("اعتبار زمانی مجوز منقضی شده است و امکان فعال‌سازی آن وجود ندارد.")
 
-    competency_result = _assert_competency_ready(permit)
+    # Update gas results if provided
+    if gas_results:
+        permit.gas_testing_results = gas_results.strip()
+    if loto_details:
+        permit.isolation_loto_details = loto_details.strip()
 
-    # Verify required gas testing
-    if permit.gas_testing_required:
-        results = gas_results or permit.gas_testing_results
-        if not results or not results.strip():
-            raise ValidationError("انجام و ثبت نتایج گازسنجی اتمسفر برای این مجوز الزامی است.")
-        permit.gas_testing_results = results
-
-    # Verify required LOTO
-    if permit.isolation_loto_required:
-        details = loto_details or permit.isolation_loto_details
-        if not details or not details.strip():
-            raise ValidationError("ثبت مشخصات ایزولاسیون مکانیکی/برقی و قفل و تگ‌گذاری الزامی است.")
-        permit.isolation_loto_details = details
+    # Pre-job gatekeeper safety check
+    gatekeeper = check_permit_gatekeeper_prerequisites(permit)
+    if not gatekeeper["is_ready_for_activation"]:
+        raise ValidationError(f"عدم احراز شرایط ایمنی پیش از شروع کار: {'; '.join(gatekeeper['blockers'])}")
 
     permit.controls_verified = True
     permit.controls_verified_by = user
@@ -217,6 +462,8 @@ def verify_controls_and_activate(permit: Permit, user, gas_results: str = "", lo
 
     permit.save()
 
+    comp_status = gatekeeper.get("competency", {}).get("status")
+    comp_compliant = (comp_status == "ok") or (comp_status is None)
     log_event(
         organization=permit.organization,
         actor=user,
@@ -225,8 +472,8 @@ def verify_controls_and_activate(permit: Permit, user, gas_results: str = "", lo
         entity_id=permit.id,
         details={
             "reference_code": permit.reference_code,
-            "competency_checked": competency_result["has_requirements"],
-            "competency_compliant": competency_result["is_compliant"],
+            "gatekeeper_passed": True,
+            "competency_compliant": comp_compliant,
         },
     )
     return permit
@@ -260,7 +507,7 @@ def suspend_permit(permit: Permit, user, reason: str) -> Permit:
     return permit
 
 
-def resume_permit(permit: Permit, user) -> Permit:
+def resume_permit(permit: Permit, user, resumption_notes: str = "") -> Permit:
     if not can_control_permits(user, permit.organization_id):
         raise ValidationError("شما مجوز ازسرگیری پروانه کار را ندارید.")
 
@@ -270,10 +517,15 @@ def resume_permit(permit: Permit, user) -> Permit:
     if timezone.now() > permit.valid_until:
         raise ValidationError("زمان اعتبار مجوز به پایان رسیده و امکان ازسرگیری آن وجود ندارد.")
 
-    competency_result = _assert_competency_ready(permit)
+    if resumption_notes:
+        permit.resumption_notes = resumption_notes.strip()
+
+    gatekeeper = check_permit_gatekeeper_prerequisites(permit)
+    if not gatekeeper["is_ready_for_activation"]:
+        raise ValidationError(f"عدم امکان ازسرگیری به دلیل موانع ایمنی: {'; '.join(gatekeeper['blockers'])}")
 
     permit.status = Permit.Status.ACTIVE
-    permit.save(update_fields=["status", "updated_at"])
+    permit.save(update_fields=["status", "resumption_notes", "updated_at"])
 
     log_event(
         organization=permit.organization,
@@ -283,11 +535,48 @@ def resume_permit(permit: Permit, user) -> Permit:
         entity_id=permit.id,
         details={
             "reference_code": permit.reference_code,
-            "competency_checked": competency_result["has_requirements"],
-            "competency_compliant": competency_result["is_compliant"],
+            "resumption_notes": resumption_notes,
         },
     )
     return permit
+
+
+def override_simops_conflict(conflict: SIMOPSConflict, user, reason: str) -> SIMOPSConflict:
+    if not can_approve_permits(user, conflict.organization_id):
+        raise ValidationError("تنها مدیر HSE یا مقام مجاز صادرکننده مجاز به تایید بای‌پس تداخل همزمانی است.")
+
+    if not reason or not reason.strip():
+        raise ValidationError("درج دلیل و تمهیدات کنترلی جبرانی برای بای‌پس SIMOPS الزامی است.")
+
+    now = timezone.now()
+    conflict.is_resolved = True
+    conflict.override_approved = True
+    conflict.override_by = user
+    conflict.override_reason = reason.strip()
+    conflict.override_at = now
+    conflict.save(update_fields=["is_resolved", "override_approved", "override_by", "override_reason", "override_at"])
+
+    # Update permit_a
+    permit_a = conflict.permit_a
+    permit_a.simops_override_approved = True
+    permit_a.simops_override_reason = reason.strip()
+    permit_a.simops_override_by = user
+    permit_a.simops_override_at = now
+    permit_a.save(update_fields=["simops_override_approved", "simops_override_reason", "simops_override_by", "simops_override_at", "updated_at"])
+
+    log_event(
+        organization=conflict.organization,
+        actor=user,
+        action="simops.override_approved",
+        entity_type="SIMOPSConflict",
+        entity_id=conflict.id,
+        details={
+            "permit_a": permit_a.reference_code,
+            "permit_b": conflict.permit_b.reference_code,
+            "reason": reason,
+        },
+    )
+    return conflict
 
 
 def complete_work(permit: Permit, user) -> Permit:

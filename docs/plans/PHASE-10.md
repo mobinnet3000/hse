@@ -68,16 +68,16 @@ Competency validation is centralized in `apps.workforce.services` and called fro
 |---|------|------------|--------|
 | 1 | Audit models, PTW, roles, audit/notification, seed, frontend patterns | — | DONE |
 | 2 | Write Phase 10 plan and baseline | 1 | DONE |
-| 3 | Add `workforce` models, migrations, admin | 2 | TODO |
-| 4 | Add PTW crew/competency requirement models and migration | 3 | TODO |
-| 5 | Implement centralized services, tenant rules, audit/notifications | 3,4 | TODO |
-| 6 | Implement serializers/views/URLs and PTW competency endpoints | 5 | TODO |
-| 7 | Add CSV exports and report integration | 6 | TODO |
-| 8 | Add safe, idempotent Phase 10 demo data | 3–7 | TODO |
-| 9 | Build Persian RTL workforce UI and PTW competency display | 6 | TODO |
-| 10 | Add backend and frontend regression tests | 3–9 | TODO |
-| 11 | Run checks, migrations check, full tests, build, diff checks | 10 | TODO |
-| 12 | Write engineering report and Persian demo guide | 11 | TODO |
+| 3 | Add `workforce` models, migrations, admin | 2 | DONE |
+| 4 | Add PTW crew/competency requirement models and migration | 3 | DONE |
+| 5 | Implement centralized services, tenant rules, audit/notifications | 3,4 | DONE |
+| 6 | Implement serializers/views/URLs and PTW competency endpoints | 5 | DONE |
+| 7 | Add CSV exports and report integration | 6 | DONE |
+| 8 | Add safe, idempotent Phase 10 demo data | 3–7 | DONE |
+| 9 | Build Persian RTL workforce UI and PTW competency display | 6 | DONE |
+| 10 | Add backend and frontend regression tests | 3–9 | DONE |
+| 11 | Run checks, migrations check, full tests, build, diff checks | 10 | DONE |
+| 12 | Write engineering report and Persian demo guide | 11 | DONE |
 
 ## Planned API surface
 

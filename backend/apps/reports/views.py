@@ -11,7 +11,9 @@ from apps.assets.models import Equipment, MaintenanceWorkOrder
 from apps.capa.models import CorrectiveAction
 from apps.core.access import accessible_organization_ids, can_view_organization
 from apps.findings.models import NonConformity
+from apps.incidents.models import Incident
 from apps.inspections.models import Inspection
+from apps.permits.models import Permit
 from apps.risks.models import RiskAssessment
 from apps.workforce.models import (
     EmployeeCompetency,
@@ -520,5 +522,97 @@ class ReportExportView(APIView):
                     ]
 
             return export_csv("corrective_actions_report.csv", headers, row_gen())
+
+        elif report_type == "permits":
+            qs = Permit.objects.select_related("organization", "workplace", "requester", "responsible_supervisor").prefetch_related("assigned_employees").all()
+            if target_orgs is not None:
+                qs = qs.filter(organization_id__in=target_orgs)
+            if workplace_id:
+                qs = qs.filter(workplace_id=workplace_id)
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            if date_from:
+                qs = qs.filter(valid_from__date__gte=date_from)
+            if date_to:
+                qs = qs.filter(valid_until__date__lte=date_to)
+
+            headers = [
+                "شناسه",
+                "کد مرجع",
+                "سازمان",
+                "محل کار",
+                "نوع مجوز",
+                "عنوان مجوز",
+                "درخواست‌کننده",
+                "سرپرست مسئول",
+                "وضعیت",
+                "شروع اعتبار",
+                "پایان اعتبار",
+                "تعداد نفرات تیم",
+            ]
+
+            def row_gen():
+                for p in qs.iterator(chunk_size=200):
+                    yield [
+                        p.pk,
+                        p.reference_code,
+                        p.organization.name if p.organization else "",
+                        p.workplace.name if p.workplace else "—",
+                        p.get_permit_type_display(),
+                        p.title,
+                        p.requester.get_full_name() or p.requester.username if p.requester else "—",
+                        p.responsible_supervisor.get_full_name() or p.responsible_supervisor.username if p.responsible_supervisor else "—",
+                        p.get_status_display(),
+                        p.valid_from.strftime("%Y-%m-%d %H:%M") if p.valid_from else "",
+                        p.valid_until.strftime("%Y-%m-%d %H:%M") if p.valid_until else "",
+                        p.assigned_employees.count(),
+                    ]
+
+            return export_csv("permits_report.csv", headers, row_gen())
+
+        elif report_type == "incidents":
+            qs = Incident.objects.select_related("organization", "workplace", "reported_by").all()
+            if target_orgs is not None:
+                qs = qs.filter(organization_id__in=target_orgs)
+            if workplace_id:
+                qs = qs.filter(workplace_id=workplace_id)
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            if date_from:
+                qs = qs.filter(occurred_at__date__gte=date_from)
+            if date_to:
+                qs = qs.filter(occurred_at__date__lte=date_to)
+
+            headers = [
+                "شناسه",
+                "سازمان",
+                "محل کار",
+                "نوع رخداد",
+                "عنوان حادثه",
+                "شدت",
+                "وضعیت رسیدگی",
+                "تاریخ و زمان وقوع",
+                "ثبت‌کننده",
+                "تلفات روز کاری (LTD)",
+                "تعداد مصدومان",
+            ]
+
+            def row_gen():
+                for inc in qs.iterator(chunk_size=200):
+                    yield [
+                        inc.pk,
+                        inc.organization.name if inc.organization else "",
+                        inc.workplace.name if inc.workplace else "—",
+                        inc.get_incident_type_display(),
+                        inc.title,
+                        inc.get_severity_display(),
+                        inc.get_status_display(),
+                        inc.occurred_at.strftime("%Y-%m-%d %H:%M") if inc.occurred_at else "",
+                        inc.reported_by.get_full_name() or inc.reported_by.username if inc.reported_by else "—",
+                        inc.lost_time_days,
+                        inc.injury_count,
+                    ]
+
+            return export_csv("incidents_report.csv", headers, row_gen())
 
         return Response({"error": {"code": "invalid_report_type", "message": "نوع گزارش نامعتبر است."}}, status=400)

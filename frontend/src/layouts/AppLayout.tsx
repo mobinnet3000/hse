@@ -1,13 +1,15 @@
-import type { ReactNode } from "react";
-
+import { type ReactNode, useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { LoginPage } from "../features/auth/LoginPage";
+import { Header } from "../components/layout/Header";
+import { Sidebar } from "../components/layout/Sidebar";
 
 export type NavTab =
   | "all"
   | "dashboard"
   | "workforce"
   | "permits"
+  | "scaffolds"
   | "assets"
   | "incidents"
   | "risks"
@@ -15,6 +17,8 @@ export type NavTab =
   | "reports"
   | "notifications"
   | "knowledge"
+  | "environment"
+  | "documents"
   | "ai"
   | "audit";
 
@@ -31,92 +35,48 @@ export function AppLayout({
   onTabChange,
   unreadNotificationsCount = 0,
 }: AppLayoutProps) {
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   if (loading) {
-    return <p className="centered muted">در حال بارگذاری…</p>;
+    return (
+      <div className="centered muted app-loader" dir="rtl">
+        <div className="spinner" aria-hidden="true" />
+        <p>در حال بارگذاری سامانه HSE Guard…</p>
+      </div>
+    );
   }
 
   if (!user) {
     return <LoginPage />;
   }
 
-  const navItems: Array<{ id: NavTab; label: string }> = [
-    { id: "dashboard", label: "داشبورد" },
-    { id: "workforce", label: "کارکنان، آموزش و PPE" },
-    { id: "permits", label: "مجوزهای کار و تحویل شیفت" },
-    { id: "assets", label: "تجهیزات و کالیبراسیون" },
-    { id: "incidents", label: "حوادث و شبه‌حوادث" },
-    { id: "risks", label: "ریسک‌ها" },
-    { id: "inspections", label: "بازرسی‌ها و اقدامات" },
-    { id: "knowledge", label: "پایگاه دانش و مقررات" },
-    { id: "ai", label: "دستیار هوشمند HSE" },
-    { id: "reports", label: "گزارش‌ها" },
-    { id: "notifications", label: "اعلان‌ها" },
-    { id: "audit", label: "حسابرسی" },
-    { id: "all", label: "همه بخش‌ها" },
-  ];
-
   return (
-    <div className="app-shell" dir="rtl">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">HSE</span>
-          <span className="brand-name">HSE Guard</span>
-        </div>
-        <nav aria-label="منوی اصلی">
-          <ul>
-            {navItems.map((item) => (
-              <li key={item.id}>
-                <a
-                  href={`#${item.id}`}
-                  aria-current={activeTab === item.id ? "page" : undefined}
-                  onClick={(e) => {
-                    if (onTabChange) {
-                      e.preventDefault();
-                      onTabChange(item.id);
-                    }
-                  }}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    fontWeight: activeTab === item.id ? "bold" : "normal",
-                  }}
-                >
-                  <span>{item.label}</span>
-                  {item.id === "notifications" && unreadNotificationsCount > 0 && (
-                    <span
-                      className="nav-badge"
-                      style={{
-                        backgroundColor: "#d9534f",
-                        color: "#fff",
-                        padding: "0.1rem 0.45rem",
-                        borderRadius: "10px",
-                        fontSize: "0.75rem",
-                      }}
-                    >
-                      {unreadNotificationsCount}
-                    </span>
-                  )}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="sidebar-footer">
-          <span className="muted">{user.first_name || user.username}</span>
-          <button type="button" className="link-button" onClick={() => void logout()}>
-            خروج
-          </button>
-        </div>
-      </aside>
-      <main className="content">
-        <header className="topbar">
-          <h1>سامانه مدیریت ایمنی، بهداشت و محیط زیست</h1>
-        </header>
-        {children}
-      </main>
+    <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`} dir="rtl">
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+        unreadCount={unreadNotificationsCount}
+        collapsed={sidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+      />
+
+      <div className="main-viewport">
+        <Header
+          activeTab={activeTab}
+          onTabChange={onTabChange}
+          unreadCount={unreadNotificationsCount}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+          onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+        />
+
+        <main className="content" id="main-content">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

@@ -164,3 +164,73 @@ class MembershipDetailView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class SubscriptionPlanListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from .models import SubscriptionPlan
+        from .serializers import SubscriptionPlanSerializer
+        plans = SubscriptionPlan.objects.filter(is_active=True)
+        return Response(SubscriptionPlanSerializer(plans, many=True).data)
+
+
+class OrganizationSubscriptionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from .models import OrganizationSubscription
+        from .serializers import OrganizationSubscriptionSerializer
+        org = Organization.objects.filter(pk=pk).first()
+        if org is None or not can_view_organization(request.user, org.pk):
+            return Response({"error": {"code": "not_found", "message": "سازمان یافت نشد."}}, status=status.HTTP_404_NOT_FOUND)
+        sub = getattr(org, "subscription", None)
+        if not sub:
+            return Response({"status": "no_subscription", "organization": org.id})
+        return Response(OrganizationSubscriptionSerializer(sub).data)
+
+
+class ModuleEntitlementListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from .models import ModuleEntitlement
+        from .serializers import ModuleEntitlementSerializer
+        org = Organization.objects.filter(pk=pk).first()
+        if org is None or not can_view_organization(request.user, org.pk):
+            return Response({"error": {"code": "not_found", "message": "سازمان یافت نشد."}}, status=status.HTTP_404_NOT_FOUND)
+        entitlements = ModuleEntitlement.objects.filter(organization=org)
+        return Response(ModuleEntitlementSerializer(entitlements, many=True).data)
+
+
+class SubscriptionPaymentRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from .models import SubscriptionPaymentRequest, SubscriptionPlan
+        from .serializers import SubscriptionPaymentRequestSerializer
+        org = Organization.objects.filter(pk=pk).first()
+        if org is None or not can_manage_organization(request.user, org.pk):
+            return Response({"error": {"code": "not_found", "message": "سازمان یافت نشد یا دسترسی مدیریت ندارید."}}, status=status.HTTP_404_NOT_FOUND)
+
+        plan_id = request.data.get("plan_id")
+        plan = SubscriptionPlan.objects.filter(id=plan_id).first()
+        if not plan:
+            return Response({"error": {"code": "invalid_plan", "message": "پلن اشتراک نامعتبر است."}}, status=status.HTTP_400_BAD_REQUEST)
+
+        amount = request.data.get("amount_irr", plan.price_monthly_irr)
+        ref = request.data.get("payment_reference", "")
+        if not ref:
+            return Response({"error": {"code": "ref_required", "message": "شماره پیگیری فیش واریز الزامی است."}}, status=status.HTTP_400_BAD_REQUEST)
+
+        payment = SubscriptionPaymentRequest.objects.create(
+            organization=org,
+            plan=plan,
+            amount_irr=amount,
+            payment_reference=ref,
+            submitted_by=request.user,
+            notes=request.data.get("notes", ""),
+        )
+        return Response(SubscriptionPaymentRequestSerializer(payment).data, status=status.HTTP_201_CREATED)
+

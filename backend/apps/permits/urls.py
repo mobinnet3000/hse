@@ -8,6 +8,7 @@ from .views import (
     PermitCompetencyStatusView,
     PermitCompleteView,
     PermitDetailView,
+    PermitGatekeeperCheckView,
     PermitListCreateView,
     PermitRejectView,
     PermitResumeView,
@@ -18,6 +19,9 @@ from .views import (
     ShiftHandoverDetailView,
     ShiftHandoverListCreateView,
     ShiftHandoverSafetySummaryView,
+    SIMOPSConflictListView,
+    SIMOPSConflictOverrideView,
+    SIMOPSRadarView,
 )
 
 app_name = "permits"
@@ -26,8 +30,12 @@ urlpatterns = [
     # Permit Endpoints
     path("", PermitListCreateView.as_view(), name="permit-list-create"),
     path("stats/", PermitSummaryStatsView.as_view(), name="permit-stats"),
+    path("simops-radar/", SIMOPSRadarView.as_view(), name="simops-radar"),
+    path("simops-conflicts/", SIMOPSConflictListView.as_view(), name="simops-conflict-list"),
+    path("simops-conflicts/<int:pk>/override/", SIMOPSConflictOverrideView.as_view(), name="simops-conflict-override"),
     path("<int:pk>/", PermitDetailView.as_view(), name="permit-detail"),
     path("<int:pk>/competency-status/", PermitCompetencyStatusView.as_view(), name="permit-competency-status"),
+    path("<int:pk>/gatekeeper-check/", PermitGatekeeperCheckView.as_view(), name="permit-gatekeeper-check"),
     path("<int:pk>/review/", PermitReviewView.as_view(), name="permit-review"),
     path("<int:pk>/approve/", PermitApproveView.as_view(), name="permit-approve"),
     path("<int:pk>/activate/", PermitActivateView.as_view(), name="permit-activate"),

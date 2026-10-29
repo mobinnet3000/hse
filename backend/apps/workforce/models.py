@@ -813,3 +813,436 @@ class PPEAssignmentEvent(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("حذف رویداد PPE مجاز نیست؛ تاریخچه باید حفظ شود.")
+
+
+# ==============================================================================
+# Phase 12: Job Catalog, Contractors & Attendance
+# ==============================================================================
+
+class JobPosition(models.Model):
+    class RiskLevel(models.TextChoices):
+        LOW = "low", "پایین"
+        MEDIUM = "medium", "متوسط"
+        HIGH = "high", "بالا"
+        CRITICAL = "critical", "بحرانی"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="job_positions",
+    )
+    code = models.CharField(max_length=64)
+    title = models.CharField(max_length=150)
+    description = models.TextField(blank=True)
+    department = models.CharField(max_length=120, blank=True)
+    risk_level = models.CharField(
+        max_length=20,
+        choices=RiskLevel.choices,
+        default=RiskLevel.MEDIUM,
+    )
+    required_competencies = models.ManyToManyField(
+        Competency,
+        blank=True,
+        related_name="job_positions",
+    )
+    required_qualifications = models.TextField(
+        blank=True,
+        help_text="مدارک، گواهینامه‌ها یا سوابق تجربی مورد نیاز",
+    )
+    is_active = models.BooleanField(default=True)
+    is_synthetic = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["title", "code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "code"],
+                name="unique_job_position_code_per_org",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "is_active"]),
+            models.Index(fields=["organization", "risk_level"]),
+        ]
+
+    def __str__(self):
+        return f"{self.code} — {self.title}"
+
+
+class EmployeeJobAssignment(models.Model):
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="employee_job_assignments",
+    )
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="job_assignments",
+    )
+    job_position = models.ForeignKey(
+        JobPosition,
+        on_delete=models.PROTECT,
+        related_name="assignments",
+    )
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    is_primary = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    is_synthetic = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-start_date", "-id"]
+        indexes = [
+            models.Index(fields=["organization", "employee"]),
+            models.Index(fields=["organization", "job_position"]),
+        ]
+
+    def __str__(self):
+        return f"{self.employee.full_name} -> {self.job_position.title}"
+
+    def clean(self):
+        if self.organization_id and self.employee_id and self.employee.organization_id != self.organization_id:
+            raise ValidationError({"employee": "کارمند باید متعلق به همین سازمان باشد."})
+        if self.organization_id and self.job_position_id and self.job_position.organization_id != self.organization_id:
+            raise ValidationError({"job_position": "شغل باید متعلق به همین سازمان باشد."})
+        if self.end_date and self.end_date < self.start_date:
+            raise ValidationError({"end_date": "تاریخ پایان نمی‌تواند قبل از تاریخ شروع باشد."})
+
+
+class ContractorCompany(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "در انتظار تایید"
+        APPROVED = "approved", "تایید شده"
+        SUSPENDED = "suspended", "تعلیق شده"
+        BLACKLISTED = "blacklisted", "لیست سیاه"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="contractors",
+    )
+    name = models.CharField(max_length=200)
+    registration_no = models.CharField(max_length=64, blank=True)
+    economic_code = models.CharField(max_length=64, blank=True)
+    contact_person = models.CharField(max_length=120, blank=True)
+    contact_phone = models.CharField(max_length=50, blank=True)
+    contact_email = models.EmailField(blank=True)
+    contract_start = models.DateField(null=True, blank=True)
+    contract_end = models.DateField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    safety_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=100.0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    notes = models.TextField(blank=True)
+    is_synthetic = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "name"],
+                name="unique_contractor_name_per_org",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_status_display()})"
+
+
+class ContractorDocument(models.Model):
+    class DocumentType(models.TextChoices):
+        HSE_PLAN = "hse_plan", "طرح سلامت و ایمنی (HSE Plan)"
+        INSURANCE_POLICY = "insurance_policy", "بیمه‌نامه مسئولیت مدنی"
+        QUALIFICATION_CERT = "qualification_cert", "گواهینامه صلاحیت ایمنی پیمانکاری"
+        ISO_CERT = "iso_cert", "گواهینامه‌های ایزو/استاندارد"
+        OTHER = "other", "سایر مدارک"
+
+    class Status(models.TextChoices):
+        SUBMITTED = "submitted", "ثبت اولیه"
+        VERIFIED = "verified", "تایید شده"
+        EXPIRED = "expired", "منقضی شده"
+        REJECTED = "rejected", "رد شده"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="contractor_documents",
+    )
+    contractor = models.ForeignKey(
+        ContractorCompany,
+        on_delete=models.CASCADE,
+        related_name="documents",
+    )
+    document_type = models.CharField(
+        max_length=30,
+        choices=DocumentType.choices,
+        default=DocumentType.OTHER,
+    )
+    title = models.CharField(max_length=200)
+    file_url = models.CharField(max_length=500, blank=True)
+    valid_from = models.DateField(null=True, blank=True)
+    valid_until = models.DateField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.SUBMITTED,
+    )
+    verified_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="contractor_docs_verified",
+    )
+    verification_notes = models.TextField(blank=True)
+    is_synthetic = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-valid_until", "-id"]
+        indexes = [
+            models.Index(fields=["organization", "contractor"]),
+            models.Index(fields=["organization", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.contractor.name} — {self.title} ({self.get_status_display()})"
+
+    def clean(self):
+        if self.organization_id and self.contractor_id and self.contractor.organization_id != self.organization_id:
+            raise ValidationError({"contractor": "پیمانکار باید متعلق به همین سازمان باشد."})
+
+
+class ContractorWorker(models.Model):
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="contractor_workers",
+    )
+    contractor = models.ForeignKey(
+        ContractorCompany,
+        on_delete=models.CASCADE,
+        related_name="workers",
+    )
+    national_id = models.CharField(max_length=32)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    mobile = models.CharField(max_length=50, blank=True)
+    trade = models.CharField(max_length=100, blank=True, help_text="رسته شغلی (جوشکار، داربست‌بند، ...)")
+    badge_number = models.CharField(max_length=64, blank=True)
+    is_active = models.BooleanField(default=True)
+    medical_clearance_date = models.DateField(null=True, blank=True)
+    medical_expiry_date = models.DateField(null=True, blank=True)
+    safety_induction_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    is_synthetic = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["last_name", "first_name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "national_id"],
+                name="unique_contractor_worker_national_id_per_org",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "contractor"]),
+            models.Index(fields=["organization", "is_active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.full_name} ({self.trade or 'نیروی پیمانکار'}) — {self.contractor.name}"
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def clean(self):
+        if self.organization_id and self.contractor_id and self.contractor.organization_id != self.organization_id:
+            raise ValidationError({"contractor": "پیمانکار باید متعلق به همین سازمان باشد."})
+
+
+class ContractorEvaluation(models.Model):
+    class Recommendation(models.TextChoices):
+        CONTINUE = "continue", "ادامه همکاری"
+        WARNING = "warning", "اخطار و مهلت اصلاح"
+        CONDITIONAL_APPROVAL = "conditional_approval", "تایید مشروط"
+        TERMINATE = "terminate", "قطع همکاری / لغو قرارداد"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="contractor_evaluations",
+    )
+    contractor = models.ForeignKey(
+        ContractorCompany,
+        on_delete=models.CASCADE,
+        related_name="evaluations",
+    )
+    evaluation_date = models.DateField(default=timezone.localdate)
+    evaluator = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="contractor_evaluations_conducted",
+    )
+    score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    criteria_scores = models.JSONField(default=dict, blank=True)
+    findings = models.TextField(blank=True)
+    recommendation = models.CharField(
+        max_length=30,
+        choices=Recommendation.choices,
+        default=Recommendation.CONTINUE,
+    )
+    is_synthetic = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-evaluation_date", "-id"]
+        indexes = [
+            models.Index(fields=["organization", "contractor"]),
+        ]
+
+    def __str__(self):
+        return f"ارزیابی {self.contractor.name} ({self.score}/100) — {self.evaluation_date}"
+
+    def clean(self):
+        if self.organization_id and self.contractor_id and self.contractor.organization_id != self.organization_id:
+            raise ValidationError({"contractor": "پیمانکار باید متعلق به همین سازمان باشد."})
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Update contractor's safety score automatically
+        self.contractor.safety_score = self.score
+        self.contractor.save(update_fields=["safety_score", "updated_at"])
+
+
+class AttendanceRecord(models.Model):
+    class PersonType(models.TextChoices):
+        EMPLOYEE = "employee", "پرسنل رسمی/داخلی"
+        CONTRACTOR_WORKER = "contractor_worker", "نیروی پیمانکار"
+
+    class EntrySource(models.TextChoices):
+        GATE_SCANNER = "gate_scanner", "گیت تردد هوشمند"
+        BIOMETRIC = "biometric", "دستگاه بیومتریک"
+        MANUAL_ROSTER = "manual_roster", "ثبت دستی شیفت"
+        MOBILE_KIOSK = "mobile_kiosk", "کیوسک موبایل"
+
+    class Status(models.TextChoices):
+        PRESENT = "present", "حاضر"
+        LATE = "late", "تأخیر ورود"
+        ABSENT = "absent", "غایب"
+        EARLY_DEPARTURE = "early_departure", "خروج زودهنگام"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="attendance_records",
+    )
+    workplace = models.ForeignKey(
+        "workplaces.Workplace",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attendances",
+    )
+    person_type = models.CharField(
+        max_length=20,
+        choices=PersonType.choices,
+        default=PersonType.EMPLOYEE,
+    )
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="attendance_records",
+    )
+    contractor_worker = models.ForeignKey(
+        ContractorWorker,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="attendance_records",
+    )
+    date = models.DateField(default=timezone.localdate)
+    check_in = models.DateTimeField()
+    check_out = models.DateTimeField(null=True, blank=True)
+    entry_source = models.CharField(
+        max_length=30,
+        choices=EntrySource.choices,
+        default=EntrySource.GATE_SCANNER,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PRESENT,
+    )
+    verified_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verified_attendances",
+    )
+    notes = models.TextField(blank=True)
+    is_synthetic = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-check_in", "-id"]
+        indexes = [
+            models.Index(fields=["organization", "date"]),
+            models.Index(fields=["organization", "person_type"]),
+            models.Index(fields=["organization", "workplace"]),
+        ]
+
+    def __str__(self):
+        name = self.employee.full_name if self.employee else (self.contractor_worker.full_name if self.contractor_worker else "نامشخص")
+        return f"{name} ({self.get_person_type_display()}) — {self.date}"
+
+    def clean(self):
+        if self.person_type == self.PersonType.EMPLOYEE:
+            if not self.employee_id:
+                raise ValidationError({"employee": "برای پرسنل سازمانی، انتخاب کارمند الزامی است."})
+            if self.contractor_worker_id:
+                raise ValidationError({"contractor_worker": "برای پرسنل سازمانی، نیروی پیمانکار نباید انتخاب شود."})
+            if self.organization_id and self.employee.organization_id != self.organization_id:
+                raise ValidationError({"employee": "کارمند باید متعلق به همین سازمان باشد."})
+        elif self.person_type == self.PersonType.CONTRACTOR_WORKER:
+            if not self.contractor_worker_id:
+                raise ValidationError({"contractor_worker": "برای نیروی پیمانکار، انتخاب کارگر پیمانکار الزامی است."})
+            if self.employee_id:
+                raise ValidationError({"employee": "برای نیروی پیمانکار، کارمند داخلی نباید انتخاب شود."})
+            if self.organization_id and self.contractor_worker.organization_id != self.organization_id:
+                raise ValidationError({"contractor_worker": "نیروی پیمانکار باید متعلق به همین سازمان باشد."})
+        if self.organization_id and self.workplace_id and self.workplace.organization_id != self.organization_id:
+            raise ValidationError({"workplace": "محل کار باید متعلق به همان سازمان باشد."})
+        if self.check_out and self.check_out < self.check_in:
+            raise ValidationError({"check_out": "زمان خروج نمی‌تواند قبل از زمان ورود باشد."})
+

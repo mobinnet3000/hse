@@ -11,12 +11,29 @@ from apps.findings.models import NonConformity
 from apps.incidents.models import Incident, IncidentAttachment
 from apps.inspections.models import Inspection, InspectionResponse
 from apps.organizations.models import Membership, Organization
-from apps.permits.models import Permit, PermitAttachment, PermitTypeCompetencyRequirement, ShiftHandover
-from apps.risks.models import Hazard, RiskAssessment
+from apps.permits.models import Permit, PermitAttachment, PermitTypeCompetencyRequirement, ShiftHandover, SIMOPSConflict
+from apps.risks.models import (
+    Barrier,
+    BarrierAssessment,
+    BowTieConsequence,
+    BowTieDiagram,
+    BowTieThreat,
+    HCMSControlMatrix,
+    Hazard,
+    RiskAssessment,
+    RiskAssessmentTemplate,
+)
 from apps.workforce.models import (
+    AttendanceRecord,
     Competency,
+    ContractorCompany,
+    ContractorDocument,
+    ContractorEvaluation,
+    ContractorWorker,
     Employee,
     EmployeeCompetency,
+    EmployeeJobAssignment,
+    JobPosition,
     PPEAssignment,
     PPEAssignmentEvent,
     PPEItem,
@@ -26,6 +43,42 @@ from apps.workforce.models import (
     TrainingSession,
 )
 from apps.workplaces.models import Workplace
+from apps.environment.models import (
+    EnvironmentalAspect,
+    EnvironmentalThreshold,
+    OccupationalHygieneRecord,
+    WasteRecord,
+    WastewaterEmissionRecord,
+)
+from apps.environment.services import (
+    evaluate_and_record_hygiene_survey,
+    evaluate_and_record_wastewater_emission,
+)
+from apps.scaffolds.models import Scaffold, ScaffoldInspection, ScaffoldTagLog
+from apps.scaffolds.services import record_scaffold_inspection, change_scaffold_tag
+from django.core.files.base import ContentFile
+from apps.documents.models import (
+    ConfidentialityLevel,
+    Document,
+    DocumentAcknowledgment,
+    DocumentCategory,
+    DocumentLink,
+    DocumentReviewLog,
+    DocumentStatus,
+    DocumentVersion,
+    VersionStatus,
+)
+from apps.organizations.models import SubscriptionPlan, OrganizationSubscription, ModuleEntitlement
+from apps.calculators.models import CalculationRecord
+from apps.lifting.models import CraneSpecification, LiftingPlan
+from apps.pssr.models import PSSRReview, PSSRChecklistItem, PSSROutstandingAction
+from apps.pssr.services import populate_default_checklist
+from apps.surveys.models import Survey, SurveyQuestion, SurveyQuestionOption, SurveySubmission, SurveyAnswer
+from apps.chat.models import ChatConversation, ChatParticipant, ChatMessage
+from apps.fleet_energy.models import FleetVehicle, FleetFuelLog, EnergyConsumptionLog, ExcavationOperation
+from apps.findings.models import AnomalyEvidence
+from apps.dashboard.models import HSEIndicatorConfig
+
 
 
 DEMO_PASSWORD = "Pass-12345-abc"
@@ -41,10 +94,16 @@ class Command(BaseCommand):
             action="store_true",
             help="Deliberately reset passwords of existing demo-prefixed accounts only.",
         )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Force seeding demo data even if organizations exist without demo accounts.",
+        )
 
     def handle(self, *args, **options):
         self.stdout.write("Starting HSE Guard synthetic demo data seeding...")
         self.reset_demo_passwords = options.get("reset_demo_passwords", False)
+        self.force = options.get("force", False)
 
         # 1. Seed Knowledge Base regulations
         try:
@@ -55,21 +114,16 @@ class Command(BaseCommand):
 
         # 2. Organizations
         def seed_organization(code, name):
-            """Create the demo organization, or refresh it only if it is demo-owned.
-
-            A real organization may legitimately use one of these codes. Refuse
-            to overwrite it unless demo accounts are already attached, which is
-            the marker left by a previous seed run.
-            """
+            """Create the demo organization, or refresh it only if it is demo-owned."""
             existing = Organization.objects.filter(code=code).first()
             if existing is not None:
                 is_demo_owned = Membership.objects.filter(
                     organization=existing, user__username__startswith="demo_"
                 ).exists()
-                if not is_demo_owned:
+                if not is_demo_owned and not self.force:
                     raise CommandError(
                         f"سازمان «{code}» از قبل وجود دارد و نشانه‌ای از داده دمو ندارد؛ "
-                        "برای جلوگیری از بازنویسی داده واقعی، عملیات متوقف شد."
+                        "برای جلوگیری از بازنویسی داده واقعی، عملیات متوقف شد. از --force برای ادامه استفاده کنید."
                     )
                 existing.name = name
                 existing.is_active = True
@@ -240,6 +294,208 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS("Hazards and Risk Assessments seeded."))
 
+        # 5.1. Phase 11: BowTie Diagrams, Barriers & HCMS Matrices
+        bt_furnace, _ = BowTieDiagram.objects.update_or_create(
+            organization=org_foolad,
+            hazard=haz_slag,
+            top_event="انفجار و پاشش سرباره و ذرات مذاب از دهانه کوره قوس الکتریکی",
+            defaults={
+                "description": "مدل‌سازی موانع پیشگیرانه ورود رطوبت و کنترل پرتاب مذاب حین فرآیند دمش اکسیژن",
+                "status": BowTieDiagram.Status.ACTIVE,
+                "owner": hse_mgr_user,
+                "created_by": hse_mgr_user,
+                "target_review_date": (timezone.now() + timedelta(days=60)).date(),
+            },
+        )
+        th_moist, _ = BowTieThreat.objects.update_or_create(
+            diagram=bt_furnace,
+            title="ورود قراضه مرطوب و بسته‌های محبوس آب به حوضچه مذاب کوره",
+            defaults={"category": "operational", "order": 1},
+        )
+        th_cooling, _ = BowTieThreat.objects.update_or_create(
+            diagram=bt_furnace,
+            title="نشت آب از پانل‌های مسی سیستم خنک‌کاری سقف کوره",
+            defaults={"category": "equipment_failure", "order": 2},
+        )
+        cq_burns, _ = BowTieConsequence.objects.update_or_create(
+            diagram=bt_furnace,
+            title="سوختگی شدید حرارتی پرسنل و اپراتورهای مستقر در سکوی ذوب",
+            defaults={"severity_level": BowTieConsequence.Severity.CRITICAL, "order": 1},
+        )
+        cq_damage, _ = BowTieConsequence.objects.update_or_create(
+            diagram=bt_furnace,
+            title="آسیب مکانیکی و سازه‌ای به ترانسفورماتور و تجهیزات جانبی کوره",
+            defaults={"severity_level": BowTieConsequence.Severity.HIGH, "order": 2},
+        )
+
+        bar_preheat, _ = Barrier.objects.update_or_create(
+            diagram=bt_furnace,
+            threat=th_moist,
+            name="سامانه پیش‌گرمایش و خشک‌کن مداوم قراضه شارژ کوره",
+            defaults={
+                "barrier_type": Barrier.BarrierType.PREVENTIVE,
+                "nature": Barrier.Nature.ENGINEERING,
+                "is_critical": True,
+                "owner": hse_mgr_user,
+                "current_effectiveness": Barrier.Effectiveness.EFFECTIVE,
+                "status": Barrier.Status.OPERATIONAL,
+                "description": "کوره پیش‌گرم تونلی با مشعل‌های گازسوز جهت تبخیر رطوبت سطحی آهن‌قراضه",
+            },
+        )
+        bar_sensor, _ = Barrier.objects.update_or_create(
+            diagram=bt_furnace,
+            threat=th_cooling,
+            name="حسگرهای اپتیکی مادون قرمز و پایش مداوم دبی آب خنک‌کن",
+            defaults={
+                "barrier_type": Barrier.BarrierType.PREVENTIVE,
+                "nature": Barrier.Nature.ENGINEERING,
+                "is_critical": True,
+                "owner": supervisor_user,
+                "current_effectiveness": Barrier.Effectiveness.INEFFECTIVE,
+                "status": Barrier.Status.IMPAIRED,
+                "description": "سیستم اینترلاک قطع اضطراری قوس در صورت افت فشار یا نشت مدار خنک‌کاری",
+            },
+        )
+        # Critical barrier failure triggers reassessment flag on hazard!
+        haz_slag.reassessment_needed = True
+        haz_slag.reassessment_reason = "نقص در مانع کنترلی بحرانی: حسگرهای اپتیکی مادون قرمز و پایش مداوم دبی آب خنک‌کن"
+        haz_slag.save(update_fields=["reassessment_needed", "reassessment_reason", "updated_at"])
+
+        Barrier.objects.update_or_create(
+            diagram=bt_furnace,
+            consequence=cq_burns,
+            name="اتاقک کنترل عایق ضد حرارت و جان‌پناه نسوز اپراتوری",
+            defaults={
+                "barrier_type": Barrier.BarrierType.MITIGATIVE,
+                "nature": Barrier.Nature.PHYSICAL,
+                "is_critical": False,
+                "owner": supervisor_user,
+                "current_effectiveness": Barrier.Effectiveness.EFFECTIVE,
+                "status": Barrier.Status.OPERATIONAL,
+                "description": "شیشه‌های نسوز چندلایه و بدنه عایق سرامیکی جهت ممانعت از پرتاب گدازه به اتاقک",
+            },
+        )
+
+        # Barrier Assessment records
+        BarrierAssessment.objects.get_or_create(
+            barrier=bar_sensor,
+            assessment_date=(timezone.now() - timedelta(days=2)).date(),
+            defaults={
+                "effectiveness": Barrier.Effectiveness.INEFFECTIVE,
+                "assessed_by": inspector_user,
+                "evidence_reference": "گزارش تست دوره‌ای مدار ابزاردقیق IR-EAF-01",
+                "notes": "سنسور به علت نشست گرد و غبار نسوز دچار خطای کالیبراسیون شده و فرمان قطع صادر نمی‌کند.",
+            },
+        )
+        BarrierAssessment.objects.get_or_create(
+            barrier=bar_preheat,
+            assessment_date=(timezone.now() - timedelta(days=10)).date(),
+            defaults={
+                "effectiveness": Barrier.Effectiveness.EFFECTIVE,
+                "assessed_by": inspector_user,
+                "evidence_reference": "چک‌لیست بازرسی حرارت‌سنجی تونل شارژ",
+                "notes": "دمای قراضه خروجی بالای ۲۵۰ درجه ثبت شد و رطوبت کاملاً صفر است.",
+            },
+        )
+
+        # HCMS Controls
+        HCMSControlMatrix.objects.update_or_create(
+            organization=org_foolad,
+            hazard=haz_slag,
+            control_title="نصب سرپوش مکنده غبار و شیلدهای متحرک ضد پاشش مذاب",
+            defaults={
+                "barrier": bar_preheat,
+                "hierarchy_of_control": HCMSControlMatrix.Hierarchy.ENGINEERING,
+                "implementation_status": HCMSControlMatrix.Status.IMPLEMENTED,
+                "review_frequency_days": 90,
+                "last_reviewed_at": (timezone.now() - timedelta(days=15)).date(),
+                "next_review_due": (timezone.now() + timedelta(days=75)).date(),
+                "responsible_owner": hse_mgr_user,
+                "initial_risk_score": 16,
+                "residual_likelihood": 2,
+                "residual_severity": 3,
+                "residual_score": 6,
+                "residual_level": "medium",
+            },
+        )
+
+        # BowTie for Petrochemical
+        bt_gas, _ = BowTieDiagram.objects.update_or_create(
+            organization=org_petro,
+            hazard=haz_gas,
+            top_event="نشت بخارات سنگین هیدروکربوری و اشتعال در ناحیه جداسازی الفین",
+            defaults={
+                "description": "پایش یکپارچگی خطوط الفین و کنترل موانع جداسازی گازهای قابل اشتعال",
+                "status": BowTieDiagram.Status.ACTIVE,
+                "owner": petro_supervisor_user,
+                "created_by": petro_supervisor_user,
+                "target_review_date": (timezone.now() + timedelta(days=90)).date(),
+            },
+        )
+        th_seal, _ = BowTieThreat.objects.update_or_create(
+            diagram=bt_gas,
+            title="فرسودگی مکانیکال سیل پمپ گردش خوراک الفین",
+            defaults={"category": "equipment_failure", "order": 1},
+        )
+        cq_vce, _ = BowTieConsequence.objects.update_or_create(
+            diagram=bt_gas,
+            title="انفجار ابر بخار اشتعال‌زا (VCE) و گسترش حریق به مخازن کروی",
+            defaults={"severity_level": BowTieConsequence.Severity.CRITICAL, "order": 1},
+        )
+        Barrier.objects.update_or_create(
+            diagram=bt_gas,
+            threat=th_seal,
+            name="سیستم دابل سیل مکانیکی پلان ۵۳A با گاز نیتروژن تحت فشار",
+            defaults={
+                "barrier_type": Barrier.BarrierType.PREVENTIVE,
+                "nature": Barrier.Nature.ENGINEERING,
+                "is_critical": True,
+                "owner": petro_supervisor_user,
+                "current_effectiveness": Barrier.Effectiveness.EFFECTIVE,
+                "status": Barrier.Status.OPERATIONAL,
+            },
+        )
+        Barrier.objects.update_or_create(
+            diagram=bt_gas,
+            consequence=cq_vce,
+            name="سامانه خاموش‌کننده سیلابی آب و فوم (Deluge System)",
+            defaults={
+                "barrier_type": Barrier.BarrierType.MITIGATIVE,
+                "nature": Barrier.Nature.ENGINEERING,
+                "is_critical": True,
+                "owner": petro_supervisor_user,
+                "current_effectiveness": Barrier.Effectiveness.EFFECTIVE,
+                "status": Barrier.Status.OPERATIONAL,
+            },
+        )
+
+        # Risk Assessment Templates
+        RiskAssessmentTemplate.objects.get_or_create(
+            title="الگوی ارزیابی ریسک فرآیندی کوره قوس و پاتیل مذاب",
+            defaults={
+                "industry": "صنایع فولاد و متالورژی",
+                "category": Hazard.Category.SAFETY,
+                "standard_code": "ISO 45001:2018 / NFPA 652",
+                "version": "1.0",
+                "typical_threats": "ورود رطوبت، افت فشار آب، نوسان قوس الکتریکی",
+                "typical_consequences": "پاشش مذاب، حریق ترانسفورماتور، سوختگی پرسنل",
+                "recommended_barriers": "کوره خشک‌کن قراضه، سنسورهای دبی آب، دیواره حائل نسوز",
+            },
+        )
+        RiskAssessmentTemplate.objects.get_or_create(
+            title="الگوی ارزیابی ریسک نشتی و انفجار واحدهای الفین",
+            defaults={
+                "industry": "صنایع نفت، گاز و پتروشیمی",
+                "category": Hazard.Category.CHEMICAL,
+                "standard_code": "API RP 752 / OSHA PSM 1910.119",
+                "version": "2.1",
+                "typical_threats": "فرسودگی سیل پمپ، نشت فلنج، خطای شیرآلات",
+                "typical_consequences": "انفجار ابر بخار (VCE)، آلودگی هوا، حریق فلش",
+                "recommended_barriers": "مکانیکال سیل پلان ۵۳، دتکتور مادون قرمز، سیستم دلویج آب و فوم",
+            },
+        )
+        self.stdout.write(self.style.SUCCESS("Phase 11 BowTie, Barriers & HCMS seeded."))
+
         # 6. CAPA & NonConformity
         nc_slag, _ = NonConformity.objects.update_or_create(
             organization=org_foolad, workplace=wp_cast,
@@ -408,6 +664,141 @@ class Command(BaseCommand):
                 "uploaded_by": viewer_user,
             }
         )
+
+        # 8. Checklists & Inspections
+        chk_fire, _ = Checklist.objects.update_or_create(
+            organization=org_foolad,
+            title="چک‌لیست ایمنی عمومی و تجهیزات اطفای حریق",
+            defaults={
+                "description": "پایش ماهانه کپسول‌های پودر و گاز، جعبه‌های F و مسیرهای دسترسی اضطراری",
+                "is_active": True,
+                "created_by": hse_mgr_user,
+            },
+        )
+        for idx, text in enumerate([
+            "بررسی فشارسنج و قرار داشتن عقربه در ناحیه سبز گیج",
+            "سالم بودن پلمپ، ضامن و بست نگه‌دارنده شیلنگ تخلیه",
+            "عدم وجود مانع یا دپوی کالا در مقابل کپسول‌ها و فایرباکس‌ها",
+            "اعتبار تاریخ آخرین تست هیدروستاتیک و شارژ دوره‌ای سالانه",
+        ], 1):
+            ChecklistItem.objects.update_or_create(
+                checklist=chk_fire, order=idx,
+                defaults={"text": text, "is_required": True},
+            )
+
+        chk_ppe_cast, _ = Checklist.objects.update_or_create(
+            organization=org_foolad,
+            title="چک‌لیست نظارت بر تجهیزات حفاظت فردی (PPE) کارگاه ریخته‌گری",
+            defaults={
+                "description": "انطباق البسه نسوز، شیلد و گترهای اپراتورهای کوره قوس و پاتیل مذاب",
+                "is_active": True,
+                "created_by": hse_mgr_user,
+            },
+        )
+        for idx, text in enumerate([
+            "استفاده از شیلد محافظ صورت و عینک ضد پاشش مذاب حین تخلیه",
+            "پوشش کامل گتر آلومینایز و دستکش چرمی ساق‌بلند نسوز",
+            "استفاده از کفش ایمنی با سرپنجه فولادی و زیره مقاوم به حرارت",
+            "سلامت و فیت بودن ماسک‌های تنفسی فیلتردار ضد گاز و ذرات فلزی",
+        ], 1):
+            ChecklistItem.objects.update_or_create(
+                checklist=chk_ppe_cast, order=idx,
+                defaults={"text": text, "is_required": True},
+            )
+
+        chk_scaffold, _ = Checklist.objects.update_or_create(
+            organization=org_petro,
+            title="چک‌لیست ایمنی داربست‌بندی و کار در ارتفاع",
+            defaults={
+                "description": "الزامات فنی سازه داربست، تخته‌ها، لوله‌های مهار و سیستم ضدسقوط",
+                "is_active": True,
+                "created_by": hse_mgr_user,
+            },
+        )
+        for idx, text in enumerate([
+            "نصب و سلامت تگ داربست معتبر (Scaffold Tag) سبز رنگ با امضای ناظر",
+            "تکمیل بودن نرده حفاظتی میانی و بالایی به ارتفاع ۹۰ و ۱۱۰ سانتی‌متر",
+            "وجود قرنیز لبه‌دار (Toe-board) به ارتفاع حداقل ۱۵ سانتی‌متر دور سکو",
+            "استفاده کلیه نفرات از کمربند ایمنی فول‌بادی و اتصال به لایف‌لاین",
+        ], 1):
+            ChecklistItem.objects.update_or_create(
+                checklist=chk_scaffold, order=idx,
+                defaults={"text": text, "is_required": True},
+            )
+
+        now_time = timezone.now()
+        insp_fire, _ = Inspection.objects.update_or_create(
+            organization=org_foolad,
+            checklist=chk_fire,
+            title="بازرسی ماهانه تجهیزات اطفای حریق خط نورد گرم",
+            defaults={
+                "workplace": wp_roll,
+                "inspector": inspector_user,
+                "created_by": hse_mgr_user,
+                "scheduled_at": now_time - timedelta(days=5),
+                "performed_at": now_time - timedelta(days=5),
+                "completed_at": now_time - timedelta(days=5),
+                "status": Inspection.Status.COMPLETED,
+                "notes": "کپسول‌های بخش غربی نیازمند بازبینی برچسب شارژ بودند.",
+            },
+        )
+        for item in chk_fire.items.all():
+            res_val = InspectionResponse.Result.CONFORM if item.order != 4 else InspectionResponse.Result.NONCONFORM
+            InspectionResponse.objects.update_or_create(
+                inspection=insp_fire,
+                item=item,
+                defaults={
+                    "item_text": item.text,
+                    "order": item.order,
+                    "is_required": item.is_required,
+                    "result": res_val,
+                    "notes": "برچسب شارژ منقضی شده و نیازمند تمدید است." if res_val == InspectionResponse.Result.NONCONFORM else "مطابق و تأیید شد.",
+                },
+            )
+
+        insp_ppe, _ = Inspection.objects.update_or_create(
+            organization=org_foolad,
+            checklist=chk_ppe_cast,
+            title="پایش میدانی استفاده از PPE در کارگاه ریخته‌گری",
+            defaults={
+                "workplace": wp_cast,
+                "inspector": supervisor_user,
+                "created_by": hse_mgr_user,
+                "scheduled_at": now_time - timedelta(days=2),
+                "performed_at": now_time - timedelta(days=2),
+                "completed_at": now_time - timedelta(days=2),
+                "status": Inspection.Status.COMPLETED,
+                "notes": "کلیه پرسنل شیفت از ادوات کامل و سالم برخوردار بودند.",
+            },
+        )
+        for item in chk_ppe_cast.items.all():
+            InspectionResponse.objects.update_or_create(
+                inspection=insp_ppe,
+                item=item,
+                defaults={
+                    "item_text": item.text,
+                    "order": item.order,
+                    "is_required": item.is_required,
+                    "result": InspectionResponse.Result.CONFORM,
+                    "notes": "وضعیت مطلوب ارزیابی شد.",
+                },
+            )
+
+        insp_scaff, _ = Inspection.objects.update_or_create(
+            organization=org_petro,
+            checklist=chk_scaffold,
+            title="بازرسی هفتگی داربست مخازن کروی واحد ذخیره‌سازی",
+            defaults={
+                "workplace": wp_spheres,
+                "inspector": petro_supervisor_user,
+                "created_by": hse_mgr_user,
+                "scheduled_at": now_time - timedelta(days=1),
+                "performed_at": now_time - timedelta(days=1),
+                "status": Inspection.Status.IN_PROGRESS,
+                "notes": "بررسی اولیه انجام شده و اصلاح قرنیز شمالی در دست اقدام است.",
+            },
+        )
+        self.stdout.write(self.style.SUCCESS("Checklists and inspections seeded."))
 
         # 9. Permits to Work (PTW) & Shift Handover
         def seed_permit(reference_code, defaults):
@@ -1280,6 +1671,7 @@ class Command(BaseCommand):
 
         def seed_assignment(employee, item, stock, issued_on, defaults):
             serial_number = defaults.pop("serial_number", "")
+<<<<<<< HEAD
             # Never use a date in the lookup: demo dates move with "today".
             # A serial (when present) or the note/condition pair identifies the
             # synthetic assignment across repeated runs.
@@ -1295,10 +1687,31 @@ class Command(BaseCommand):
                 lookup["notes"] = defaults.get("notes", "")
                 lookup["condition_on_issue"] = defaults.get("condition_on_issue", "سالم")
             existing = PPEAssignment.objects.filter(**lookup).first()
+=======
+            if serial_number:
+                existing = PPEAssignment.objects.filter(
+                    organization=employee.organization,
+                    item=item,
+                    serial_number=serial_number,
+                    is_synthetic=True,
+                ).first()
+            else:
+                existing = PPEAssignment.objects.filter(
+                    organization=employee.organization,
+                    employee=employee,
+                    item=item,
+                    serial_number=serial_number,
+                    issued_on=issued_on,
+                    is_synthetic=True,
+                ).first()
+>>>>>>> 9ac8cc2ee68accd659473f440b628c66d05ae2fc
             # Real assignments with a similar natural key are never overwritten;
             # a separately marked synthetic row is created instead.
             payload = {
                 **defaults,
+                "employee": employee,
+                "stock": stock,
+                "issued_on": issued_on,
                 "serial_number": serial_number,
                 "issued_on": issued_on,
                 "is_synthetic": True,
@@ -1312,9 +1725,11 @@ class Command(BaseCommand):
                 return existing
             assignment = PPEAssignment(
                 organization=employee.organization,
-                employee=employee,
                 item=item,
+<<<<<<< HEAD
                 stock=stock,
+=======
+>>>>>>> 9ac8cc2ee68accd659473f440b628c66d05ae2fc
                 **payload,
             )
             assignment.full_clean()
@@ -2331,6 +2746,1769 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 "Phase 10 workforce demo data seeded: employees, training, competencies, PTW rules and PPE."
+            )
+        )
+
+        # ==========================================
+        # Phase 12: Workforce Extension, Jobs, Contractors & Attendance
+        # ==========================================
+        def seed_job_position(org, code, defaults):
+            job, _ = JobPosition.objects.update_or_create(
+                organization=org,
+                code=code,
+                defaults={**defaults, "is_synthetic": True},
+            )
+            return job
+
+        job_elec = seed_job_position(
+            org_foolad,
+            "JOB-FA-ELEC",
+            {
+                "title": "تکنسین ارشد برق و ابزار دقیق",
+                "department": "تعمیرات و نگهداری",
+                "description": "نصب، تعمیر و بازرسی تابلوهای برق فشار متوسط و سیستم‌های کنترل.",
+                "risk_level": JobPosition.RiskLevel.HIGH,
+                "required_qualifications": "مدرک کارشناسی برق، گواهینامه ایمنی فشار قوی و کار در ارتفاع.",
+                "is_active": True,
+            },
+        )
+        job_mech = seed_job_position(
+            org_foolad,
+            "JOB-FA-MECH",
+            {
+                "title": "مکانیک تجهیزات دوار و پمپ‌ها",
+                "department": "تعمیرات مکانیک",
+                "description": "تعمیر و نگهداری پمپ‌های هیدرولیک و کمپرسورهای خط نورد.",
+                "risk_level": JobPosition.RiskLevel.MEDIUM,
+                "required_qualifications": "کاردانی مکانیک صنعتی با ۵ سال تجربه در صنایع فولادی.",
+                "is_active": True,
+            },
+        )
+        job_proc = seed_job_position(
+            org_petro,
+            "JOB-SP-PROC",
+            {
+                "title": "اپراتور ارشد اتاق کنترل پتروشیمی",
+                "department": "بهره‌برداری",
+                "description": "پایش فرآیندهای واحد اولفین و سیستم‌های ESD/DCS.",
+                "risk_level": JobPosition.RiskLevel.CRITICAL,
+                "required_qualifications": "مهندسی شیمی یا کنترل فرآیند، صلاحیت کار در فضاهای دارای ریسک آتش‌سوزی.",
+                "is_active": True,
+            },
+        )
+
+        # Job assignments
+        if emp_morteza:
+            EmployeeJobAssignment.objects.update_or_create(
+                organization=org_foolad,
+                employee=emp_morteza,
+                job_position=job_elec,
+                defaults={
+                    "is_primary": True,
+                    "start_date": today - timedelta(days=180),
+                    "end_date": None,
+                    "notes": "انتصاب اصلی به عنوان سرپرست برق شیفت.",
+                    "is_synthetic": True,
+                },
+            )
+        if emp_behrooz:
+            EmployeeJobAssignment.objects.update_or_create(
+                organization=org_foolad,
+                employee=emp_behrooz,
+                job_position=job_mech,
+                defaults={
+                    "is_primary": True,
+                    "start_date": today - timedelta(days=365),
+                    "end_date": None,
+                    "notes": "مسئول پمپ‌های فشار قوی.",
+                    "is_synthetic": True,
+                },
+            )
+        if emp_sara:
+            EmployeeJobAssignment.objects.update_or_create(
+                organization=org_petro,
+                employee=emp_sara,
+                job_position=job_proc,
+                defaults={
+                    "is_primary": True,
+                    "start_date": today - timedelta(days=200),
+                    "end_date": None,
+                    "notes": "شیفت الف واحد اولفین.",
+                    "is_synthetic": True,
+                },
+            )
+
+        # Contractor Companies
+        def seed_contractor(org, name, defaults):
+            cont, _ = ContractorCompany.objects.update_or_create(
+                organization=org,
+                name=name,
+                defaults={**defaults, "is_synthetic": True},
+            )
+            return cont
+
+        cont_paydar = seed_contractor(
+            org_foolad,
+            "شرکت مهندسی پایدار سازه البرز",
+            {
+                "registration_no": "REG-99120",
+                "economic_code": "10103456789",
+                "contact_person": "مهندس احمدی",
+                "contact_phone": "02188990011",
+                "contact_email": "info@paydarsazeh.ir",
+                "status": ContractorCompany.Status.APPROVED,
+                "safety_score": 92.50,
+                "contract_start": today - timedelta(days=90),
+                "contract_end": today + timedelta(days=275),
+                "notes": "پیمانکار رتبه یک تعمیرات مکانیکی و سازه‌های فلزی.",
+            },
+        )
+
+        cont_ariana = seed_contractor(
+            org_foolad,
+            "پیمانکاری آریانا صنعت گاز",
+            {
+                "registration_no": "REG-88410",
+                "economic_code": "10105678901",
+                "contact_person": "مهندس مرادی",
+                "contact_phone": "02188443322",
+                "contact_email": "contact@arianagas.ir",
+                "status": ContractorCompany.Status.PENDING,
+                "safety_score": 78.00,
+                "contract_start": today - timedelta(days=30),
+                "contract_end": today + timedelta(days=150),
+                "notes": "در حال ارزیابی صلاحیت ایمنی برای خطوط انتقال گاز.",
+            },
+        )
+
+        # Contractor Documents
+        ContractorDocument.objects.update_or_create(
+            organization=org_foolad,
+            contractor=cont_paydar,
+            document_type=ContractorDocument.DocumentType.HSE_PLAN,
+            defaults={
+                "title": "طرح سلامت، ایمنی و محیط زیست (HSE Plan)",
+                "valid_until": today + timedelta(days=200),
+                "status": ContractorDocument.Status.VERIFIED,
+                "verification_notes": "تأییدشده توسط اداره بازرسی HSE کارخانه فولاد.",
+                "is_synthetic": True,
+            },
+        )
+        ContractorDocument.objects.update_or_create(
+            organization=org_foolad,
+            contractor=cont_paydar,
+            document_type=ContractorDocument.DocumentType.INSURANCE_POLICY,
+            defaults={
+                "title": "بیمه‌نامه مسئولیت مدنی کارفرما در قبال کارکنان",
+                "valid_until": today + timedelta(days=120),
+                "status": ContractorDocument.Status.VERIFIED,
+                "verification_notes": "شماره بیمه‌نامه: INS-9843-IR",
+                "is_synthetic": True,
+            },
+        )
+
+        # Contractor Workers
+        worker_ali, _ = ContractorWorker.objects.update_or_create(
+            organization=org_foolad,
+            contractor=cont_paydar,
+            national_id="0019876543",
+            defaults={
+                "first_name": "صادق",
+                "last_name": "کریمی",
+                "mobile": "09121112233",
+                "trade": "جوشکار تخصصی خطوط انتقال",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+        worker_reza, _ = ContractorWorker.objects.update_or_create(
+            organization=org_foolad,
+            contractor=cont_paydar,
+            national_id="0023456789",
+            defaults={
+                "first_name": "پیمان",
+                "last_name": "رضایی",
+                "mobile": "09123334455",
+                "trade": "کمک جوشکار و سنگ‌زن",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        # Contractor Evaluation
+        ContractorEvaluation.objects.update_or_create(
+            organization=org_foolad,
+            contractor=cont_paydar,
+            evaluation_date=today - timedelta(days=15),
+            defaults={
+                "score": 92.50,
+                "criteria_scores": {"ppe_compliance": 95, "ptw_discipline": 90, "incident_rate": 92.5},
+                "findings": "انضباط و پایبندی عالی به رویه‌های صدور مجوز کار و استفاده از تجهیزات ایمنی فردی.",
+                "is_synthetic": True,
+            },
+        )
+
+        # Attendance Records for today
+        now_dt = timezone.now()
+        AttendanceRecord.objects.update_or_create(
+            organization=org_foolad,
+            person_type=AttendanceRecord.PersonType.EMPLOYEE,
+            employee=emp_morteza,
+            date=today,
+            defaults={
+                "workplace": wp_roll,
+                "check_in": now_dt.replace(hour=7, minute=45, second=0, microsecond=0),
+                "entry_source": AttendanceRecord.EntrySource.GATE_SCANNER,
+                "status": AttendanceRecord.Status.PRESENT,
+                "notes": "ورود سر شیفت صبح با احراز هویت بیومتریک.",
+                "is_synthetic": True,
+            },
+        )
+        AttendanceRecord.objects.update_or_create(
+            organization=org_foolad,
+            person_type=AttendanceRecord.PersonType.EMPLOYEE,
+            employee=emp_behrooz,
+            date=today,
+            defaults={
+                "workplace": wp_cast,
+                "check_in": now_dt.replace(hour=8, minute=20, second=0, microsecond=0),
+                "entry_source": AttendanceRecord.EntrySource.GATE_SCANNER,
+                "status": AttendanceRecord.Status.LATE,
+                "notes": "۲۰ دقیقه تأخیر به‌دلیل بازرسی تجهیزات حفاظتی در گیت.",
+                "is_synthetic": True,
+            },
+        )
+        AttendanceRecord.objects.update_or_create(
+            organization=org_foolad,
+            person_type=AttendanceRecord.PersonType.CONTRACTOR_WORKER,
+            contractor_worker=worker_ali,
+            date=today,
+            defaults={
+                "workplace": wp_roll,
+                "check_in": now_dt.replace(hour=7, minute=50, second=0, microsecond=0),
+                "entry_source": AttendanceRecord.EntrySource.GATE_SCANNER,
+                "status": AttendanceRecord.Status.PRESENT,
+                "notes": "ورود اکیپ جوشکاری پیمانکار پایدار سازه با مجوز کار گرم معتبر.",
+                "is_synthetic": True,
+            },
+        )
+
+        # ==========================================
+        # Phase 13: Advanced Permit to Work & SIMOPS Conflicts
+        # ==========================================
+        if ptw1 is not None and cont_paydar is not None:
+            ptw1.contractor = cont_paydar
+            ptw1.weather_condition_ok = True
+            ptw1.weather_notes = "وضعیت جوی کاملاً آرام، سرعت باد ۸ کیلومتر بر ساعت، دمای ۲۲ درجه، تهویه مطلوب سوله نورد."
+            ptw1.save(update_fields=["contractor", "weather_condition_ok", "weather_notes"])
+
+        ptw_hot_sp = seed_permit(
+            "PTW-202610-0202",
+            {
+                "organization": org_petro,
+                "workplace": wp_spheres,
+                "permit_type": Permit.PermitType.HOT_WORK,
+                "title": "جوشکاری فلنج منیفولد خروجی مجاور مخزن کروی TK-201",
+                "description": "برشکاری و تعویض فلنج ۶ اینچ خط تخلیه گاز مجاور مخزن کروی فعال.",
+                "work_area": "محوطه پیرامونی مخزن کروی TK-201 - لاین تخلیه اضطراری",
+                "equipment_involved": "دستگاه جوش اینورتر، فرز آهنگری، اسپید کور عایق",
+                "valid_from": now - timedelta(hours=1),
+                "valid_until": now + timedelta(hours=7),
+                "requester": petro_supervisor_user,
+                "responsible_supervisor": petro_supervisor_user,
+                "approver": hse_mgr_user,
+                "status": Permit.Status.APPROVED,
+                "assigned_workers": "صادق کریمی (سرپرست جوشکاری)",
+                "gas_testing_required": True,
+                "gas_testing_results": "LEL: 0%, H2S: 0 ppm در محدوده اطراف لوله",
+                "isolation_loto_required": True,
+                "isolation_loto_details": "خط لوله بلانک شده و شیر اصلی گاز پلمپ و قفل گردید.",
+                "weather_condition_ok": True,
+                "weather_notes": "سرعت باد زیر ۱۰ نات، بدون صاعقه و بارش.",
+            },
+        )
+
+        if ptw5 is not None and ptw_hot_sp is not None:
+            SIMOPSConflict.objects.update_or_create(
+                organization=org_petro,
+                permit_a=ptw5,
+                permit_b=ptw_hot_sp,
+                workplace=wp_spheres,
+                defaults={
+                    "conflict_type": SIMOPSConflict.ConflictType.INCOMPATIBLE_TYPES,
+                    "severity": SIMOPSConflict.Severity.CRITICAL_BLOCK,
+                    "description": "تداخل بحرانی: همزمانی عملیات ورود به فضای بسته (مخزن گاز مایع TK-201) و عملیات جوشکاری/کار گرم در محدوده خطر انفجاری.",
+                    "is_resolved": False,
+                    "override_approved": False,
+                    "is_synthetic": True,
+                },
+            )
+
+        ptw_elec_sp = seed_permit(
+            "PTW-202610-0203",
+            {
+                "organization": org_petro,
+                "workplace": wp_spheres,
+                "permit_type": Permit.PermitType.ELECTRICAL_ISOLATION,
+                "title": "کابل‌کشی سیستم ابزار دقیق و تله‌متری مخازن گاز",
+                "description": "عبور کابل‌های ضدجرقه فشار ضعیف سیستم پایش سطح مخازن.",
+                "work_area": "سینی کابل محوطه مخازن کروی",
+                "equipment_involved": "کابل‌کش دستی، مولتی‌متر دیجیتال",
+                "valid_from": now - timedelta(hours=2),
+                "valid_until": now + timedelta(hours=4),
+                "requester": petro_supervisor_user,
+                "responsible_supervisor": petro_supervisor_user,
+                "approver": hse_mgr_user,
+                "status": Permit.Status.ACTIVE,
+                "assigned_workers": "پیمان اسدی",
+                "weather_condition_ok": True,
+            },
+        )
+
+        if ptw5 is not None and ptw_elec_sp is not None:
+            SIMOPSConflict.objects.update_or_create(
+                organization=org_petro,
+                permit_a=ptw5,
+                permit_b=ptw_elec_sp,
+                workplace=wp_spheres,
+                defaults={
+                    "conflict_type": SIMOPSConflict.ConflictType.SPATIAL_OVERLAP,
+                    "severity": SIMOPSConflict.Severity.WARNING,
+                    "description": "هشدار همزمانی فعالیت برقی در مجاورت فضای بسته؛ تردد پرسنل در مسیر ورودی منهول.",
+                    "is_resolved": False,
+                    "override_approved": True,
+                    "override_by": petro_supervisor_user,
+                    "override_reason": "کانال کابل در فاصله ۳۰ متری مخزن قرار داشته و مسیر تردد کاملاً تفکیک و ایمن‌سازی شده است.",
+                    "override_at": now_dt - timedelta(hours=1, minutes=30),
+                    "is_synthetic": True,
+                },
+            )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Phase 13 PTW & SIMOPS demo data seeded: contractor linkages, weather checks, and SIMOPS conflict radar matrix."
+            )
+        )
+
+        # ==========================================
+        # Phase 14: Environmental Management & Occupational Hygiene
+        # ==========================================
+        # 1. Environmental Thresholds
+        th_cod, _ = EnvironmentalThreshold.objects.update_or_create(
+            organization=org_foolad,
+            category=EnvironmentalThreshold.Category.WASTEWATER,
+            parameter="COD",
+            defaults={
+                "name": "حداکثر مجاز COD پساب صنعتی خروجی",
+                "limit_type": EnvironmentalThreshold.LimitType.MAX_LIMIT,
+                "limit_value": 100.00,
+                "unit": "mg/L",
+                "standard_reference": "استاندارد خروجی فاضلاب سازمان حفاظت محیط زیست",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        th_ph, _ = EnvironmentalThreshold.objects.update_or_create(
+            organization=org_foolad,
+            category=EnvironmentalThreshold.Category.WASTEWATER,
+            parameter="PH",
+            defaults={
+                "name": "دامنه مجاز pH پساب صنعتی",
+                "limit_type": EnvironmentalThreshold.LimitType.RANGE,
+                "min_value": 6.50,
+                "limit_value": 8.50,
+                "unit": "pH",
+                "standard_reference": "استاندارد خروجی فاضلاب سازمان حفاظت محیط زیست",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        th_noise, _ = EnvironmentalThreshold.objects.update_or_create(
+            organization=org_foolad,
+            category=EnvironmentalThreshold.Category.NOISE,
+            parameter="NOISE_DBA",
+            defaults={
+                "name": "حد مجاز صوت مواجهه ۸ ساعته شغلی",
+                "limit_type": EnvironmentalThreshold.LimitType.MAX_LIMIT,
+                "limit_value": 85.00,
+                "unit": "dBA",
+                "standard_reference": "حدود مجاز مواجهه شغلی (OEL) وزارت بهداشت",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        th_wbgt, _ = EnvironmentalThreshold.objects.update_or_create(
+            organization=org_foolad,
+            category=EnvironmentalThreshold.Category.HEAT_STRESS,
+            parameter="WBGT_C",
+            defaults={
+                "name": "حد مجاز استرس حرارتی مشاغل سنگین",
+                "limit_type": EnvironmentalThreshold.LimitType.MAX_LIMIT,
+                "limit_value": 28.00,
+                "unit": "°C WBGT",
+                "standard_reference": "حدود مواجهه شغلی با عوامل گرمازا (OEL)",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        # 2. Environmental Aspects (ISO 14001)
+        asp1, _ = EnvironmentalAspect.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            activity_or_process="ذوب ضایعات در کوره قوس الکتریکی",
+            aspect="انتشار غبار فلزی و گازهای مونوکسید کربن و SO2",
+            defaults={
+                "impact": "آلودگی هوای اتمسفر و آسیب به سیستم تنفسی پرسنل و ساکنان مجاور",
+                "condition": EnvironmentalAspect.Condition.NORMAL,
+                "severity_score": 4,
+                "probability_score": 4,
+                "control_measures": "نصب غبارگیرهای بگ‌هاوس و فیلتراسیون با پایش مداوم افت فشار بگ‌ها",
+                "is_synthetic": True,
+            },
+        )
+
+        asp2, _ = EnvironmentalAspect.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            activity_or_process="خنک‌کاری غلتک‌های خط نورد با آب صنعتی",
+            aspect="تولید پساب صنعتی حاوی روغن هیدرولیک و ذرات پوسته اکسیدی",
+            defaults={
+                "impact": "آلودگی منابع آب سطحی، خاک و ایجاد لجن‌های هیدروکربنی",
+                "condition": EnvironmentalAspect.Condition.NORMAL,
+                "severity_score": 4,
+                "probability_score": 3,
+                "control_measures": "انتقال پساب به حوضچه اسکیمر روغن و ته‌نشینی لجن و سپس بازچرخانی ۹۰ درصدی آب",
+                "is_synthetic": True,
+            },
+        )
+
+        asp3, _ = EnvironmentalAspect.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_cast,
+            activity_or_process="تخلیه سرباره داغ از پاتیل مذاب ریخته‌گری",
+            aspect="ریزش ناگهانی و انفجار سرباره در مجاورت رطوبت",
+            defaults={
+                "impact": "آتش‌سوزی گسترده صنعتی و پرتاب ترکش‌های مذاب در محیط کارخانه",
+                "condition": EnvironmentalAspect.Condition.EMERGENCY,
+                "severity_score": 5,
+                "probability_score": 2,
+                "control_measures": "بازرسی خشک بودن کامل چاله سرباره و ممنوعیت تردد افراد غیرمجاز حین پاتیل‌ریزی",
+                "is_synthetic": True,
+            },
+        )
+
+        asp4, _ = EnvironmentalAspect.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            activity_or_process="بسته‌بندی بندیل‌های میلگرد و تسمه",
+            aspect="تولید ضایعات تسمه فولادی و پالت‌های چوبی شکسته",
+            defaults={
+                "impact": "انباشت ضایعات جامد غیرخطرناک و اشغال فضای سایت",
+                "condition": EnvironmentalAspect.Condition.NORMAL,
+                "severity_score": 1,
+                "probability_score": 3,
+                "control_measures": "تفکیک در مبدأ و فروش به کارگاه‌های بازیافت چوب و ذوب مجدد تسمه‌ها",
+                "is_synthetic": True,
+            },
+        )
+
+        # 3. Waste Records
+        WasteRecord.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            waste_name="روغن سوخته هیدرولیک ISO VG 68",
+            defaults={
+                "waste_type": WasteRecord.WasteType.HAZARDOUS,
+                "quantity": 650.00,
+                "unit": WasteRecord.Unit.LITER,
+                "storage_location": "انبار مسقف پسماندهای ویژه سوله ۴",
+                "generation_date": today - timedelta(days=8),
+                "status": WasteRecord.Status.STORED,
+                "notes": "نگهداری در بشکه‌های ۲۲۰ لیتری فلزی بر روی پالت مقاوم به نشت و دارای حوضچه مهار.",
+                "is_synthetic": True,
+            },
+        )
+
+        WasteRecord.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            waste_name="لجن‌های آلوده به هیدروکربن‌های نفتی",
+            defaults={
+                "waste_type": WasteRecord.WasteType.HAZARDOUS,
+                "quantity": 2.40,
+                "unit": WasteRecord.Unit.TON,
+                "storage_location": "محوطه حوضچه آرامش تصفیه پساب",
+                "generation_date": today - timedelta(days=20),
+                "status": WasteRecord.Status.DISPOSED,
+                "consignment_number": "MAN-1405-098",
+                "contractor": cont_paydar,
+                "disposal_facility": "مجتمع مدیریت و امحاء پسماندهای ویژه کویر",
+                "disposal_method": "سوزاندن در کوره زباله‌سوز دوار حرارت بالا با فیلتراسیون گاز خروجی",
+                "disposal_date": today - timedelta(days=5),
+                "notes": "حمل ایمن با کامیون دارای پلاک حمل مواد خطرناک و برگه اطلاعات ایمنی مواد (MSDS).",
+                "is_synthetic": True,
+            },
+        )
+
+        WasteRecord.objects.update_or_create(
+            organization=org_foolad,
+            workplace=wp_cast,
+            waste_name="سرباره خنک‌شده کوره قوس الکتریکی",
+            defaults={
+                "waste_type": WasteRecord.WasteType.NON_HAZARDOUS,
+                "quantity": 18.50,
+                "unit": WasteRecord.Unit.TON,
+                "storage_location": "دپوی روباز سرباره ضلع غربی کارخانه",
+                "generation_date": today - timedelta(days=3),
+                "status": WasteRecord.Status.TRANSFERRED,
+                "consignment_number": "MAN-1405-112",
+                "notes": "انتقال به کارخانه سیمان جهت استفاده به عنوان پوزولان و مصالح زیرسازی جاده.",
+                "is_synthetic": True,
+            },
+        )
+
+        # 4. Wastewater & Emissions (with automated exceedance NonConformity creation)
+        evaluate_and_record_wastewater_emission(
+            organization=org_foolad,
+            workplace=wp_roll,
+            sampling_point="حوضچه خروجی تصفیه‌خانه بیولوژیکی",
+            category=WastewaterEmissionRecord.Category.WASTEWATER,
+            sample_date=today - timedelta(days=4),
+            parameter="PH",
+            measured_value=7.35,
+            unit="pH",
+            threshold=th_ph,
+            laboratory_name="آزمایشگاه معتمد محیط زیست آب آزما البرز",
+            test_report_number="LAB-REP-1405-412",
+            notes="کیفیت خروجی پساب از نظر اسیدیته کاملاً در محدوده استاندارد تخلیه به آب‌های سطحی است.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        evaluate_and_record_wastewater_emission(
+            organization=org_foolad,
+            workplace=wp_roll,
+            sampling_point="کانال سرریز حوضچه اسکیمر نورد",
+            category=WastewaterEmissionRecord.Category.WASTEWATER,
+            sample_date=today - timedelta(days=2),
+            parameter="COD",
+            measured_value=178.50,  # Exceeds 100 mg/L limit
+            unit="mg/L",
+            threshold=th_cod,
+            laboratory_name="آزمایشگاه معتمد محیط زیست آب آزما البرز",
+            test_report_number="LAB-REP-1405-498",
+            notes="تخطی از حد استاندارد به علت خرابی اسکیمر مکانیکی چربی‌گیر لاین خنک‌کننده.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        # 5. Occupational Hygiene Surveys
+        evaluate_and_record_hygiene_survey(
+            organization=org_foolad,
+            workplace=wp_roll,
+            category=OccupationalHygieneRecord.Category.LIGHTING,
+            location_details="کابین کنترل مرکزی خط نورد",
+            survey_date=today - timedelta(days=10),
+            surveyor_name="مهندس کاظمی (کارشناس بهداشت حرفه‌ای)",
+            measured_value=480.00,
+            unit="Lux",
+            control_recommendation="شدت روشنایی موضعی و عمومی با استاندارد ۵۰۰ لوکس اتاق کنترل تطابق دارد.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        evaluate_and_record_hygiene_survey(
+            organization=org_foolad,
+            workplace=wp_roll,
+            category=OccupationalHygieneRecord.Category.NOISE,
+            location_details="کارگاه تراش غلتک‌ها",
+            survey_date=today - timedelta(days=7),
+            surveyor_name="مهندس کاظمی (کارشناس بهداشت حرفه‌ای)",
+            measured_value=81.20,
+            unit="dBA",
+            threshold=th_noise,
+            control_recommendation="میزان تراز صوتی در محدوده هشدار (بالای ۸۰ دسی‌بل)؛ پایش ادواری ۳ ماهه الزامی است.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        evaluate_and_record_hygiene_survey(
+            organization=org_foolad,
+            workplace=wp_roll,
+            category=OccupationalHygieneRecord.Category.NOISE,
+            location_details="سکوی اپراتوری استند شماره ۳ نورد مقاطع سنگین",
+            survey_date=today - timedelta(days=1),
+            surveyor_name="مهندس کاظمی (کارشناس بهداشت حرفه‌ای)",
+            measured_value=93.60,  # Exceeds 85 dBA
+            unit="dBA",
+            threshold=th_noise,
+            control_recommendation="تجهیز اجباری اپراتورها به ایرماف با تضعیف SNR>=30dB، عایق‌کاری آکوستیک کابین و کاهش زمان شیفت در ایستگاه.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        evaluate_and_record_hygiene_survey(
+            organization=org_foolad,
+            workplace=wp_cast,
+            category=OccupationalHygieneRecord.Category.HEAT_STRESS,
+            location_details="سکوی تخلیه پاتیل مذاب ایستگاه ریخته‌گری",
+            survey_date=today - timedelta(days=1),
+            surveyor_name="مهندس کاظمی (کارشناس بهداشت حرفه‌ای)",
+            measured_value=31.40,  # Exceeds 28.0 WBGT
+            unit="°C WBGT",
+            threshold=th_wbgt,
+            control_recommendation="برقراری پروتکل کار در گرما: شیفت چرخشی ۲۵٪ کار و ۷۵٪ استراحت در اتاق خنک، توزیع شربت آبلیمو و پایش علائم دهیدراتاسیون.",
+            actor=hse_mgr_user,
+            auto_create_nonconformity=True,
+            is_synthetic=True,
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Phase 14 Environmental & Occupational Hygiene demo data seeded: thresholds, aspects, hazardous waste, emission exceedances with CAPA, and hygiene surveys."
+            )
+        )
+
+        # 15. Phase 15: Scaffold Tag Management & Specialized Inspections
+        # -------------------------------------------------------------
+        # 1. Green Tag Scaffold (SCF-CAST-001) - Modular System in Cast workshop, fully inspected and safe
+        scf_green, _ = Scaffold.objects.update_or_create(
+            organization=org_foolad,
+            tag_number="SCF-CAST-001",
+            defaults={
+                "workplace": wp_cast,
+                "scaffold_type": Scaffold.ScaffoldType.MODULAR_SYSTEM,
+                "load_duty": Scaffold.LoadDuty.HEAVY_DUTY,
+                "location_details": "تاج سوله ریخته‌گری، پای ستون شرقی جهت تعمیر ریل جرثقیل سقفی",
+                "height_meters": 14.50,
+                "length_meters": 12.00,
+                "width_meters": 2.50,
+                "contractor": cont_paydar,
+                "erected_by": "تیم داربست‌بندی شرکت مهندسی پایدار سازه",
+                "erection_date": today - timedelta(days=2),
+                "intended_use": "دسترسی به ریل و روشنایی جرثقیل سقفی ۳۰ تنی",
+                "tag_status": Scaffold.TagStatus.GREEN_SAFE,
+                "current_tag_valid_until": timezone.now() + timedelta(days=5),
+                "inspection_interval_days": 7,
+                "last_inspection_date": today - timedelta(days=2),
+                "next_inspection_due": today + timedelta(days=5),
+                "is_synthetic": True,
+            },
+        )
+
+        # Link Green Scaffold to Height Permit ptw2
+        if ptw2 and ptw2.is_synthetic:
+            ptw2.scaffold = scf_green
+            ptw2.save(update_fields=["scaffold"])
+
+        # Record valid inspection for scf_green
+        record_scaffold_inspection(
+            scaffold=scf_green,
+            inspector_name="مهندس قاسمی (بازرس ارشد ایمنی)",
+            result_tag=Scaffold.TagStatus.GREEN_SAFE,
+            inspection_date=today - timedelta(days=2),
+            validity_days=7,
+            base_plates_ok=True,
+            bracing_ok=True,
+            guardrails_ok=True,
+            toeboards_ok=True,
+            planks_decking_ok=True,
+            ties_anchors_ok=True,
+            ladder_access_ok=True,
+            findings="کلیه اجزای سازه‌ای و مهارها سالم و منطبق با استاندارد BS EN 12811 ارزیابی گردید.",
+            restrictions_notes="",
+            inspector=hse_mgr_user,
+            is_synthetic=True,
+        )
+
+        # 2. Yellow Tag Scaffold (SCF-ROLL-002) - Tube & Coupler in Roll workshop, restricted access
+        scf_yellow, _ = Scaffold.objects.update_or_create(
+            organization=org_foolad,
+            tag_number="SCF-ROLL-002",
+            defaults={
+                "workplace": wp_roll,
+                "scaffold_type": Scaffold.ScaffoldType.TUBE_COUPLER,
+                "load_duty": Scaffold.LoadDuty.MEDIUM_DUTY,
+                "location_details": "دیواره خروجی کوره پیش‌گرم نورد مقاطع",
+                "height_meters": 8.00,
+                "length_meters": 6.00,
+                "width_meters": 2.00,
+                "contractor": cont_paydar,
+                "erected_by": "اکبر حیدری (سرپرست داربست‌بندی)",
+                "erection_date": today - timedelta(days=1),
+                "intended_use": "عایق‌کاری جداره حرارتی کوره نورد",
+                "tag_status": Scaffold.TagStatus.YELLOW_RESTRICTED,
+                "current_tag_valid_until": timezone.now() + timedelta(days=6),
+                "yellow_restrictions": "فقط نفرات داربست‌بند با هارنس متصل به لایف‌لاین مستقل مجاز به کار روی سکوی سوم هستند.",
+                "inspection_interval_days": 7,
+                "last_inspection_date": today - timedelta(days=1),
+                "next_inspection_due": today + timedelta(days=6),
+                "is_synthetic": True,
+            },
+        )
+
+        record_scaffold_inspection(
+            scaffold=scf_yellow,
+            inspector_name="مهندس قاسمی (بازرس ارشد ایمنی)",
+            result_tag=Scaffold.TagStatus.YELLOW_RESTRICTED,
+            inspection_date=today - timedelta(days=1),
+            validity_days=7,
+            base_plates_ok=True,
+            bracing_ok=True,
+            guardrails_ok=True,
+            toeboards_ok=True,
+            planks_decking_ok=True,
+            ties_anchors_ok=True,
+            ladder_access_ok=True,
+            findings="برپایی سکوی سوم نیمه‌کاره است؛ تگ زرد الصاق و تردد محدود گردید.",
+            restrictions_notes="فقط نفرات داربست‌بند با هارنس متصل به لایف‌لاین مستقل مجاز به کار روی سکوی سوم هستند.",
+            inspector=hse_mgr_user,
+            is_synthetic=True,
+        )
+
+        # 3. Red Tag Scaffold (SCF-ROLL-003) - Mobile Tower in Roll workshop, unsafe with failed checks & overdue
+        scf_red, _ = Scaffold.objects.update_or_create(
+            organization=org_foolad,
+            tag_number="SCF-ROLL-003",
+            defaults={
+                "workplace": wp_roll,
+                "scaffold_type": Scaffold.ScaffoldType.MOBILE_TOWER,
+                "load_duty": Scaffold.LoadDuty.LIGHT_DUTY,
+                "location_details": "انبار ضایعات و قطعات یدکی نورد سنگین",
+                "height_meters": 6.20,
+                "length_meters": 3.00,
+                "width_meters": 3.00,
+                "contractor": None,
+                "erected_by": "واحد تأسیسات داخلی کارخانه",
+                "erection_date": today - timedelta(days=20),
+                "intended_use": "رنگ‌آمیزی ستون‌ها و دریچه‌های هوارسان",
+                "tag_status": Scaffold.TagStatus.RED_UNSAFE,
+                "current_tag_valid_until": None,
+                "yellow_restrictions": "",
+                "inspection_interval_days": 7,
+                "last_inspection_date": today - timedelta(days=14),
+                "next_inspection_due": today - timedelta(days=7),  # Overdue by 7 days
+                "is_synthetic": True,
+            },
+        )
+
+        record_scaffold_inspection(
+            scaffold=scf_red,
+            inspector_name="مهندس قاسمی (بازرس ارشد ایمنی)",
+            result_tag=Scaffold.TagStatus.RED_UNSAFE,
+            inspection_date=today - timedelta(days=14),
+            validity_days=7,
+            base_plates_ok=True,
+            bracing_ok=False,  # Failed check
+            guardrails_ok=False,  # Failed check
+            toeboards_ok=False,  # Failed check
+            planks_decking_ok=True,
+            ties_anchors_ok=True,
+            ladder_access_ok=True,
+            findings="عدم نصب تخته پاخور، شل بودن بادبندهای قطری و فقدان لوله حفاظ میانی در ارتفاع ۶ متری. تگ قرمز الصاق و کارگاه مسدود شد.",
+            restrictions_notes="",
+            inspector=hse_mgr_user,
+            is_synthetic=True,
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Phase 15 Scaffold Tag Management demo data seeded: 3-tag lifecycle (green safe, yellow restricted, red unsafe), 7-point inspections, tag logs, and PTW height linkage."
+            )
+        )
+
+        # ==========================================
+        # Phase 16: HSE Document Control, Versioning & Secure Archive
+        # ==========================================
+        self.stdout.write(self.style.NOTICE("Seeding Phase 16: HSE Document Control, Versioning & Secure Archive..."))
+
+        # Helper to create/get sample file content
+        def sample_pdf_content(title_text, version_label):
+            return ContentFile(
+                f"%PDF-1.4 HSE GUARD CONTROLLED DOCUMENT\nDocument: {title_text}\nVersion: {version_label}\nSecurity: Tamper-Evident SHA-256\n".encode("utf-8"),
+                name=f"{version_label}.pdf",
+            )
+
+        # 1. Approved Effective Procedure with Multiple Revisions (DOC-SOP-HSE-001)
+        doc_height, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-SOP-HSE-001",
+            defaults={
+                "title": "دستورالعمل جامع ایمنی کار در ارتفاع و پیشگیری از سقوط",
+                "description": "پروتکل اجرایی الزامات کار در ارتفاع بالای ۱.۸ متر، استفاده از هارنس، لایف‌لاین، بازرسی تگ داربست و سامانه توقف سقوط.",
+                "category": DocumentCategory.PROCEDURE,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.EFFECTIVE,
+                "department": "واحد ایمنی و حفاظت فنی",
+                "workplace": wp_roll,
+                "owner": hse_mgr_user,
+                "author": inspector_user,
+                "assigned_reviewer": hse_mgr_user,
+                "effective_date": today - timedelta(days=15),
+                "next_review_date": today + timedelta(days=350),
+                "expiry_date": today + timedelta(days=715),
+                "retention_years": 7,
+                "tags": "ارتفاع, داربست, هارنس, لایف‌لاین, سقوط",
+                "requires_acknowledgment": True,
+                "is_synthetic": True,
+            },
+        )
+
+        # Revision 1.0 (Superseded)
+        v1_height, _ = DocumentVersion.objects.update_or_create(
+            document=doc_height,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("کار در ارتفاع", "v1.0"),
+                "original_filename": "SOP_Work_At_Height_v1.0.pdf",
+                "file_size_bytes": 1024 * 125,
+                "file_hash_sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+                "mime_type": "application/pdf",
+                "change_summary": "تدوین اولیه دستورالعمل طبق آیین‌نامه ایمنی کار در ارتفاع وزارت تعاون، کار و رفاه اجتماعی",
+                "uploaded_by": inspector_user,
+                "status": VersionStatus.SUPERSEDED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=90),
+                "review_notes": "نگارش اولیه تصویب شد.",
+                "is_synthetic": True,
+            },
+        )
+
+        # Revision 2.0 (Approved, Current Effective)
+        v2_height, _ = DocumentVersion.objects.update_or_create(
+            document=doc_height,
+            version_number="2.0",
+            defaults={
+                "file": sample_pdf_content("کار در ارتفاع", "v2.0"),
+                "original_filename": "SOP_Work_At_Height_v2.0_Final.pdf",
+                "file_size_bytes": 1024 * 240,
+                "file_hash_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "mime_type": "application/pdf",
+                "change_summary": "یکپارچه‌سازی فرآیند با سیستم بازرسی ۷ گانه تگ داربست (فاز ۱۵) و اعمال کنترل‌های صلاحیت نفرات مجاز داربست‌بندی",
+                "uploaded_by": inspector_user,
+                "status": VersionStatus.APPROVED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=15),
+                "review_notes": "بازنگری با موفقیت انجام شد؛ بندهای بازرسی تگ داربست و الزام هارنس متصل به لایف‌لاین مستقل تأیید گردید.",
+                "is_synthetic": True,
+            },
+        )
+        if doc_height.current_version != v2_height:
+            doc_height.current_version = v2_height
+            doc_height.save(update_fields=["current_version"])
+
+        # Review Logs for doc_height
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_height,
+            version=v1_height,
+            action=DocumentReviewLog.Action.APPROVED,
+            defaults={"reviewer": hse_mgr_user, "decision_reason": "تصویب نگارش ۱.۰ اولیه"},
+        )
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_height,
+            version=v1_height,
+            action=DocumentReviewLog.Action.SUPERSEDED,
+            defaults={"reviewer": hse_mgr_user, "decision_reason": "جایگزین‌شده با نگارش جدید ۲.۰"},
+        )
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_height,
+            version=v2_height,
+            action=DocumentReviewLog.Action.APPROVED,
+            defaults={"reviewer": hse_mgr_user, "decision_reason": "تصویب و ابلاغ نگارش ۲.۰"},
+        )
+
+        # 2. Draft Awaiting Review (DOC-WI-CS-004)
+        doc_cs, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-WI-CS-004",
+            defaults={
+                "title": "دستورالعمل فنی ورود به فضاهای بسته و مخازن فرآیندی (Confined Space)",
+                "description": "چک‌لیست اتمسفر سنجی اکسیژن/گازهای قابل اشتعال، قفل و نشانه‌گذاری (LOTO) و الزام نفر مراقب بیرونی (Standby Person).",
+                "category": DocumentCategory.WORK_INSTRUCTION,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.UNDER_REVIEW,
+                "department": "بهره‌برداری کوره و تأسیسات گاز",
+                "workplace": wp_cast,
+                "owner": supervisor_user,
+                "author": supervisor_user,
+                "assigned_reviewer": hse_mgr_user,
+                "retention_years": 5,
+                "tags": "فضای بسته, مخزن, اکسیژن, گازسنجی, LOTO",
+                "requires_acknowledgment": True,
+                "is_synthetic": True,
+            },
+        )
+        v1_cs, _ = DocumentVersion.objects.update_or_create(
+            document=doc_cs,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("ورود به فضای بسته", "v1.0"),
+                "original_filename": "WI_Confined_Space_Entry_Draft.pdf",
+                "file_size_bytes": 1024 * 180,
+                "file_hash_sha256": "8a35626a54041b3dfaef3d2efad7c5055b85a363db761005a3089d81d45145b2",
+                "mime_type": "application/pdf",
+                "change_summary": "پیش‌نویس اولیه ارسالی جهت ممیزی مدیر ایمنی و اعمال ملاحظات دستگاه‌های گازسنج پرتابل ۴ گازه",
+                "uploaded_by": supervisor_user,
+                "status": VersionStatus.UNDER_REVIEW,
+                "is_synthetic": True,
+            },
+        )
+        if doc_cs.current_version != v1_cs:
+            doc_cs.current_version = v1_cs
+            doc_cs.save(update_fields=["current_version"])
+
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_cs,
+            version=v1_cs,
+            action=DocumentReviewLog.Action.SUBMITTED,
+            defaults={"reviewer": supervisor_user, "decision_reason": "ارسال اولیه جهت بررسی و ابلاغ سازمانی"},
+        )
+
+        # 3. Rejected Document with Review Reason (DOC-SOP-HOT-002)
+        doc_hot, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-SOP-HOT-002",
+            defaults={
+                "title": "دستورالعمل ایمنی عملیات گرم، جوشکاری و برش‌کاری در مجاورت مواد اشتعال‌پذیر",
+                "description": "الزامات ایمنی پروانه کار گرم، فاصله ایمنی ۱۱ متری و تجهیزات اطفاء حریق پشتیبان.",
+                "category": DocumentCategory.PROCEDURE,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.REJECTED,
+                "department": "تعمیرات مکانیک و نورد",
+                "workplace": wp_roll,
+                "owner": supervisor_user,
+                "author": supervisor_user,
+                "assigned_reviewer": hse_mgr_user,
+                "retention_years": 5,
+                "tags": "جوشکاری, برشکاری, حریق, کار گرم, اطفاء",
+                "requires_acknowledgment": False,
+                "is_synthetic": True,
+            },
+        )
+        v1_hot, _ = DocumentVersion.objects.update_or_create(
+            document=doc_hot,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("کار گرم و برشکاری", "v1.0"),
+                "original_filename": "SOP_Hot_Work_Safety_Draft.pdf",
+                "file_size_bytes": 1024 * 95,
+                "file_hash_sha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+                "mime_type": "application/pdf",
+                "change_summary": "تدوین اولیه روش اجرایی کار گرم",
+                "uploaded_by": supervisor_user,
+                "status": VersionStatus.REJECTED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=2),
+                "review_notes": "ماتریس ارزیابی فاصله ایمنی از مخازن گاز هیدروژن و فرم پایش مستمر دیده‌بان آتش (Fire Watch) تکمیل نشده است؛ لطفاً پس از افزودن چک‌لیست مجدداً ارسال فرمایید.",
+                "is_synthetic": True,
+            },
+        )
+        if doc_hot.current_version != v1_hot:
+            doc_hot.current_version = v1_hot
+            doc_hot.save(update_fields=["current_version"])
+
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_hot,
+            version=v1_hot,
+            action=DocumentReviewLog.Action.REJECTED,
+            defaults={
+                "reviewer": hse_mgr_user,
+                "decision_reason": "ماتریس ارزیابی فاصله ایمنی از مخازن گاز هیدروژن و فرم پایش مستمر دیده‌بان آتش (Fire Watch) تکمیل نشده است.",
+            },
+        )
+
+        # 4. Expiring Certificate (DOC-CERT-ISO-45001) - Expiring in 12 days
+        doc_iso, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-CERT-ISO-45001",
+            defaults={
+                "title": "گواهینامه بین‌المللی سیستم مدیریت ایمنی و بهداشت حرفه‌ای ISO 45001:2018",
+                "description": "گواهینامه تمدید سالانه استقرار الزامات بین‌المللی OHSAS صادر شده توسط مرجع معتبر توف نورد (TÜV NORD).",
+                "category": DocumentCategory.CERTIFICATE,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.EFFECTIVE,
+                "department": "مدیریت تضمین کیفیت و HSE کل",
+                "owner": hse_mgr_user,
+                "author": hse_mgr_user,
+                "assigned_reviewer": hse_mgr_user,
+                "effective_date": today - timedelta(days=353),
+                "next_review_date": today + timedelta(days=10),
+                "expiry_date": today + timedelta(days=12),  # Expiring soon!
+                "retention_years": 10,
+                "tags": "ISO45001, استاندارد, گواهینامه, توف, ممیزی",
+                "requires_acknowledgment": False,
+                "is_synthetic": True,
+            },
+        )
+        v1_iso, _ = DocumentVersion.objects.update_or_create(
+            document=doc_iso,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("گواهینامه ISO 45001", "v1.0"),
+                "original_filename": "ISO_45001_Certificate_Alborz_Steel.pdf",
+                "file_size_bytes": 1024 * 310,
+                "file_hash_sha256": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce",
+                "mime_type": "application/pdf",
+                "change_summary": "ثبت گواهینامه صادره ممیزی خارجی دوره ۲۰۲۵-۲۰۲۶",
+                "uploaded_by": hse_mgr_user,
+                "status": VersionStatus.APPROVED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=353),
+                "review_notes": "گواهینامه معتبر ثبت شد.",
+                "is_synthetic": True,
+            },
+        )
+        if doc_iso.current_version != v1_iso:
+            doc_iso.current_version = v1_iso
+            doc_iso.save(update_fields=["current_version"])
+
+        # 5. Expired Environmental Record (DOC-CERT-ENV-2023) - Expired 20 days ago
+        doc_env_exp, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-CERT-ENV-2023",
+            defaults={
+                "title": "تأییدیه دوره‌ای سنجش آلاینده‌های خروجی دودکش کوره نورد و غبارگیرها ۱۴۰۳",
+                "description": "نتایج آنالیز آزمایشگاه معتمد سازمان حفاظت محیط زیست پیرامون غلظت ذرات معلق (PM) و گازهای SO2 و NOx خروجی.",
+                "category": DocumentCategory.ENVIRONMENTAL_RECORD,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.EXPIRED,
+                "department": "واحد بهداشت حرفه‌ای و محیط زیست",
+                "workplace": wp_roll,
+                "owner": hse_mgr_user,
+                "author": inspector_user,
+                "effective_date": today - timedelta(days=385),
+                "next_review_date": today - timedelta(days=30),
+                "expiry_date": today - timedelta(days=20),  # Expired
+                "retention_years": 5,
+                "tags": "محیط زیست, دودکش, ذرات معلق, آلایندگی, آزمایشگاه معتمد",
+                "requires_acknowledgment": False,
+                "is_synthetic": True,
+            },
+        )
+        v1_env, _ = DocumentVersion.objects.update_or_create(
+            document=doc_env_exp,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("تأییدیه محیط زیستی دودکش", "v1.0"),
+                "original_filename": "Emission_Stack_Test_Report_1403.pdf",
+                "file_size_bytes": 1024 * 145,
+                "file_hash_sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+                "mime_type": "application/pdf",
+                "change_summary": "گزارش سنجش سه ماهه چهارم ۱۴۰۳",
+                "uploaded_by": inspector_user,
+                "status": VersionStatus.APPROVED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=385),
+                "is_synthetic": True,
+            },
+        )
+        if doc_env_exp.current_version != v1_env:
+            doc_env_exp.current_version = v1_env
+            doc_env_exp.save(update_fields=["current_version"])
+
+        # 6. Confidential Document with Restricted Access (DOC-CONF-INV-2026-09)
+        doc_confidential, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-CONF-INV-2026-09",
+            defaults={
+                "title": "گزارش محرمانه تحلیل ریشه‌ای (RCA) و بازرسی حقوقی حادثه سقوط سرباره پاتیل",
+                "description": "گزارش فنی و حقوقی ویژه هیئت‌مدیره؛ دربرگیرنده تحلیل خطای انسانی، شبیه‌سازی حرارتی و استعلامات شرکت بیمه.",
+                "category": DocumentCategory.INSPECTION_AUDIT,
+                "confidentiality": ConfidentialityLevel.STRICTLY_CONFIDENTIAL,
+                "status": DocumentStatus.EFFECTIVE,
+                "department": "کمیته عالی سوانح و حوادث صنعتی",
+                "workplace": wp_cast,
+                "owner": hse_mgr_user,
+                "author": hse_mgr_user,
+                "effective_date": today - timedelta(days=10),
+                "retention_years": 15,
+                "tags": "محرمانه, حقوقی, RCA, بیمه, پاتیل, سرباره",
+                "requires_acknowledgment": False,
+                "is_synthetic": True,
+            },
+        )
+        v1_conf, _ = DocumentVersion.objects.update_or_create(
+            document=doc_confidential,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("گزارش محرمانه حادثه", "v1.0"),
+                "original_filename": "Confidential_RCA_Incident_Report_Slag_Drop.pdf",
+                "file_size_bytes": 1024 * 450,
+                "file_hash_sha256": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
+                "mime_type": "application/pdf",
+                "change_summary": "نسخه نهایی گزارش محرمانه تحلیل حادثه پس از استماع اظهارات اپراتورها",
+                "uploaded_by": hse_mgr_user,
+                "status": VersionStatus.APPROVED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=10),
+                "review_notes": "تأییدیه هیئت بررسی سوانح",
+                "is_synthetic": True,
+            },
+        )
+        if doc_confidential.current_version != v1_conf:
+            doc_confidential.current_version = v1_conf
+            doc_confidential.save(update_fields=["current_version"])
+
+        # 7. Document Requiring Employee Acknowledgment (DOC-ERP-PLAN-001)
+        doc_erp, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-ERP-PLAN-001",
+            defaults={
+                "title": "طرح جامع واکنش در شرایط اضطراری، حریق و تخلیه اضطراری سایت (ERP)",
+                "description": "دستورالعمل موقعیت نقاط تجمع امن (Muster Points)، فرکانس رادیویی تیم‌های امداد و نجات و وظایف سرپرستان کارگاه هنگام آژیر خطر.",
+                "category": DocumentCategory.POLICY,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.EFFECTIVE,
+                "department": "مدیریت بحران و پدافند غیرعامل",
+                "owner": hse_mgr_user,
+                "author": hse_mgr_user,
+                "effective_date": today - timedelta(days=60),
+                "next_review_date": today + timedelta(days=300),
+                "retention_years": 10,
+                "tags": "ERP, بحران, تخلیه, آژیر, حریق, نقطه تجمع",
+                "requires_acknowledgment": True,
+                "is_synthetic": True,
+            },
+        )
+        v1_erp, _ = DocumentVersion.objects.update_or_create(
+            document=doc_erp,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("طرح واکنش اضطراری ERP", "v1.0"),
+                "original_filename": "Emergency_Response_Plan_ERP_Alborz.pdf",
+                "file_size_bytes": 1024 * 512,
+                "file_hash_sha256": "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e",
+                "mime_type": "application/pdf",
+                "change_summary": "ابلاغ سراسری طرح واکنش در شرایط اضطراری ویرایش ۱۴۰۵",
+                "uploaded_by": hse_mgr_user,
+                "status": VersionStatus.APPROVED,
+                "reviewed_by": hse_mgr_user,
+                "reviewed_at": timezone.now() - timedelta(days=60),
+                "is_synthetic": True,
+            },
+        )
+        if doc_erp.current_version != v1_erp:
+            doc_erp.current_version = v1_erp
+            doc_erp.save(update_fields=["current_version"])
+
+        # Employee Acknowledgments (Read receipts)
+        DocumentAcknowledgment.objects.get_or_create(
+            document=doc_erp,
+            version=v1_erp,
+            user=supervisor_user,
+            defaults={
+                "signature_note": "کلیه مسیرهای فرار کارگاه نورد و موقعیت جعبه‌های F بازبینی شد و پرسنل توجیه شدند.",
+                "is_synthetic": True,
+            },
+        )
+        DocumentAcknowledgment.objects.get_or_create(
+            document=doc_erp,
+            version=v1_erp,
+            user=inspector_user,
+            defaults={
+                "signature_note": "فایل را مطالعه کردم و آموزش سناریوهای پناه‌گیری به تکنسین‌ها داده شد.",
+                "is_synthetic": True,
+            },
+        )
+
+        # 8. Archived Document and Complete Revision History (DOC-LEGACY-WASTE-2019)
+        doc_archived, _ = Document.objects.update_or_create(
+            organization=org_foolad,
+            document_number="DOC-LEGACY-WASTE-2019",
+            defaults={
+                "title": "آیین‌نامه مدیریت پسماندهای ویژه و بازیافت ضایعات فلزی (نسخه قدیم ۱۳۹۸)",
+                "description": "دستورالعمل قدیمی تفکیک قراضه و براده‌های روغنی پیش از راه‌اندازی خط تصفیه پساب صنعتی مدرن.",
+                "category": DocumentCategory.ENVIRONMENTAL_RECORD,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.ARCHIVED,
+                "department": "مدیریت خدمات عمومی و پسماند",
+                "workplace": wp_roll,
+                "owner": hse_mgr_user,
+                "author": inspector_user,
+                "archived_at": timezone.now() - timedelta(days=45),
+                "archived_reason": "منسوخ‌شدن فرم‌های دستی و جایگزینی با سیستم دیجیتال پسماند فاز ۱۴؛ اتمام دوره راکد نگهداری ۵ ساله سازمانی.",
+                "archived_by": hse_mgr_user,
+                "retention_years": 5,
+                "tags": "پسماند, ضایعات, بازیافت, قدیمی, بایگانی",
+                "requires_acknowledgment": False,
+                "is_synthetic": True,
+            },
+        )
+        v1_arch, _ = DocumentVersion.objects.update_or_create(
+            document=doc_archived,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("آیین‌نامه قدیمی پسماند", "v1.0"),
+                "original_filename": "Legacy_Waste_Management_1398.pdf",
+                "file_size_bytes": 1024 * 85,
+                "file_hash_sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                "mime_type": "application/pdf",
+                "change_summary": "نسخه مصوب سال ۱۳۹۸",
+                "uploaded_by": inspector_user,
+                "status": VersionStatus.ARCHIVED,
+                "is_synthetic": True,
+            },
+        )
+        if doc_archived.current_version != v1_arch:
+            doc_archived.current_version = v1_arch
+            doc_archived.save(update_fields=["current_version"])
+
+        DocumentReviewLog.objects.get_or_create(
+            document=doc_archived,
+            version=v1_arch,
+            action=DocumentReviewLog.Action.ARCHIVED,
+            defaults={
+                "reviewer": hse_mgr_user,
+                "decision_reason": "بایگانی بر اساس استقرار فاز ۱۴ مدیریت زیست‌محیطی",
+            },
+        )
+
+        # 9. Cross-Organization Tenant Isolation Document (in org_petro)
+        doc_petro, _ = Document.objects.update_or_create(
+            organization=org_petro,
+            document_number="PETRO-SOP-POLY-01",
+            defaults={
+                "title": "دستورالعمل ایمنی فرآیندی واحد پلیمریزاسیون پتروشیمی سپهر",
+                "description": "پروتکل اختصاصی نظارت بر فشار رآکتور، سیستم مهار اضطراری شعله (Flare) و شستشوی خطوط منومر.",
+                "category": DocumentCategory.PROCEDURE,
+                "confidentiality": ConfidentialityLevel.INTERNAL,
+                "status": DocumentStatus.EFFECTIVE,
+                "department": "مهندسی فرآیند پتروشیمی",
+                "owner": petro_supervisor_user,
+                "author": petro_supervisor_user,
+                "effective_date": today - timedelta(days=40),
+                "next_review_date": today + timedelta(days=320),
+                "retention_years": 8,
+                "tags": "پتروشیمی, پلیمریزاسیون, فلر, فرآیند, منومر",
+                "requires_acknowledgment": True,
+                "is_synthetic": True,
+            },
+        )
+        v1_petro, _ = DocumentVersion.objects.update_or_create(
+            document=doc_petro,
+            version_number="1.0",
+            defaults={
+                "file": sample_pdf_content("پلیمریزاسیون پتروشیمی", "v1.0"),
+                "original_filename": "Petro_Polymerization_Safety_v1.0.pdf",
+                "file_size_bytes": 1024 * 380,
+                "file_hash_sha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+                "mime_type": "application/pdf",
+                "change_summary": "تدوین اولیه دستورالعمل پلیمریزاسیون سپهر",
+                "uploaded_by": petro_supervisor_user,
+                "status": VersionStatus.APPROVED,
+                "is_synthetic": True,
+            },
+        )
+        if doc_petro.current_version != v1_petro:
+            doc_petro.current_version = v1_petro
+            doc_petro.save(update_fields=["current_version"])
+
+        # 10. Cross-Domain Links: Link Height SOP to Scaffold and PTW
+        DocumentLink.objects.get_or_create(
+            document=doc_height,
+            target_type=DocumentLink.TargetType.SCAFFOLD,
+            target_id=1,
+            defaults={"link_title": "الزام بازرسی تگ داربست", "link_note": "بند ۴.۲ دستورالعمل کار در ارتفاع"},
+        )
+        DocumentLink.objects.get_or_create(
+            document=doc_height,
+            target_type=DocumentLink.TargetType.PERMIT,
+            target_id=1,
+            defaults={"link_title": "مجوز کار در ارتفاع", "link_note": "پیوست الزامی پروانه کار گرم"},
+        )
+
+        # =========================================================================
+        # PHASE 17 SEEDING: COMPLETE PLATFORM FINALIZATION & MISSING MODULES
+        # =========================================================================
+        self.stdout.write("Seeding Phase 17 modules (Subscriptions, Calculators, Lifting, PSSR, Surveys, Chat, Fleet & Energy)...")
+
+        # 1. Subscriptions & Module Entitlements
+        plan_free, _ = SubscriptionPlan.objects.update_or_create(
+            code="free",
+            defaults={
+                "name": "طرح پایه رایگان",
+                "price_monthly_irr": 0,
+                "max_users": 10,
+                "max_workplaces": 2,
+                "included_modules": [],
+                "is_active": True,
+            },
+        )
+        plan_pro, _ = SubscriptionPlan.objects.update_or_create(
+            code="pro",
+            defaults={
+                "name": "طرح حرفه‌ای صنعتی",
+                "price_monthly_irr": 15000000,
+                "max_users": 50,
+                "max_workplaces": 10,
+                "included_modules": [
+                    "lifting_plans",
+                    "pssr",
+                    "surveys",
+                    "chat",
+                    "fleet_energy",
+                    "anomalies",
+                    "indicators",
+                ],
+                "is_active": True,
+            },
+        )
+        plan_ent, _ = SubscriptionPlan.objects.update_or_create(
+            code="enterprise",
+            defaults={
+                "name": "طرح جامع پیشرفته پتروشیمی و فولاد",
+                "price_monthly_irr": 35000000,
+                "max_users": 200,
+                "max_workplaces": 50,
+                "included_modules": list(ModuleEntitlement.COMMERCIAL_MODULES.keys()),
+                "is_active": True,
+            },
+        )
+
+        sub_foolad, _ = OrganizationSubscription.objects.update_or_create(
+            organization=org_foolad,
+            defaults={
+                "plan": plan_pro,
+                "status": OrganizationSubscription.Status.ACTIVE,
+                "valid_from": timezone.now().date() - timedelta(days=30),
+                "valid_until": timezone.now().date() + timedelta(days=335),
+            },
+        )
+
+        for mod_code in ModuleEntitlement.COMMERCIAL_MODULES:
+            ModuleEntitlement.objects.update_or_create(
+                organization=org_foolad,
+                module_code=mod_code,
+                defaults={
+                    "is_enabled": True,
+                    "source": ModuleEntitlement.Source.PLAN,
+                    "valid_until": timezone.now().date() + timedelta(days=335),
+                },
+            )
+
+        # 2. Engineering Calculators Records
+        CalculationRecord.objects.get_or_create(
+            organization=org_foolad,
+            calculator_type=CalculationRecord.CalculatorType.HSE_RATES,
+            title="محاسبه نرخ شاخص‌های حوادث فصل بهار ۱۴۰۵",
+            defaults={
+                "user": hse_mgr_user,
+                "input_params": {
+                    "exposure_hours": 250000,
+                    "lost_time_injuries": 1,
+                    "total_recordable_incidents": 3,
+                    "lost_days": 14,
+                },
+                "results": {
+                    "ltifr": 4.0,
+                    "trir": 12.0,
+                    "severity_rate": 56.0,
+                    "fsi": 0.473,
+                },
+                "notes": "گزارش ۳ ماهه نورد البرز جهت ارسال به اداره کار و امور اجتماعی",
+                "is_synthetic": True,
+            },
+        )
+        CalculationRecord.objects.get_or_create(
+            organization=org_foolad,
+            calculator_type=CalculationRecord.CalculatorType.RIGGING_CRANE,
+            title="محاسبه کشش اسلینگ باربرداری شمش‌های ریخته‌گری",
+            defaults={
+                "user": supervisor_user,
+                "input_params": {
+                    "load_weight_kg": 12000,
+                    "num_legs": 2,
+                    "angle_to_horizontal_deg": 60,
+                },
+                "results": {
+                    "tension_per_leg_kg": 6928.2,
+                    "warning": None,
+                },
+                "notes": "استفاده از اسلینگ زنجیری گرید ۸۰ دوشاخه",
+                "is_synthetic": True,
+            },
+        )
+        CalculationRecord.objects.get_or_create(
+            organization=org_foolad,
+            calculator_type=CalculationRecord.CalculatorType.NOISE,
+            title="ترکیب تراز فشار صوت ایستگاه سنگ‌زنی و برشکاری",
+            defaults={
+                "user": inspector_user,
+                "input_params": {"sound_levels_dba": [85.0, 88.0, 82.0]},
+                "results": {"combined_spl_dba": 90.35},
+                "notes": "تراز بالاتر از حد مجاز ۸۵ دسی‌بل - الزام گوشی محافظ صوت",
+                "is_synthetic": True,
+            },
+        )
+
+        # 3. Lifting Plans & Crane Specifications
+        crane_tadano, _ = CraneSpecification.objects.update_or_create(
+            organization=org_foolad,
+            model_name="Tadano GR-550XL (بوم ۵۵ تن)",
+            defaults={
+                "manufacturer": "Tadano",
+                "max_capacity_tonnes": 55.0,
+                "boom_length_min_m": 10.7,
+                "boom_length_max_m": 42.0,
+                "load_chart_data": [
+                    {"boom_length_m": 16.0, "radius_m": 6.0, "capacity_kg": 28000.0},
+                    {"boom_length_m": 16.0, "radius_m": 8.0, "capacity_kg": 22000.0},
+                    {"boom_length_m": 16.0, "radius_m": 10.0, "capacity_kg": 17000.0},
+                    {"boom_length_m": 24.0, "radius_m": 12.0, "capacity_kg": 12000.0},
+                    {"boom_length_m": 24.0, "radius_m": 16.0, "capacity_kg": 8500.0},
+                ],
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+        crane_liebherr, _ = CraneSpecification.objects.update_or_create(
+            organization=org_foolad,
+            model_name="Liebherr LTM 1100-4.2 (بوم ۱۰۰ تن)",
+            defaults={
+                "manufacturer": "Liebherr",
+                "max_capacity_tonnes": 100.0,
+                "boom_length_min_m": 11.5,
+                "boom_length_max_m": 60.0,
+                "load_chart_data": [
+                    {"boom_length_m": 22.0, "radius_m": 8.0, "capacity_kg": 45000.0},
+                    {"boom_length_m": 22.0, "radius_m": 12.0, "capacity_kg": 32000.0},
+                    {"boom_length_m": 30.0, "radius_m": 16.0, "capacity_kg": 20000.0},
+                    {"boom_length_m": 38.0, "radius_m": 20.0, "capacity_kg": 14000.0},
+                ],
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+
+        lift_1, _ = LiftingPlan.objects.update_or_create(
+            organization=org_foolad,
+            plan_number="LP-2026-001",
+            defaults={
+                "workplace": wp_roll,
+                "title": "باربرداری و استقرار مخزن روغن هیدرولیک نورد",
+                "category": LiftingPlan.LiftCategory.STANDARD,
+                "status": LiftingPlan.Status.APPROVED,
+                "planned_date": timezone.now().date() + timedelta(days=2),
+                "crane": crane_tadano,
+                "boom_length_m": 16.0,
+                "lift_radius_m": 8.0,
+                "load_description": "مخزن هیدرولیک فشار قوی روغن دستگاه رولیک",
+                "load_weight_kg": 10000.0,
+                "rigging_hardware_weight_kg": 350.0,
+                "hook_block_weight_kg": 450.0,
+                "total_gross_weight_kg": 10800.0,
+                "crane_capacity_at_radius_kg": 22000.0,
+                "crane_utilization_pct": 49.1,
+                "sling_type": LiftingPlan.SlingType.WIRE_ROPE,
+                "num_sling_legs": 2,
+                "sling_angle_to_horizontal_deg": 60.0,
+                "sling_rated_wll_kg": 8500.0,
+                "tension_per_leg_kg": 6235.4,
+                "allowable_ground_pressure_kpa": 350.0,
+                "outrigger_pad_area_sqm": 1.2,
+                "ground_bearing_pressure_kpa": 125.0,
+                "wind_speed_limit_mps": 9.0,
+                "created_by": supervisor_user,
+                "approved_by": hse_mgr_user,
+                "approval_notes": "طرح مورد بررسی مهندسی قرار گرفت و تایید شد.",
+            },
+        )
+        lift_2, _ = LiftingPlan.objects.update_or_create(
+            organization=org_foolad,
+            plan_number="LP-2026-002",
+            defaults={
+                "workplace": wp_cast,
+                "title": "باربرداری بحرانی ترانسفورماتور پست ۶۳ کیلوولت کارگاه ریخته‌گری",
+                "category": LiftingPlan.LiftCategory.CRITICAL,
+                "status": LiftingPlan.Status.UNDER_REVIEW,
+                "planned_date": timezone.now().date() + timedelta(days=5),
+                "crane": crane_liebherr,
+                "boom_length_m": 22.0,
+                "lift_radius_m": 12.0,
+                "load_description": "ترانسفورماتور اصلی کوره القایی به همراه روغن عایق",
+                "load_weight_kg": 26000.0,
+                "rigging_hardware_weight_kg": 800.0,
+                "hook_block_weight_kg": 1200.0,
+                "total_gross_weight_kg": 28000.0,
+                "crane_capacity_at_radius_kg": 32000.0,
+                "crane_utilization_pct": 87.5,
+                "sling_type": LiftingPlan.SlingType.CHAIN,
+                "num_sling_legs": 4,
+                "sling_angle_to_horizontal_deg": 60.0,
+                "sling_rated_wll_kg": 20000.0,
+                "tension_per_leg_kg": 16165.8,
+                "allowable_ground_pressure_kpa": 400.0,
+                "outrigger_pad_area_sqm": 2.0,
+                "ground_bearing_pressure_kpa": 185.0,
+                "wind_speed_limit_mps": 7.5,
+                "created_by": supervisor_user,
+            },
+        )
+
+        # 4. PSSR (Pre-Startup Safety Review)
+        pssr_1, created = PSSRReview.objects.update_or_create(
+            organization=org_foolad,
+            pssr_number="PSSR-2026-001",
+            defaults={
+                "workplace": wp_roll,
+                "project_or_system_name": "بررسی ایمنی پیش از راه‌اندازی خط تکمیلی نورد شماره ۲",
+                "review_type": PSSRReview.ReviewType.MAJOR_MODIFICATION,
+                "status": PSSRReview.Status.IN_PROGRESS,
+                "target_startup_date": timezone.now().date() + timedelta(days=4),
+                "leader": hse_mgr_user,
+                "is_synthetic": True,
+            },
+        )
+        if created or not pssr_1.checklist_items.exists():
+            populate_default_checklist(pssr_1)
+            pssr_1.checklist_items.filter(category="mechanical_completion").update(
+                verification_status=PSSRChecklistItem.VerificationStatus.COMPLIANT,
+                verified_by=supervisor_user,
+            )
+            pssr_1.checklist_items.filter(category="process_safety").update(
+                verification_status=PSSRChecklistItem.VerificationStatus.COMPLIANT,
+                verified_by=hse_mgr_user,
+            )
+            PSSROutstandingAction.objects.get_or_create(
+                pssr=pssr_1,
+                title="نصب حفاظ مشبک رولیک ورودی اره برش داغ",
+                defaults={
+                    "description": "حفاظ فیزیکی بر اساس استاندارد ISO 14120 نصب و قفل میکروسوئیچ تست گردد.",
+                    "responsible": supervisor_user,
+                    "target_date": timezone.now().date() + timedelta(days=2),
+                    "is_pre_startup": True,
+                    "status": PSSROutstandingAction.ActionStatus.OPEN,
+                },
+            )
+
+        # 5. Surveys & Scored Exams
+        survey_culture, _ = Survey.objects.update_or_create(
+            organization=org_foolad,
+            title="سنجش دوره‌ای فرهنگ و مشارکت ایمنی پرسنل (Safety Culture Index)",
+            defaults={
+                "survey_type": Survey.SurveyType.SAFETY_CLIMATE,
+                "is_anonymous": True,
+                "description": "نظرسنجی کاملاً ناشناس جهت سنجش ادراک ایمنی و گزارش‌دهی آزادانه در خطوط تولید",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+        q1, _ = SurveyQuestion.objects.update_or_create(
+            survey=survey_culture,
+            order=1,
+            defaults={
+                "question_text": "آیا مدیران و سرپرستان ارشد در عمل به رعایت دستورالعمل‌های HSE پایبند هستند؟",
+                "question_type": SurveyQuestion.QuestionType.RATING_SCALE,
+                "points": 5.0,
+                "is_required": True,
+            },
+        )
+        q2, _ = SurveyQuestion.objects.update_or_create(
+            survey=survey_culture,
+            order=2,
+            defaults={
+                "question_text": "در صورت مشاهده شرایط ناایمن، تا چه حد بدون ترس از سرزنش آن را گزارش می‌کنید؟",
+                "question_type": SurveyQuestion.QuestionType.RATING_SCALE,
+                "points": 5.0,
+                "is_required": True,
+            },
+        )
+        q3, _ = SurveyQuestion.objects.update_or_create(
+            survey=survey_culture,
+            order=3,
+            defaults={
+                "question_text": "پیشنهاد عملیاتی شما جهت ارتقای بهداشت و ایمنی در واحد شما چیست؟",
+                "question_type": SurveyQuestion.QuestionType.TEXT,
+                "points": 0.0,
+                "is_required": False,
+            },
+        )
+
+        exam_height, _ = Survey.objects.update_or_create(
+            organization=org_foolad,
+            title="آزمون سنجش شایستگی الزامات ایمنی کار در ارتفاع و نجات پرسنل",
+            defaults={
+                "survey_type": Survey.SurveyType.EXAM,
+                "is_anonymous": False,
+                "pass_percentage": 75.0,
+                "description": "آزمون کتبی ۴ گزینه‌ای برای تمدید صلاحیت کار روی داربست و ارتفاع",
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+        eq1, _ = SurveyQuestion.objects.update_or_create(
+            survey=exam_height,
+            order=1,
+            defaults={
+                "question_text": "طبق آیین‌نامه کار در ارتفاع، حداقل ارتفاع نیازمند سامانه متوقف‌کننده سقوط چقدر است؟",
+                "question_type": SurveyQuestion.QuestionType.SINGLE_CHOICE,
+                "points": 25.0,
+                "is_required": True,
+            },
+        )
+        SurveyQuestionOption.objects.update_or_create(
+            question=eq1,
+            order=1,
+            defaults={"option_text": "۱.۲ متر", "is_correct": False, "score_weight": 0.0},
+        )
+        SurveyQuestionOption.objects.update_or_create(
+            question=eq1,
+            order=2,
+            defaults={"option_text": "۱.۸ متر و بالاتر", "is_correct": True, "score_weight": 25.0},
+        )
+        SurveyQuestionOption.objects.update_or_create(
+            question=eq1,
+            order=3,
+            defaults={"option_text": "۲.۵ متر", "is_correct": False, "score_weight": 0.0},
+        )
+
+        eq2, _ = SurveyQuestion.objects.update_or_create(
+            survey=exam_height,
+            order=2,
+            defaults={
+                "question_text": "حداقل مقاومت نقطه لنگرگاه (Anchor Point) برای اتصال هارنس چقدر باید باشد؟",
+                "question_type": SurveyQuestion.QuestionType.SINGLE_CHOICE,
+                "points": 25.0,
+                "is_required": True,
+            },
+        )
+        SurveyQuestionOption.objects.update_or_create(
+            question=eq2,
+            order=1,
+            defaults={"option_text": "۱۰ کیلونیوتن", "is_correct": False, "score_weight": 0.0},
+        )
+        SurveyQuestionOption.objects.update_or_create(
+            question=eq2,
+            order=2,
+            defaults={"option_text": "۲۲.۲ کیلونیوتن (حدود ۲.۲ تن)", "is_correct": True, "score_weight": 25.0},
+        )
+
+        # 6. Internal Chat & Collaboration
+        conv_safety, _ = ChatConversation.objects.update_or_create(
+            organization=org_foolad,
+            title="کانال پایش و هماهنگی اضطراری شیفت",
+            defaults={
+                "conversation_type": ChatConversation.ConversationType.CHANNEL,
+                "created_by": hse_mgr_user,
+                "is_synthetic": True,
+            },
+        )
+        ChatParticipant.objects.update_or_create(
+            conversation=conv_safety, user=hse_mgr_user,
+            defaults={"role": ChatParticipant.Role.ADMIN}
+        )
+        ChatParticipant.objects.update_or_create(
+            conversation=conv_safety, user=supervisor_user,
+            defaults={"role": ChatParticipant.Role.MEMBER}
+        )
+        ChatParticipant.objects.update_or_create(
+            conversation=conv_safety, user=inspector_user,
+            defaults={"role": ChatParticipant.Role.MEMBER}
+        )
+        ChatMessage.objects.get_or_create(
+            conversation=conv_safety,
+            sender=hse_mgr_user,
+            content="با توجه به اخطار هواشناسی مبنی بر وزش باد شدید (بیش از ۱۲ متر بر ثانیه)، کلیه عملیات باربرداری تاپیک جرثقیل و داربست در محوطه باز متوقف گردید.",
+            defaults={"is_synthetic": True},
+        )
+        ChatMessage.objects.get_or_create(
+            conversation=conv_safety,
+            sender=supervisor_user,
+            content="پیام دریافت شد. جک‌های جرثقیل جمع و بوم در حالت خوابیده و ایمن قفل شد. کارگران به سالن سرپوشیده منتقل شدند.",
+            defaults={"is_synthetic": True},
+        )
+
+        # 7. Fleet, Energy & Excavation
+        veh_patrol, _ = FleetVehicle.objects.update_or_create(
+            organization=org_foolad,
+            vehicle_code="VP-01",
+            defaults={
+                "plate_number": "ایران ۶۸ - ۲۵۴ ب ۱۲",
+                "model_name": "تویوتا هایلوکس دو دیفرانسیل گشت ایمنی",
+                "vehicle_type": FleetVehicle.VehicleType.PICKUP,
+                "fuel_type": FleetVehicle.FuelType.GASOLINE,
+                "current_odometer_km": 48250.0,
+                "is_active": True,
+                "is_synthetic": True,
+            },
+        )
+        FleetFuelLog.objects.get_or_create(
+            organization=org_foolad,
+            vehicle=veh_patrol,
+            log_date=timezone.now().date() - timedelta(days=5),
+            defaults={
+                "odometer_km": 47800.0,
+                "fuel_liters": 65.0,
+                "total_cost_irr": 1950000,
+                "distance_traveled_km": 540.0,
+                "consumption_rate_l_per_100km": 12.04,
+                "is_synthetic": True,
+            },
+        )
+        FleetFuelLog.objects.get_or_create(
+            organization=org_foolad,
+            vehicle=veh_patrol,
+            log_date=timezone.now().date() - timedelta(days=1),
+            defaults={
+                "odometer_km": 48250.0,
+                "fuel_liters": 52.0,
+                "total_cost_irr": 1560000,
+                "distance_traveled_km": 450.0,
+                "consumption_rate_l_per_100km": 11.56,
+                "is_synthetic": True,
+            },
+        )
+
+        EnergyConsumptionLog.objects.get_or_create(
+            organization=org_foolad,
+            workplace=wp_roll,
+            meter_identifier="MTR-ROLL-MAIN-01",
+            period_start=timezone.now().date() - timedelta(days=30),
+            defaults={
+                "utility_type": EnergyConsumptionLog.UtilityType.ELECTRICITY,
+                "period_end": timezone.now().date(),
+                "consumption_value": 185000.0,
+                "unit": "kWh",
+                "tariff_rate_irr": 5000.0,
+                "is_synthetic": True,
+            },
+        )
+
+        ExcavationOperation.objects.update_or_create(
+            organization=org_foolad,
+            reference_code="EXC-2026-001",
+            defaults={
+                "workplace": wp_cast,
+                "project_name": "احداث حوضچه پمپ هیدرولیک کوره",
+                "soil_type": ExcavationOperation.SoilType.TYPE_B,
+                "depth_m": 2.8,
+                "top_width_m": 4.5,
+                "bottom_width_m": 2.0,
+                "length_m": 12.0,
+                "protective_system": ExcavationOperation.ProtectiveSystem.SHORING,
+                "status": ExcavationOperation.Status.ACTIVE,
+                "is_synthetic": True,
+            },
+        )
+
+        # 8. Anomalies
+        NonConformity.objects.filter(organization=org_foolad, reference_number__isnull=True).update(
+            reference_number="ANO-2026-0001",
+            anomaly_type=NonConformity.AnomalyType.UNSAFE_CONDITION,
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Phase 17 full modules seeded: Subscriptions, Entitlements, Calculators, Lifting, PSSR, Surveys, Chat, Fleet & Energy."
             )
         )
 

@@ -13,6 +13,7 @@ from .views import (
 urlpatterns = [
     path("", IncidentListCreateView.as_view(), name="incident-list-create"),
     path("summary/", IncidentSummaryStatsView.as_view(), name="incident-summary-stats"),
+    path("summary-stats/", IncidentSummaryStatsView.as_view(), name="incident-summary-stats-alias"),
     path("<int:pk>/", IncidentDetailView.as_view(), name="incident-detail"),
     path("<int:pk>/review/", IncidentReviewView.as_view(), name="incident-review"),
     path("<int:pk>/investigate/", IncidentInvestigateView.as_view(), name="incident-investigate"),

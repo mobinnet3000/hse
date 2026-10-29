@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   ApiRequestError,
@@ -390,7 +391,7 @@ export function IncidentsPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <h1 style={{ fontSize: "1.5rem", fontWeight: "bold", margin: 0 }}>مدیریت حوادث، شبه‌حوادث و شرایط ناایمن</h1>
-          <p style={{ color: "#666", margin: "0.25rem 0 0" }}>ثبت رویداد، ریشه‌یابی و پیگیری تا بستن اقدامات اصلاحی متناظر</p>
+          <p className="muted" style={{ margin: "0.25rem 0 0" }}>ثبت رویداد، ریشه‌یابی و پیگیری تا بستن اقدامات اصلاحی متناظر</p>
         </div>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
           {organizations.length > 1 && (
@@ -398,7 +399,7 @@ export function IncidentsPage() {
               aria-label="انتخاب سازمان"
               value={organizationId ?? ""}
               onChange={(e) => setOrganizationId(Number(e.target.value))}
-              style={{ padding: "0.5rem", borderRadius: "6px", border: "1px solid #ccc" }}
+              style={{ width: "auto", minWidth: "160px" }}
             >
               {organizations.map((org) => (
                 <option key={org.id} value={org.id}>{org.name}</option>
@@ -407,13 +408,12 @@ export function IncidentsPage() {
           )}
           <button
             type="button"
-            className="btn btn-primary"
+            className="btn btn-danger"
             onClick={() => {
               setReportForm((prev) => ({ ...prev, organization: organizationId || 0 }));
               setActionError(null);
               setIsReportModalOpen(true);
             }}
-            style={{ backgroundColor: "#dc2626", color: "#fff", border: "none", padding: "0.6rem 1.2rem", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}
           >
             + ثبت حادثه یا شبه‌حادثه جدید
           </button>
@@ -422,50 +422,48 @@ export function IncidentsPage() {
 
       {/* KPI Stats Summary */}
       {stats && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-          <div style={{ background: "#f8fafc", padding: "1rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-            <span style={{ fontSize: "0.875rem", color: "#64748b" }}>کل حوادث و رویدادها</span>
-            <div style={{ fontSize: "1.75rem", fontWeight: "bold", color: "#0f172a", marginTop: "0.25rem" }}>{stats.total_incidents}</div>
+        <div className="stats-grid">
+          <div className="stat-card" style={{ borderRight: "4px solid var(--primary)" }}>
+            <span className="muted" style={{ fontSize: "0.875rem" }}>کل حوادث و رویدادها</span>
+            <div style={{ fontSize: "1.75rem", fontWeight: "bold", color: "var(--text-primary)", marginTop: "0.25rem" }}>{stats.total_incidents}</div>
           </div>
-          <div style={{ background: "#fef3c7", padding: "1rem", borderRadius: "8px", border: "1px solid #fde68a" }}>
-            <span style={{ fontSize: "0.875rem", color: "#92400e" }}>شبه‌حوادث (Near-Miss)</span>
-            <div style={{ fontSize: "1.75rem", fontWeight: "bold", color: "#b45309", marginTop: "0.25rem" }}>{stats.near_miss_count}</div>
+          <div className="stat-card" style={{ borderRight: "4px solid var(--warning)" }}>
+            <span className="muted" style={{ fontSize: "0.875rem" }}>شبه‌حوادث (Near-Miss)</span>
+            <div style={{ fontSize: "1.75rem", fontWeight: "bold", color: "var(--warning)", marginTop: "0.25rem" }}>{stats.near_miss_count}</div>
           </div>
-          <div style={{ background: "#e0f2fe", padding: "1rem", borderRadius: "8px", border: "1px solid #bae6fd" }}>
-            <span style={{ fontSize: "0.875rem", color: "#0369a1" }}>در حال بررسی و اقدام</span>
-            <div style={{ fontSize: "1.75rem", fontWeight: "bold", color: "#0284c7", marginTop: "0.25rem" }}>{stats.under_investigation_count}</div>
+          <div className="stat-card" style={{ borderRight: "4px solid var(--info)" }}>
+            <span className="muted" style={{ fontSize: "0.875rem" }}>در حال بررسی و اقدام</span>
+            <div style={{ fontSize: "1.75rem", fontWeight: "bold", color: "var(--info)", marginTop: "0.25rem" }}>{stats.under_investigation_count}</div>
           </div>
-          <div style={{ background: "#dcfce7", padding: "1rem", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
-            <span style={{ fontSize: "0.875rem", color: "#166534" }}>پرونده‌های مختومه‌شده</span>
-            <div style={{ fontSize: "1.75rem", fontWeight: "bold", color: "#15803d", marginTop: "0.25rem" }}>{stats.closed_count}</div>
+          <div className="stat-card" style={{ borderRight: "4px solid var(--success)" }}>
+            <span className="muted" style={{ fontSize: "0.875rem" }}>پرونده‌های مختومه‌شده</span>
+            <div style={{ fontSize: "1.75rem", fontWeight: "bold", color: "var(--success)", marginTop: "0.25rem" }}>{stats.closed_count}</div>
           </div>
-          <div style={{ background: "#fee2e2", padding: "1rem", borderRadius: "8px", border: "1px solid #fecaca" }}>
-            <span style={{ fontSize: "0.875rem", color: "#991b1b" }}>روزهای کاری از دست رفته (LTI)</span>
-            <div style={{ fontSize: "1.75rem", fontWeight: "bold", color: "#b91c1c", marginTop: "0.25rem" }}>{stats.total_lost_time_days}</div>
+          <div className="stat-card" style={{ borderRight: "4px solid var(--danger)" }}>
+            <span className="muted" style={{ fontSize: "0.875rem" }}>روزهای کاری از دست رفته (LTI)</span>
+            <div style={{ fontSize: "1.75rem", fontWeight: "bold", color: "var(--danger)", marginTop: "0.25rem" }}>{stats.total_lost_time_days}</div>
           </div>
         </div>
       )}
 
       {/* Filters Bar */}
-      <div style={{ background: "#fff", padding: "1rem", borderRadius: "8px", border: "1px solid #e2e8f0", marginBottom: "1.5rem" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem" }}>
+      <div className="filters-card">
+        <div className="filter-grid">
           <div>
-            <label style={{ fontSize: "0.8rem", color: "#64748b", display: "block", marginBottom: "0.25rem" }}>جستجو</label>
+            <label style={{ fontSize: "0.8rem", display: "block", marginBottom: "0.25rem" }}>جستجو</label>
             <input
               type="text"
               placeholder="جستجو در عنوان یا شرح..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ width: "100%", padding: "0.45rem", borderRadius: "6px", border: "1px solid #cbd5e1" }}
             />
           </div>
           <div>
-            <label style={{ fontSize: "0.8rem", color: "#64748b", display: "block", marginBottom: "0.25rem" }}>نوع رویداد</label>
+            <label style={{ fontSize: "0.8rem", display: "block", marginBottom: "0.25rem" }}>نوع رویداد</label>
             <select
               aria-label="فیلتر نوع رویداد"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              style={{ width: "100%", padding: "0.45rem", borderRadius: "6px", border: "1px solid #cbd5e1" }}
             >
               <option value="">همه انواع</option>
               {Object.entries(TYPE_LABELS).map(([k, v]) => (
@@ -474,12 +472,11 @@ export function IncidentsPage() {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: "0.8rem", color: "#64748b", display: "block", marginBottom: "0.25rem" }}>سطح شدت</label>
+            <label style={{ fontSize: "0.8rem", display: "block", marginBottom: "0.25rem" }}>سطح شدت</label>
             <select
               aria-label="فیلتر سطح شدت"
               value={severityFilter}
               onChange={(e) => setSeverityFilter(e.target.value)}
-              style={{ width: "100%", padding: "0.45rem", borderRadius: "6px", border: "1px solid #cbd5e1" }}
             >
               <option value="">همه شدت‌ها</option>
               {Object.entries(SEVERITY_LABELS).map(([k, v]) => (
@@ -488,12 +485,11 @@ export function IncidentsPage() {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: "0.8rem", color: "#64748b", display: "block", marginBottom: "0.25rem" }}>وضعیت</label>
+            <label style={{ fontSize: "0.8rem", display: "block", marginBottom: "0.25rem" }}>وضعیت</label>
             <select
               aria-label="فیلتر وضعیت"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ width: "100%", padding: "0.45rem", borderRadius: "6px", border: "1px solid #cbd5e1" }}
             >
               <option value="">همه وضعیت‌ها</option>
               {Object.entries(STATUS_LABELS).map(([k, v]) => (
@@ -502,12 +498,11 @@ export function IncidentsPage() {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: "0.8rem", color: "#64748b", display: "block", marginBottom: "0.25rem" }}>محل کارگاه</label>
+            <label style={{ fontSize: "0.8rem", display: "block", marginBottom: "0.25rem" }}>محل کارگاه</label>
             <select
               aria-label="فیلتر کارگاه"
               value={workplaceFilter}
               onChange={(e) => setWorkplaceFilter(e.target.value)}
-              style={{ width: "100%", padding: "0.45rem", borderRadius: "6px", border: "1px solid #cbd5e1" }}
             >
               <option value="">همه کارگاه‌ها</option>
               {workplaces.map((wp) => (
@@ -516,89 +511,76 @@ export function IncidentsPage() {
             </select>
           </div>
           <div>
-            <label style={{ fontSize: "0.8rem", color: "#64748b", display: "block", marginBottom: "0.25rem" }}>از تاریخ</label>
+            <label style={{ fontSize: "0.8rem", display: "block", marginBottom: "0.25rem" }}>از تاریخ</label>
             <input
               type="date"
               aria-label="از تاریخ"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              style={{ width: "100%", padding: "0.45rem", borderRadius: "6px", border: "1px solid #cbd5e1" }}
             />
           </div>
           <div>
-            <label style={{ fontSize: "0.8rem", color: "#64748b", display: "block", marginBottom: "0.25rem" }}>تا تاریخ</label>
+            <label style={{ fontSize: "0.8rem", display: "block", marginBottom: "0.25rem" }}>تا تاریخ</label>
             <input
               type="date"
               aria-label="تا تاریخ"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              style={{ width: "100%", padding: "0.45rem", borderRadius: "6px", border: "1px solid #cbd5e1" }}
             />
           </div>
         </div>
       </div>
 
       {detailLoading && (
-        <div style={{ textAlign: "center", padding: "1rem", color: "#2563eb", fontWeight: "bold" }}>
+        <div style={{ textAlign: "center", padding: "1rem", color: "var(--primary)", fontWeight: "bold" }}>
           در حال بارگذاری پرونده…
         </div>
       )}
       {detailError && (
-        <div style={{ padding: "0.75rem", backgroundColor: "#fee2e2", color: "#b91c1c", borderRadius: "6px", marginBottom: "1rem" }}>
+        <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>
           {detailError}
         </div>
       )}
 
       {/* Main List */}
       {loading ? (
-        <p style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>در حال دریافت اطلاعات حوادث و رویدادها…</p>
+        <p className="muted" style={{ textAlign: "center", padding: "2rem" }}>در حال دریافت اطلاعات حوادث و رویدادها…</p>
       ) : error ? (
-        <div style={{ padding: "1rem", backgroundColor: "#fee2e2", color: "#b91c1c", borderRadius: "8px", marginBottom: "1rem" }}>
+        <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>
           {error}
         </div>
       ) : incidents.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
-          <p style={{ color: "#64748b", fontSize: "1.1rem" }}>هیچ رویداد یا حادثه‌ای مطابق فیلترهای جاری یافت نشد.</p>
+        <div className="empty-state">
+          <p className="muted" style={{ fontSize: "1.1rem" }}>هیچ رویداد یا حادثه‌ای مطابق فیلترهای جاری یافت نشد.</p>
         </div>
       ) : (
         <div style={{ display: "grid", gap: "1rem" }}>
           {incidents.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                background: "#fff",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-                padding: "1rem",
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5rem",
-              }}
-            >
+            <div key={item.id} className="incident-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.5rem" }}>
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                  <span style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "#f1f5f9", color: "#475569" }}>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                  <span className="badge badge-neutral">
                     #{item.id}
                   </span>
-                  <span style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: item.incident_type === "incident" ? "#fee2e2" : "#fef3c7", color: item.incident_type === "incident" ? "#991b1b" : "#92400e", fontWeight: "bold" }}>
+                  <span className={`badge ${item.incident_type === "incident" ? "badge-danger" : "badge-warning"}`}>
                     {item.incident_type_display}
                   </span>
-                  <span style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: item.severity === "critical" ? "#dc2626" : item.severity === "major" ? "#ea580c" : item.severity === "moderate" ? "#d97706" : "#65a30d", color: "#fff", fontWeight: "bold" }}>
+                  <span className={`badge ${item.severity === "critical" ? "badge-danger" : item.severity === "major" ? "badge-warning" : "badge-info"}`}>
                     شدت: {item.severity_display}
                   </span>
-                  <span style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "#f3f4f6", color: "#374151" }}>
+                  <span className="badge badge-neutral">
                     وضعیت: {item.status_display}
                   </span>
                   {item.is_synthetic && (
-                    <span style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem", borderRadius: "4px", background: "#ede9fe", color: "#6d28d9" }}>
+                    <span className="badge" style={{ backgroundColor: "rgba(109, 40, 217, 0.15)", color: "#8b5cf6" }}>
                       داده آزمایشی
                     </span>
                   )}
                 </div>
                 <button
                   type="button"
+                  className="btn btn-sm btn-primary"
                   onClick={() => handleOpenDetail(item.id)}
-                  style={{ background: "#2563eb", color: "#fff", border: "none", padding: "0.4rem 0.8rem", borderRadius: "6px", cursor: "pointer", fontSize: "0.85rem" }}
                 >
                   مشاهده و مدیریت پرونده
                 </button>
@@ -606,13 +588,13 @@ export function IncidentsPage() {
 
               <h2 style={{ margin: "0.25rem 0", fontSize: "1.1rem", fontWeight: "bold" }}>{item.title}</h2>
 
-              <div style={{ display: "flex", gap: "1.5rem", color: "#64748b", fontSize: "0.85rem", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: "1.5rem", fontSize: "0.85rem", flexWrap: "wrap" }} className="muted">
                 <span>محل: {item.workplace_name || "نامشخص"}</span>
                 <span>زمان وقوع: {new Date(item.occurred_at).toLocaleString("fa-IR")}</span>
                 <span>گزارش‌دهنده: {item.reported_by_name || "ناشناس"}</span>
                 {item.assigned_investigator_name && <span>مسئول بررسی: {item.assigned_investigator_name}</span>}
-                {item.injury_count > 0 && <span style={{ color: "#dc2626", fontWeight: "bold" }}>مصدوم: {item.injury_count} نفر</span>}
-                {item.lost_time_days > 0 && <span style={{ color: "#dc2626", fontWeight: "bold" }}>غیبت: {item.lost_time_days} روز</span>}
+                {item.injury_count > 0 && <span style={{ color: "var(--danger)", fontWeight: "bold" }}>مصدوم: {item.injury_count} نفر</span>}
+                {item.lost_time_days > 0 && <span style={{ color: "var(--danger)", fontWeight: "bold" }}>غیبت: {item.lost_time_days} روز</span>}
                 <span>اقدام اصلاحی مرتبط: {item.capa_count}</span>
               </div>
             </div>
@@ -622,16 +604,17 @@ export function IncidentsPage() {
 
       {/* Incident Detail Modal */}
       {selectedIncident && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "1rem" }}>
-          <div style={{ background: "#fff", borderRadius: "8px", maxWidth: "800px", width: "100%", maxHeight: "90vh", overflowY: "auto", padding: "1.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.75rem", marginBottom: "1rem" }}>
-              <h2 style={{ margin: 0, fontSize: "1.25rem" }}>پرونده حادثه #{selectedIncident.id}: {selectedIncident.title}</h2>
+        <div className="modal-overlay" onClick={() => setSelectedIncident(null)}>
+          <div className="modal-container" style={{ maxWidth: "800px" }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title" style={{ margin: 0, fontSize: "1.25rem" }}>پرونده حادثه #{selectedIncident.id}: {selectedIncident.title}</h2>
               <button
                 type="button"
+                className="modal-close-btn"
                 onClick={() => setSelectedIncident(null)}
-                style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "#64748b" }}
+                aria-label="بستن"
               >
-                ×
+                <X size={18} />
               </button>
             </div>
 
@@ -805,37 +788,40 @@ export function IncidentsPage() {
 
       {/* Report Incident Modal */}
       {isReportModalOpen && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1100, padding: "1rem" }}>
-          <form onSubmit={handleReportSubmit} style={{ background: "#fff", borderRadius: "8px", maxWidth: "600px", width: "100%", maxHeight: "90vh", overflowY: "auto", padding: "1.5rem" }}>
-            <h2 style={{ marginTop: 0, fontSize: "1.25rem", borderBottom: "1px solid #eee", paddingBottom: "0.5rem" }}>ثبت رویداد، حادثه یا شبه‌حادثه جدید</h2>
+        <div className="modal-overlay" onClick={() => setIsReportModalOpen(false)}>
+          <form className="modal-container" style={{ maxWidth: "600px" }} onSubmit={handleReportSubmit} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">ثبت رویداد، حادثه یا شبه‌حادثه جدید</h2>
+              <button type="button" className="modal-close-btn" onClick={() => setIsReportModalOpen(false)} aria-label="بستن">
+                <X size={18} />
+              </button>
+            </div>
 
             {actionError && (
-              <div style={{ padding: "0.5rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "4px", marginBottom: "0.75rem", fontSize: "0.85rem" }}>
+              <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>
                 {actionError}
               </div>
             )}
 
-            <div style={{ display: "grid", gap: "0.75rem" }}>
+            <div style={{ display: "grid", gap: "1rem" }}>
               <div>
-                <label htmlFor="incident-title" style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>عنوان رویداد *</label>
+                <label htmlFor="incident-title">عنوان رویداد *</label>
                 <input
                   id="incident-title"
                   type="text"
                   required
                   value={reportForm.title}
                   onChange={(e) => setReportForm({ ...reportForm, title: e.target.value })}
-                  style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div>
-                  <label htmlFor="incident-type" style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>نوع رویداد *</label>
+                  <label htmlFor="incident-type">نوع رویداد *</label>
                   <select
                     id="incident-type"
                     value={reportForm.incident_type}
                     onChange={(e) => setReportForm({ ...reportForm, incident_type: e.target.value as IncidentType })}
-                    style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
                   >
                     {Object.entries(TYPE_LABELS).map(([k, v]) => (
                       <option key={k} value={k}>{v}</option>
@@ -843,12 +829,11 @@ export function IncidentsPage() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="incident-severity" style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>سطح شدت *</label>
+                  <label htmlFor="incident-severity">سطح شدت *</label>
                   <select
                     id="incident-severity"
                     value={reportForm.severity}
                     onChange={(e) => setReportForm({ ...reportForm, severity: e.target.value as IncidentSeverity })}
-                    style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
                   >
                     {Object.entries(SEVERITY_LABELS).map(([k, v]) => (
                       <option key={k} value={k}>{v}</option>
@@ -857,14 +842,13 @@ export function IncidentsPage() {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div>
-                  <label htmlFor="incident-workplace" style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>محل کارگاه</label>
+                  <label htmlFor="incident-workplace">محل کارگاه</label>
                   <select
                     id="incident-workplace"
                     value={reportForm.workplace ?? ""}
                     onChange={(e) => setReportForm({ ...reportForm, workplace: e.target.value ? Number(e.target.value) : null })}
-                    style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
                   >
                     <option value="">انتخاب کارگاه (اختیاری)</option>
                     {workplaces.map((wp) => (
@@ -873,83 +857,76 @@ export function IncidentsPage() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="incident-occurred-at" style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>زمان وقوع *</label>
+                  <label htmlFor="incident-occurred-at">زمان وقوع *</label>
                   <input
                     id="incident-occurred-at"
                     type="datetime-local"
                     required
                     value={reportForm.occurred_at}
                     onChange={(e) => setReportForm({ ...reportForm, occurred_at: e.target.value })}
-                    style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="incident-location" style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>موقعیت دقیق در کارگاه</label>
+                <label htmlFor="incident-location">موقعیت دقیق در کارگاه</label>
                 <input
                   id="incident-location"
                   type="text"
                   placeholder="مثال: پای کوره شماره ۳، کنار تابلوی برق"
                   value={reportForm.location_details}
                   onChange={(e) => setReportForm({ ...reportForm, location_details: e.target.value })}
-                  style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
                 />
               </div>
 
               <div>
-                <label htmlFor="incident-description" style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>شرح حادثه / رویداد *</label>
+                <label htmlFor="incident-description">شرح حادثه / رویداد *</label>
                 <textarea
                   id="incident-description"
                   required
                   rows={3}
                   value={reportForm.description}
                   onChange={(e) => setReportForm({ ...reportForm, description: e.target.value })}
-                  style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
                 />
               </div>
 
               <div>
-                <label htmlFor="incident-immediate-actions" style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>اقدامات فوری انجام‌شده</label>
+                <label htmlFor="incident-immediate-actions">اقدامات فوری انجام‌شده</label>
                 <textarea
                   id="incident-immediate-actions"
                   rows={2}
                   placeholder="مثال: قطع برق، انتقال مصدوم به درمانگاه، محصورسازی محوطه"
                   value={reportForm.immediate_actions_taken}
                   onChange={(e) => setReportForm({ ...reportForm, immediate_actions_taken: e.target.value })}
-                  style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>تعداد مصدومین</label>
+                  <label>تعداد مصدومین</label>
                   <input
                     type="number"
                     min="0"
                     value={reportForm.injury_count}
                     onChange={(e) => setReportForm({ ...reportForm, injury_count: Number(e.target.value) })}
-                    style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>روزهای غیبت (LTI)</label>
+                  <label>روزهای غیبت (LTI)</label>
                   <input
                     type="number"
                     min="0"
                     value={reportForm.lost_time_days}
                     onChange={(e) => setReportForm({ ...reportForm, lost_time_days: Number(e.target.value) })}
-                    style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>مخاطره مرتبط (اختیاری)</label>
+                <label>مخاطره مرتبط (اختیاری)</label>
                 <select
                   value={reportForm.related_hazard ?? ""}
                   onChange={(e) => setReportForm({ ...reportForm, related_hazard: e.target.value ? Number(e.target.value) : null })}
-                  style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
                 >
                   <option value="">انتخاب از مخاطرات شناسایی‌شده</option>
                   {hazards.map((haz) => (
@@ -959,18 +936,18 @@ export function IncidentsPage() {
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem" }}>
+            <div className="modal-footer">
               <button
                 type="button"
+                className="btn btn-secondary"
                 onClick={() => setIsReportModalOpen(false)}
-                style={{ padding: "0.5rem 1rem", border: "1px solid #ccc", background: "#f8fafc", borderRadius: "4px", cursor: "pointer" }}
               >
                 انصراف
               </button>
               <button
                 type="submit"
                 disabled={actionSubmitting}
-                style={{ padding: "0.5rem 1.2rem", background: "#dc2626", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}
+                className="btn btn-danger"
               >
                 {actionSubmitting ? "در حال ثبت…" : "ثبت گزارش رویداد"}
               </button>
@@ -981,34 +958,37 @@ export function IncidentsPage() {
 
       {/* Review Modal */}
       {isReviewModalOpen && selectedIncident && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1100, padding: "1rem" }}>
-          <form onSubmit={handleReviewSubmit} style={{ background: "#fff", borderRadius: "8px", maxWidth: "500px", width: "100%", padding: "1.5rem" }}>
-            <h3 style={{ marginTop: 0, fontSize: "1.1rem" }}>بررسی اولیه و تعیین بازرس برای پرونده #{selectedIncident.id}</h3>
-            {actionError && <div style={{ padding: "0.5rem", background: "#fee2e2", color: "#b91c1c", marginBottom: "0.75rem", fontSize: "0.85rem" }}>{actionError}</div>}
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>وضعیت بعدی</label>
+        <div className="modal-overlay" onClick={() => setIsReviewModalOpen(false)}>
+          <form className="modal-container" style={{ maxWidth: "500px" }} onSubmit={handleReviewSubmit} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">بررسی اولیه و تعیین بازرس برای پرونده #{selectedIncident.id}</h3>
+              <button type="button" className="modal-close-btn" onClick={() => setIsReviewModalOpen(false)} aria-label="بستن">
+                <X size={18} />
+              </button>
+            </div>
+            {actionError && <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>{actionError}</div>}
+            <div className="form-group">
+              <label>وضعیت بعدی</label>
               <select
                 value={reviewForm.status}
                 onChange={(e) => setReviewForm({ ...reviewForm, status: e.target.value as any })}
-                style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
               >
                 <option value="under_investigation">ارجاع به بازرس و شروع ریشه‌یابی (under_investigation)</option>
                 <option value="under_review">نیازمند بررسی تکمیلی (under_review)</option>
                 <option value="closed">بستن فوری به دلیل نامعتبر بودن گزارش (closed)</option>
               </select>
             </div>
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>یادداشت بررسی مدیر HSE</label>
+            <div className="form-group">
+              <label>یادداشت بررسی مدیر HSE</label>
               <textarea
                 rows={3}
                 value={reviewForm.review_notes}
                 onChange={(e) => setReviewForm({ ...reviewForm, review_notes: e.target.value })}
-                style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
               />
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-              <button type="button" onClick={() => setIsReviewModalOpen(false)} style={{ padding: "0.4rem 0.8rem", border: "1px solid #ccc", background: "#f8fafc", borderRadius: "4px" }}>انصراف</button>
-              <button type="submit" disabled={actionSubmitting} style={{ padding: "0.4rem 1rem", background: "#2563eb", color: "#fff", border: "none", borderRadius: "4px" }}>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setIsReviewModalOpen(false)}>انصراف</button>
+              <button type="submit" disabled={actionSubmitting} className="btn btn-primary">
                 {actionSubmitting ? "در حال ثبت…" : "تأیید و ارجاع"}
               </button>
             </div>
@@ -1018,33 +998,36 @@ export function IncidentsPage() {
 
       {/* Investigate Modal */}
       {isInvestigateModalOpen && selectedIncident && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1100, padding: "1rem" }}>
-          <form onSubmit={handleInvestigateSubmit} style={{ background: "#fff", borderRadius: "8px", maxWidth: "600px", width: "100%", padding: "1.5rem" }}>
-            <h3 style={{ marginTop: 0, fontSize: "1.1rem" }}>ثبت نتایج ریشه‌یابی و تحلیل علل (RCA) - پرونده #{selectedIncident.id}</h3>
-            {actionError && <div style={{ padding: "0.5rem", background: "#fee2e2", color: "#b91c1c", marginBottom: "0.75rem", fontSize: "0.85rem" }}>{actionError}</div>}
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>علت ریشه‌ای وقوع (Root Cause - ۵ چرا) *</label>
+        <div className="modal-overlay" onClick={() => setIsInvestigateModalOpen(false)}>
+          <form className="modal-container" style={{ maxWidth: "600px" }} onSubmit={handleInvestigateSubmit} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">ثبت نتایج ریشه‌یابی و تحلیل علل (RCA) - پرونده #{selectedIncident.id}</h3>
+              <button type="button" className="modal-close-btn" onClick={() => setIsInvestigateModalOpen(false)} aria-label="بستن">
+                <X size={18} />
+              </button>
+            </div>
+            {actionError && <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>{actionError}</div>}
+            <div className="form-group">
+              <label>علت ریشه‌ای وقوع (Root Cause - ۵ چرا) *</label>
               <textarea
                 required
                 rows={4}
                 placeholder="تحلیل ریشه‌ای و پاسخ به ۵ چرا را وارد کنید..."
                 value={investigateForm.root_cause}
                 onChange={(e) => setInvestigateForm({ ...investigateForm, root_cause: e.target.value })}
-                style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
               />
             </div>
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>عوامل کمکی و خطاهای زمینه‌ساز</label>
+            <div className="form-group">
+              <label>عوامل کمکی و خطاهای زمینه‌ساز</label>
               <textarea
                 rows={2}
                 value={investigateForm.contributing_factors}
                 onChange={(e) => setInvestigateForm({ ...investigateForm, contributing_factors: e.target.value })}
-                style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
               />
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-              <button type="button" onClick={() => setIsInvestigateModalOpen(false)} style={{ padding: "0.4rem 0.8rem", border: "1px solid #ccc", background: "#f8fafc", borderRadius: "4px" }}>انصراف</button>
-              <button type="submit" disabled={actionSubmitting} style={{ padding: "0.4rem 1rem", background: "#475569", color: "#fff", border: "none", borderRadius: "4px" }}>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setIsInvestigateModalOpen(false)}>انصراف</button>
+              <button type="submit" disabled={actionSubmitting} className="btn btn-primary">
                 {actionSubmitting ? "در حال ثبت…" : "ثبت ریشه‌یابی"}
               </button>
             </div>
@@ -1054,17 +1037,21 @@ export function IncidentsPage() {
 
       {/* Link CAPA Modal */}
       {isLinkCapaModalOpen && selectedIncident && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1100, padding: "1rem" }}>
-          <form onSubmit={handleLinkCapaSubmit} style={{ background: "#fff", borderRadius: "8px", maxWidth: "500px", width: "100%", padding: "1.5rem" }}>
-            <h3 style={{ marginTop: 0, fontSize: "1.1rem" }}>اتصال اقدام اصلاحی به پرونده #{selectedIncident.id}</h3>
-            {actionError && <div style={{ padding: "0.5rem", background: "#fee2e2", color: "#b91c1c", marginBottom: "0.75rem", fontSize: "0.85rem" }}>{actionError}</div>}
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>انتخاب اقدام اصلاحی *</label>
+        <div className="modal-overlay" onClick={() => setIsLinkCapaModalOpen(false)}>
+          <form className="modal-container" style={{ maxWidth: "500px" }} onSubmit={handleLinkCapaSubmit} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">اتصال اقدام اصلاحی به پرونده #{selectedIncident.id}</h3>
+              <button type="button" className="modal-close-btn" onClick={() => setIsLinkCapaModalOpen(false)} aria-label="بستن">
+                <X size={18} />
+              </button>
+            </div>
+            {actionError && <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>{actionError}</div>}
+            <div className="form-group">
+              <label>انتخاب اقدام اصلاحی *</label>
               <select
                 required
                 value={selectedCapaId ?? ""}
                 onChange={(e) => setSelectedCapaId(Number(e.target.value))}
-                style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
               >
                 <option value="">انتخاب اقدام اصلاحی (CAPA)</option>
                 {availableCapas.map((c) => (
@@ -1072,9 +1059,9 @@ export function IncidentsPage() {
                 ))}
               </select>
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-              <button type="button" onClick={() => setIsLinkCapaModalOpen(false)} style={{ padding: "0.4rem 0.8rem", border: "1px solid #ccc", background: "#f8fafc", borderRadius: "4px" }}>انصراف</button>
-              <button type="submit" disabled={actionSubmitting || !selectedCapaId} style={{ padding: "0.4rem 1rem", background: "#059669", color: "#fff", border: "none", borderRadius: "4px" }}>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setIsLinkCapaModalOpen(false)}>انصراف</button>
+              <button type="submit" disabled={actionSubmitting || !selectedCapaId} className="btn btn-primary">
                 {actionSubmitting ? "در حال ثبت…" : "اتصال اقدام"}
               </button>
             </div>
@@ -1084,27 +1071,31 @@ export function IncidentsPage() {
 
       {/* Close Incident Modal */}
       {isCloseModalOpen && selectedIncident && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1100, padding: "1rem" }}>
-          <form onSubmit={handleCloseSubmit} style={{ background: "#fff", borderRadius: "8px", maxWidth: "500px", width: "100%", padding: "1.5rem" }}>
-            <h3 style={{ marginTop: 0, fontSize: "1.1rem", color: "#16a34a" }}>مختومه‌سازی نهایی پرونده حادثه #{selectedIncident.id}</h3>
-            <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0.25rem 0 0.75rem" }}>
+        <div className="modal-overlay" onClick={() => setIsCloseModalOpen(false)}>
+          <form className="modal-container" style={{ maxWidth: "500px" }} onSubmit={handleCloseSubmit} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title" style={{ color: "var(--success)" }}>مختومه‌سازی نهایی پرونده حادثه #{selectedIncident.id}</h3>
+              <button type="button" className="modal-close-btn" onClick={() => setIsCloseModalOpen(false)} aria-label="بستن">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="muted" style={{ fontSize: "0.85rem", margin: "0.25rem 0 1rem" }}>
               نکته: جهت بستن پرونده‌های با شدت متوسط یا بالاتر، ثبت علت ریشه‌ای و تکمیل کلیه اقدامات اصلاحی متناظر الزامی است.
             </p>
-            {actionError && <div style={{ padding: "0.5rem", background: "#fee2e2", color: "#b91c1c", marginBottom: "0.75rem", fontSize: "0.85rem" }}>{actionError}</div>}
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>توضیحات و خلاصه اختتام پرونده *</label>
+            {actionError && <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>{actionError}</div>}
+            <div className="form-group">
+              <label>توضیحات و خلاصه اختتام پرونده *</label>
               <textarea
                 required
                 rows={3}
                 placeholder="تأییدیه اجرای اقدامات اصلاحی و عدم تکرار رویداد..."
                 value={closureNotes}
                 onChange={(e) => setClosureNotes(e.target.value)}
-                style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
               />
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-              <button type="button" onClick={() => setIsCloseModalOpen(false)} style={{ padding: "0.4rem 0.8rem", border: "1px solid #ccc", background: "#f8fafc", borderRadius: "4px" }}>انصراف</button>
-              <button type="submit" disabled={actionSubmitting} style={{ padding: "0.4rem 1rem", background: "#16a34a", color: "#fff", border: "none", borderRadius: "4px", fontWeight: "bold" }}>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setIsCloseModalOpen(false)}>انصراف</button>
+              <button type="submit" disabled={actionSubmitting} className="btn btn-primary" style={{ backgroundColor: "var(--success)" }}>
                 {actionSubmitting ? "در حال بستن…" : "مختومه‌سازی پرونده"}
               </button>
             </div>
@@ -1114,24 +1105,28 @@ export function IncidentsPage() {
 
       {/* Reopen Incident Modal */}
       {isReopenModalOpen && selectedIncident && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1100, padding: "1rem" }}>
-          <form onSubmit={handleReopenSubmit} style={{ background: "#fff", borderRadius: "8px", maxWidth: "500px", width: "100%", padding: "1.5rem" }}>
-            <h3 style={{ marginTop: 0, fontSize: "1.1rem", color: "#dc2626" }}>بازگشایی مجدد پرونده حادثه #{selectedIncident.id}</h3>
-            {actionError && <div style={{ padding: "0.5rem", background: "#fee2e2", color: "#b91c1c", marginBottom: "0.75rem", fontSize: "0.85rem" }}>{actionError}</div>}
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.2rem" }}>دلیل بازگشایی مجدد پرونده *</label>
+        <div className="modal-overlay" onClick={() => setIsReopenModalOpen(false)}>
+          <form className="modal-container" style={{ maxWidth: "500px" }} onSubmit={handleReopenSubmit} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title" style={{ color: "var(--danger)" }}>بازگشایی مجدد پرونده حادثه #{selectedIncident.id}</h3>
+              <button type="button" className="modal-close-btn" onClick={() => setIsReopenModalOpen(false)} aria-label="بستن">
+                <X size={18} />
+              </button>
+            </div>
+            {actionError && <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>{actionError}</div>}
+            <div className="form-group">
+              <label>دلیل بازگشایی مجدد پرونده *</label>
               <textarea
                 required
                 rows={3}
                 placeholder="دلیل نیاز به بازنگری یا کشف شواهد جدید..."
                 value={reopenReason}
                 onChange={(e) => setReopenReason(e.target.value)}
-                style={{ width: "100%", padding: "0.45rem", borderRadius: "4px", border: "1px solid #ccc" }}
               />
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-              <button type="button" onClick={() => setIsReopenModalOpen(false)} style={{ padding: "0.4rem 0.8rem", border: "1px solid #ccc", background: "#f8fafc", borderRadius: "4px" }}>انصراف</button>
-              <button type="submit" disabled={actionSubmitting} style={{ padding: "0.4rem 1rem", background: "#dc2626", color: "#fff", border: "none", borderRadius: "4px" }}>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setIsReopenModalOpen(false)}>انصراف</button>
+              <button type="submit" disabled={actionSubmitting} className="btn btn-danger">
                 {actionSubmitting ? "در حال ثبت…" : "تأیید بازگشایی"}
               </button>
             </div>

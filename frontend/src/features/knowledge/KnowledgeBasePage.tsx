@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
@@ -461,35 +462,17 @@ export function KnowledgeBasePage() {
 
       {/* Create Modal */}
       {isModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "grid",
-            placeItems: "center",
-            padding: "1rem",
-            zIndex: 100,
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              width: "min(600px, 100%)",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              padding: "1.5rem",
-              background: "#fff",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h3 style={{ margin: 0, fontSize: "1.1rem" }}>ثبت منبع / آیین‌نامه جدید</h3>
+        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div className="modal-container" style={{ maxWidth: "600px" }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">ثبت منبع / آیین‌نامه جدید</h3>
               <button
                 type="button"
+                className="modal-close-btn"
                 onClick={() => setIsModalOpen(false)}
-                style={{ background: "none", border: "none", fontSize: "1.2rem", cursor: "pointer" }}
+                aria-label="بستن"
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
 

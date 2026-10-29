@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppLayout, type NavTab } from "../layouts/AppLayout";
 import { AuthProvider } from "../features/auth/AuthContext";
+import { ThemeProvider } from "../context/ThemeContext";
 import { HealthStatus } from "../features/health/HealthStatus";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { WorkforcePage } from "../features/workforce/WorkforcePage";
@@ -14,6 +15,9 @@ import { NotificationsPage } from "../features/notifications/NotificationsPage";
 import { AuditLogPage } from "../features/auditlog/AuditLogPage";
 import { KnowledgeBasePage } from "../features/knowledge/KnowledgeBasePage";
 import { AiAssistantPage } from "../features/ai/AiAssistantPage";
+import { EnvironmentPage } from "../features/environment/EnvironmentPage";
+import { ScaffoldsPage } from "../features/scaffolds/ScaffoldsPage";
+import { DocumentsPage } from "../features/documents/DocumentsPage";
 import { fetchNotifications } from "../services/api";
 
 function AppContent() {
@@ -56,6 +60,12 @@ function AppContent() {
         </section>
       )}
 
+      {(activeTab === "all" || activeTab === "scaffolds") && (
+        <section id="scaffolds" className="section-container" style={{ marginBottom: "2rem" }}>
+          <ScaffoldsPage />
+        </section>
+      )}
+
       {(activeTab === "all" || activeTab === "assets") && (
         <section id="assets" className="section-container" style={{ marginBottom: "2rem" }}>
           <AssetsPage />
@@ -65,6 +75,18 @@ function AppContent() {
       {(activeTab === "all" || activeTab === "incidents") && (
         <section id="incidents" className="section-container" style={{ marginBottom: "2rem" }}>
           <IncidentsPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "environment") && (
+        <section id="environment" className="section-container" style={{ marginBottom: "2rem" }}>
+          <EnvironmentPage />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "documents") && (
+        <section id="documents" className="section-container" style={{ marginBottom: "2rem" }}>
+          <DocumentsPage />
         </section>
       )}
 
@@ -115,8 +137,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

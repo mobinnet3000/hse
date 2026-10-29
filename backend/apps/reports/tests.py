@@ -54,15 +54,44 @@ class ReportTests(TestCase):
             provider="آزمایشگاه گزارش",
             result=CalibrationRecord.Result.PASSED,
         )
+        from apps.permits.models import Permit
+        from apps.incidents.models import Incident
+        from django.utils import timezone
+        now = timezone.now()
+        Permit.objects.create(
+            organization=self.org_a,
+            workplace=self.wp,
+            reference_code="PTW-REPORT-001",
+            permit_type=Permit.PermitType.HOT_WORK,
+            title="مجوز گزارش",
+            requester=self.user_a,
+            status=Permit.Status.APPROVED,
+            valid_from=now,
+            valid_until=now + timedelta(hours=8),
+        )
+        Incident.objects.create(
+            organization=self.org_a,
+            workplace=self.wp,
+            title="حادثه گزارش",
+            incident_type=Incident.IncidentType.INCIDENT,
+            severity=Incident.Severity.MINOR,
+            status=Incident.Status.REPORTED,
+            occurred_at=now,
+            reported_by=self.user_a,
+        )
 
     def test_csv_export_all_types(self):
         self.client.force_login(self.user_a)
-        for r_type in ["inspections", "risks", "non-conformities", "corrective-actions", "assets"]:
+        for r_type in ["inspections", "risks", "non-conformities", "corrective-actions", "assets", "permits", "incidents"]:
             res = self.client.get(reverse("report-export", args=[r_type]))
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res["Content-Type"], "text/csv; charset=utf-8-sig")
             content = res.content.decode("utf-8-sig")
             self.assertIn("سازمان الف", content)
+            if r_type == "permits":
+                self.assertIn("PTW-REPORT-001", content)
+            elif r_type == "incidents":
+                self.assertIn("حادثه گزارش", content)
             if r_type == "assets":
                 self.assertIn("REPORT-EQ-001", content)
                 self.assertIn("معتبر", content)

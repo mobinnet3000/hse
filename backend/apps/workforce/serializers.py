@@ -14,9 +14,16 @@ from apps.workplaces.models import Workplace
 from .models import (
     COMPETENCY_DUE_SOON_DAYS,
     PPE_REPLACEMENT_DUE_SOON_DAYS,
+    AttendanceRecord,
     Competency,
+    ContractorCompany,
+    ContractorDocument,
+    ContractorEvaluation,
+    ContractorWorker,
     Employee,
     EmployeeCompetency,
+    EmployeeJobAssignment,
+    JobPosition,
     PPEAssignment,
     PPEAssignmentEvent,
     PPEItem,
@@ -927,3 +934,272 @@ class PPEAssignmentReplaceSerializer(serializers.Serializer):
 class PPEAssignmentDisposeSerializer(serializers.Serializer):
     condition = serializers.CharField(required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+# ==============================================================================
+# Phase 12: Job Catalog, Contractors & Attendance Serializers
+# ==============================================================================
+
+class JobPositionSerializer(serializers.ModelSerializer):
+    risk_level_display = serializers.CharField(source="get_risk_level_display", read_only=True)
+    required_competency_details = serializers.SerializerMethodField()
+    assignments_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = JobPosition
+        fields = [
+            "id",
+            "organization",
+            "code",
+            "title",
+            "description",
+            "department",
+            "risk_level",
+            "risk_level_display",
+            "required_competencies",
+            "required_competency_details",
+            "required_qualifications",
+            "is_active",
+            "assignments_count",
+            "is_synthetic",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "organization", "created_at", "updated_at"]
+
+    def get_required_competency_details(self, obj):
+        return [
+            {"id": c.id, "code": c.code, "name": c.name}
+            for c in obj.required_competencies.all()
+        ]
+
+    def get_assignments_count(self, obj):
+        return obj.assignments.filter(end_date__isnull=True).count()
+
+
+class EmployeeJobAssignmentSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source="employee.full_name", read_only=True)
+    job_position_title = serializers.CharField(source="job_position.title", read_only=True)
+    job_position_code = serializers.CharField(source="job_position.code", read_only=True)
+
+    class Meta:
+        model = EmployeeJobAssignment
+        fields = [
+            "id",
+            "organization",
+            "employee",
+            "employee_name",
+            "job_position",
+            "job_position_title",
+            "job_position_code",
+            "start_date",
+            "end_date",
+            "is_primary",
+            "notes",
+            "is_synthetic",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "organization", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        start = attrs.get("start_date") or getattr(self.instance, "start_date", None)
+        end = attrs.get("end_date") or getattr(self.instance, "end_date", None)
+        if start and end and end < start:
+            raise serializers.ValidationError({"end_date": "تاریخ پایان نمی‌تواند قبل از تاریخ شروع باشد."})
+        return attrs
+
+
+class ContractorCompanySerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    workers_count = serializers.SerializerMethodField()
+    documents_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ContractorCompany
+        fields = [
+            "id",
+            "organization",
+            "name",
+            "registration_no",
+            "economic_code",
+            "contact_person",
+            "contact_phone",
+            "contact_email",
+            "contract_start",
+            "contract_end",
+            "status",
+            "status_display",
+            "safety_score",
+            "notes",
+            "workers_count",
+            "documents_count",
+            "is_synthetic",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "organization", "created_at", "updated_at"]
+
+    def get_workers_count(self, obj):
+        return obj.workers.filter(is_active=True).count()
+
+    def get_documents_count(self, obj):
+        return obj.documents.count()
+
+
+class ContractorDocumentSerializer(serializers.ModelSerializer):
+    contractor_name = serializers.CharField(source="contractor.name", read_only=True)
+    document_type_display = serializers.CharField(source="get_document_type_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    verified_by_name = serializers.SerializerMethodField()
+    is_expired = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ContractorDocument
+        fields = [
+            "id",
+            "organization",
+            "contractor",
+            "contractor_name",
+            "document_type",
+            "document_type_display",
+            "title",
+            "file_url",
+            "valid_from",
+            "valid_until",
+            "status",
+            "status_display",
+            "verified_by",
+            "verified_by_name",
+            "verification_notes",
+            "is_expired",
+            "is_synthetic",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "organization", "created_at", "updated_at"]
+
+    def get_verified_by_name(self, obj):
+        return _full_name(obj.verified_by)
+
+    def get_is_expired(self, obj):
+        if obj.valid_until:
+            return obj.valid_until < timezone.localdate()
+        return False
+
+
+class ContractorWorkerSerializer(serializers.ModelSerializer):
+    contractor_name = serializers.CharField(source="contractor.name", read_only=True)
+    full_name = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = ContractorWorker
+        fields = [
+            "id",
+            "organization",
+            "contractor",
+            "contractor_name",
+            "national_id",
+            "first_name",
+            "last_name",
+            "full_name",
+            "mobile",
+            "trade",
+            "badge_number",
+            "is_active",
+            "medical_clearance_date",
+            "medical_expiry_date",
+            "safety_induction_date",
+            "notes",
+            "is_synthetic",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "organization", "created_at", "updated_at"]
+
+
+class ContractorEvaluationSerializer(serializers.ModelSerializer):
+    contractor_name = serializers.CharField(source="contractor.name", read_only=True)
+    evaluator_name = serializers.SerializerMethodField()
+    recommendation_display = serializers.CharField(source="get_recommendation_display", read_only=True)
+
+    class Meta:
+        model = ContractorEvaluation
+        fields = [
+            "id",
+            "organization",
+            "contractor",
+            "contractor_name",
+            "evaluation_date",
+            "evaluator",
+            "evaluator_name",
+            "score",
+            "criteria_scores",
+            "findings",
+            "recommendation",
+            "recommendation_display",
+            "is_synthetic",
+            "created_at",
+        ]
+        read_only_fields = ["id", "organization", "evaluator", "created_at"]
+
+    def get_evaluator_name(self, obj):
+        return _full_name(obj.evaluator)
+
+
+class AttendanceRecordSerializer(serializers.ModelSerializer):
+    workplace_name = serializers.CharField(source="workplace.name", read_only=True)
+    person_type_display = serializers.CharField(source="get_person_type_display", read_only=True)
+    employee_name = serializers.CharField(source="employee.full_name", read_only=True)
+    contractor_worker_name = serializers.CharField(source="contractor_worker.full_name", read_only=True)
+    entry_source_display = serializers.CharField(source="get_entry_source_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    verified_by_name = serializers.SerializerMethodField()
+    person_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AttendanceRecord
+        fields = [
+            "id",
+            "organization",
+            "workplace",
+            "workplace_name",
+            "person_type",
+            "person_type_display",
+            "employee",
+            "employee_name",
+            "contractor_worker",
+            "contractor_worker_name",
+            "person_name",
+            "date",
+            "check_in",
+            "check_out",
+            "entry_source",
+            "entry_source_display",
+            "status",
+            "status_display",
+            "verified_by",
+            "verified_by_name",
+            "notes",
+            "is_synthetic",
+            "created_at",
+        ]
+        read_only_fields = ["id", "organization", "verified_by", "created_at"]
+
+    def get_verified_by_name(self, obj):
+        return _full_name(obj.verified_by)
+
+    def get_person_name(self, obj):
+        if obj.employee:
+            return obj.employee.full_name
+        if obj.contractor_worker:
+            return obj.contractor_worker.full_name
+        return "نامشخص"
+
+    def validate(self, attrs):
+        check_in = attrs.get("check_in") or getattr(self.instance, "check_in", None)
+        check_out = attrs.get("check_out") or getattr(self.instance, "check_out", None)
+        if check_in and check_out and check_out < check_in:
+            raise serializers.ValidationError({"check_out": "زمان خروج نمی‌تواند قبل از زمان ورود باشد."})
+        return attrs
+

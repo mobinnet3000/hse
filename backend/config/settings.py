@@ -47,6 +47,15 @@ INSTALLED_APPS = [
     "apps.permits",
     "apps.assets",
     "apps.workforce",
+    "apps.environment",
+    "apps.scaffolds",
+    "apps.documents",
+    "apps.calculators",
+    "apps.lifting",
+    "apps.pssr",
+    "apps.surveys",
+    "apps.chat",
+    "apps.fleet_energy",
 ]
 
 MIDDLEWARE = [

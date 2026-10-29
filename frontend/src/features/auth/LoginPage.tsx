@@ -1,3 +1,4 @@
+import { ShieldCheck, Lock, User, ArrowLeft } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { ApiRequestError } from "../../services/api";
@@ -30,29 +31,44 @@ export function LoginPage() {
   return (
     <div className="auth-screen">
       <form className="card auth-card" onSubmit={handleSubmit}>
+        <div className="auth-logo-badge">
+          <ShieldCheck size={36} className="auth-logo-icon" />
+        </div>
         <h1>ورود به HSE Guard</h1>
-        <p className="muted">برای ادامه، نام کاربری و رمز عبور خود را وارد کنید.</p>
+        <p className="muted">سامانه هوشمند پایش و مدیریت ایمنی، بهداشت و محیط‌زیست</p>
 
-        <label htmlFor="username">نام کاربری</label>
-        <input
-          id="username"
-          name="username"
-          autoComplete="username"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          required
-        />
+        <div className="form-group">
+          <label htmlFor="username">
+            <span className="form-label-icon"><User size={14} /></span>
+            نام کاربری
+          </label>
+          <input
+            id="username"
+            name="username"
+            autoComplete="username"
+            placeholder="مثال: admin"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            required
+          />
+        </div>
 
-        <label htmlFor="password">رمز عبور</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          required
-        />
+        <div className="form-group">
+          <label htmlFor="password">
+            <span className="form-label-icon"><Lock size={14} /></span>
+            رمز عبور
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+        </div>
 
         {error && (
           <p className="alert alert-error" role="alert">
@@ -60,8 +76,9 @@ export function LoginPage() {
           </p>
         )}
 
-        <button type="submit" disabled={submitting}>
+        <button type="submit" className="auth-submit-btn" disabled={submitting}>
           {submitting ? "در حال ورود…" : "ورود"}
+          {!submitting && <ArrowLeft size={16} />}
         </button>
       </form>
     </div>

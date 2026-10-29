@@ -641,31 +641,31 @@ export function AssetsPage() {
           </div>
           <div className="card" style={{ maxWidth: "none" }}>
             <h3>آماده به کار</h3>
-            <p style={{ fontSize: "1.6rem", fontWeight: "bold", margin: 0, color: "#1e7d45" }}>
+            <p style={{ fontSize: "1.6rem", fontWeight: "bold", margin: 0, color: "var(--success)" }}>
               {stats.ready_count}
             </p>
           </div>
           <div className="card" style={{ maxWidth: "none" }}>
             <h3>خارج از سرویس</h3>
-            <p style={{ fontSize: "1.6rem", fontWeight: "bold", margin: 0, color: "#b42318" }}>
+            <p style={{ fontSize: "1.6rem", fontWeight: "bold", margin: 0, color: "var(--danger)" }}>
               {stats.out_of_service_count}
             </p>
           </div>
           <div className="card" style={{ maxWidth: "none" }}>
             <h3>سرویس عقب‌افتاده</h3>
-            <p style={{ fontSize: "1.6rem", fontWeight: "bold", margin: 0, color: "#b42318" }}>
+            <p style={{ fontSize: "1.6rem", fontWeight: "bold", margin: 0, color: "var(--danger)" }}>
               {stats.maintenance_overdue_count}
             </p>
           </div>
           <div className="card" style={{ maxWidth: "none" }}>
             <h3>کالیبراسیون نزدیک سررسید</h3>
-            <p style={{ fontSize: "1.6rem", fontWeight: "bold", margin: 0, color: "#9a6700" }}>
+            <p style={{ fontSize: "1.6rem", fontWeight: "bold", margin: 0, color: "var(--warning)" }}>
               {stats.calibration_due_soon_count}
             </p>
           </div>
           <div className="card" style={{ maxWidth: "none" }}>
             <h3>کالیبراسیون منقضی/ناموفق</h3>
-            <p style={{ fontSize: "1.6rem", fontWeight: "bold", margin: 0, color: "#b42318" }}>
+            <p style={{ fontSize: "1.6rem", fontWeight: "bold", margin: 0, color: "var(--danger)" }}>
               {stats.calibration_expired_count + stats.calibration_failed_count}
             </p>
           </div>

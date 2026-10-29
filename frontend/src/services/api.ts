@@ -49,7 +49,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
 
-  if (options.body) {
+  if (options.body && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
   if (method !== "GET" && method !== "HEAD") {
@@ -195,8 +195,9 @@ export function fetchOrganizations(signal?: AbortSignal) {
   return request<Organization[]>("/organizations/", { signal });
 }
 
-export function fetchWorkplaces(organizationId: number, signal?: AbortSignal) {
-  return request<Workplace[]>(`/workplaces/?${query({ organization: organizationId })}`, {
+export function fetchWorkplaces(organizationId?: number, signal?: AbortSignal) {
+  const queryStr = organizationId ? `?${query({ organization: organizationId })}` : "";
+  return request<Workplace[]>(`/workplaces/${queryStr}`, {
     signal,
   });
 }
@@ -253,6 +254,224 @@ export function updateAssessment(id: number, data: Record<string, unknown>) {
     body: JSON.stringify(data),
   });
 }
+
+// -----------------------------------------
+// Phase 11: BowTie, Barriers & HCMS
+// -----------------------------------------
+
+export type BowTieThreat = {
+  id: number;
+  diagram: number;
+  title: string;
+  category: string;
+  order: number;
+};
+
+export type BowTieConsequence = {
+  id: number;
+  diagram: number;
+  title: string;
+  severity_level: "low" | "medium" | "high" | "critical";
+  severity_level_display: string;
+  order: number;
+};
+
+export type BarrierAssessment = {
+  id: number;
+  barrier: number;
+  effectiveness: "effective" | "partially_effective" | "ineffective" | "not_tested";
+  effectiveness_display: string;
+  assessed_by: number | null;
+  assessed_by_name?: string;
+  assessment_date: string;
+  evidence_reference: string;
+  notes: string;
+  created_at: string;
+};
+
+export type Barrier = {
+  id: number;
+  diagram: number;
+  threat: number | null;
+  consequence: number | null;
+  barrier_type: "preventive" | "mitigative";
+  barrier_type_display: string;
+  nature: "engineering" | "administrative" | "human_action" | "physical";
+  nature_display: string;
+  name: string;
+  description: string;
+  is_critical: boolean;
+  owner: number | null;
+  owner_name?: string;
+  current_effectiveness: "effective" | "partially_effective" | "ineffective" | "not_tested";
+  current_effectiveness_display: string;
+  status: "operational" | "impaired" | "decommissioned";
+  status_display: string;
+  assessments: BarrierAssessment[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type BowTieDiagram = {
+  id: number;
+  organization: number;
+  hazard: number;
+  hazard_title: string;
+  top_event: string;
+  description: string;
+  status: "draft" | "active" | "under_review" | "archived";
+  status_display: string;
+  owner: number | null;
+  owner_name?: string;
+  target_review_date: string | null;
+  threats: BowTieThreat[];
+  consequences: BowTieConsequence[];
+  barriers: Barrier[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type HCMSControl = {
+  id: number;
+  organization: number;
+  hazard: number;
+  hazard_title: string;
+  barrier: number | null;
+  control_title: string;
+  hierarchy_of_control: "elimination" | "substitution" | "engineering" | "administrative" | "ppe";
+  hierarchy_display: string;
+  implementation_status: "implemented" | "in_progress" | "planned" | "failed";
+  status_display: string;
+  review_frequency_days: number;
+  last_reviewed_at: string | null;
+  next_review_due: string | null;
+  responsible_owner: number | null;
+  owner_name?: string;
+  initial_risk_score: number;
+  residual_likelihood: number;
+  residual_severity: number;
+  residual_score: number;
+  residual_level: "low" | "medium" | "high" | "critical";
+  residual_level_display: string;
+  reassessment_trigger: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RiskTemplate = {
+  id: number;
+  organization: number | null;
+  title: string;
+  industry: string;
+  category: string;
+  category_display: string;
+  standard_code: string;
+  version: string;
+  typical_threats: string;
+  typical_consequences: string;
+  recommended_barriers: string;
+};
+
+export type RiskDashboardSummary = {
+  total_hazards: number;
+  reassessment_needed_count: number;
+  total_bowties: number;
+  total_barriers: number;
+  critical_barriers: number;
+  failed_critical_barriers: number;
+  total_controls: number;
+  pending_review_controls: number;
+};
+
+export function fetchBowTieDiagrams(
+  organizationId: number,
+  filters: Record<string, string> = {},
+  signal?: AbortSignal,
+) {
+  return request<BowTieDiagram[]>(
+    `/risks/bowtie/?${query({ organization: organizationId, ...filters })}`,
+    { signal },
+  );
+}
+
+export function fetchBowTieDiagram(id: number, signal?: AbortSignal) {
+  return request<BowTieDiagram>(`/risks/bowtie/${id}/`, { signal });
+}
+
+export function createBowTieDiagram(organizationId: number, data: Record<string, unknown>) {
+  return request<BowTieDiagram>("/risks/bowtie/", {
+    method: "POST",
+    body: JSON.stringify({ ...data, organization: organizationId }),
+  });
+}
+
+export function createBowTieThreat(diagramId: number, data: Record<string, unknown>) {
+  return request<BowTieThreat>(`/risks/bowtie/${diagramId}/threats/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function createBowTieConsequence(diagramId: number, data: Record<string, unknown>) {
+  return request<BowTieConsequence>(`/risks/bowtie/${diagramId}/consequences/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function createBarrier(data: Record<string, unknown>) {
+  return request<Barrier>("/risks/barriers/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function assessBarrier(barrierId: number, data: Record<string, unknown>) {
+  return request<BarrierAssessment>(`/risks/barriers/${barrierId}/assess/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchHCMSControls(
+  organizationId: number,
+  filters: Record<string, string> = {},
+  signal?: AbortSignal,
+) {
+  return request<HCMSControl[]>(
+    `/risks/hcms/?${query({ organization: organizationId, ...filters })}`,
+    { signal },
+  );
+}
+
+export function createHCMSControl(organizationId: number, data: Record<string, unknown>) {
+  return request<HCMSControl>("/risks/hcms/", {
+    method: "POST",
+    body: JSON.stringify({ ...data, organization: organizationId }),
+  });
+}
+
+export function updateHCMSControl(id: number, data: Record<string, unknown>) {
+  return request<HCMSControl>(`/risks/hcms/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchRiskTemplates(category?: string, signal?: AbortSignal) {
+  return request<RiskTemplate[]>(
+    `/risks/templates/${category ? `?category=${category}` : ""}`,
+    { signal },
+  );
+}
+
+export function fetchRiskDashboardSummary(organizationId: number, signal?: AbortSignal) {
+  return request<RiskDashboardSummary>(
+    `/risks/dashboard/summary/?organization=${organizationId}`,
+    { signal },
+  );
+}
+
 export type ChecklistItem = {
   id: number;
   checklist: number;
@@ -805,7 +1024,8 @@ export function fetchIncidents(
   if (params?.date_from) q.set("date_from", params.date_from);
   if (params?.date_to) q.set("date_to", params.date_to);
   const qs = q.toString();
-  return request<IncidentListItem[]>(`/incidents/${qs ? `?${qs}` : ""}`, { signal });
+  return request<IncidentListItem[] | { results: IncidentListItem[] }>(`/incidents/${qs ? `?${qs}` : ""}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
 }
 
 export function fetchIncidentDetail(id: number, signal?: AbortSignal) {
@@ -921,8 +1141,115 @@ export interface PermitListItem {
   gas_testing_required: boolean;
   isolation_loto_required: boolean;
   controls_verified: boolean;
+  contractor?: number | null;
+  contractor_name?: string | null;
+  weather_condition_ok?: boolean;
   is_synthetic: boolean;
   created_at: string;
+}
+
+export interface GatekeeperCheckResult {
+  is_ready_for_activation: boolean;
+  blockers: string[];
+  warnings: string[];
+  contractor: {
+    status: "ok" | "fail" | "warning";
+    message: string;
+  };
+  competency: {
+    status: "ok" | "fail" | "warning";
+    message: string;
+    details?: any;
+  };
+  loto: {
+    status: "ok" | "fail" | "warning";
+    message: string;
+  };
+  gas_testing: {
+    status: "ok" | "fail" | "warning";
+    message: string;
+  };
+  weather: {
+    status: "ok" | "fail" | "warning";
+    message: string;
+  };
+  simops: {
+    status: "ok" | "fail" | "warning";
+    conflicts_count: number;
+    blocking_count: number;
+    conflicts: Array<{
+      id: number;
+      other_permit_code: string;
+      other_permit_title: string;
+      severity: string;
+      conflict_type: string;
+      description: string;
+      is_resolved: boolean;
+    }>;
+  };
+}
+
+export interface SIMOPSConflictItem {
+  id: number;
+  organization: number;
+  permit_a: number;
+  permit_a_code: string;
+  permit_a_title: string;
+  permit_b: number;
+  permit_b_code: string;
+  permit_b_title: string;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  conflict_type: "incompatible_types" | "spatial_overlap" | "height_overhead" | "isolation_conflict";
+  conflict_type_display: string;
+  severity: "info" | "warning" | "critical_block";
+  severity_display: string;
+  description: string;
+  is_resolved: boolean;
+  override_approved: boolean;
+  override_by?: number | null;
+  override_by_name?: string | null;
+  override_reason?: string;
+  override_at?: string | null;
+  is_synthetic: boolean;
+  created_at: string;
+}
+
+export interface SIMOPSRadarWorkplace {
+  workplace_id: number;
+  workplace_name: string;
+  active_permits_count: number;
+  conflicts_count: number;
+  has_critical_block: boolean;
+  permits: Array<{
+    id: number;
+    reference_code: string;
+    title: string;
+    permit_type: string;
+    permit_type_display: string;
+    status: string;
+    status_display: string;
+    valid_from: string;
+    valid_until: string;
+    contractor_name?: string | null;
+  }>;
+  conflicts: Array<{
+    id: number;
+    severity: string;
+    conflict_type: string;
+    conflict_type_display: string;
+    description: string;
+    permit_a_code: string;
+    permit_b_code: string;
+    is_resolved: boolean;
+  }>;
+}
+
+export interface SIMOPSRadarData {
+  organization: number;
+  total_active_planned_permits: number;
+  active_conflicts: number;
+  workplaces: SIMOPSRadarWorkplace[];
 }
 
 export interface PermitDetail extends PermitListItem {
@@ -934,6 +1261,14 @@ export interface PermitDetail extends PermitListItem {
   responsible_supervisor_name?: string | null;
   precautions_taken: string;
   required_ppe: string;
+  weather_notes?: string;
+  resumption_notes?: string;
+  simops_override_approved?: boolean;
+  simops_override_reason?: string;
+  simops_override_by?: number | null;
+  simops_override_by_name?: string | null;
+  simops_override_at?: string | null;
+  gatekeeper_checks?: GatekeeperCheckResult;
   gas_testing_results: string;
   isolation_loto_details: string;
   controls_verified_by?: number | null;
@@ -1040,7 +1375,8 @@ export function fetchPermits(params?: Record<string, string | number>, signal?: 
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
         .join("&")
     : "";
-  return request<PermitListItem[]>(`/permits/${query}`, { signal });
+  return request<PermitListItem[] | { results: PermitListItem[] }>(`/permits/${query}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
 }
 
 export function fetchPermitDetail(id: number, signal?: AbortSignal) {
@@ -1088,11 +1424,39 @@ export function suspendPermit(id: number, data: { reason: string }) {
   });
 }
 
-export function resumePermit(id: number) {
+export function resumePermit(id: number, data?: { resumption_notes?: string }) {
   return request<PermitDetail>(`/permits/${id}/resume/`, {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify(data || {}),
   });
+}
+
+export function fetchSIMOPSRadar(organizationId?: number, signal?: AbortSignal) {
+  const query = organizationId ? `?organization=${organizationId}` : "";
+  return request<SIMOPSRadarData>(`/permits/simops-radar/${query}`, { signal });
+}
+
+export function fetchSIMOPSConflicts(params?: Record<string, string | number>, signal?: AbortSignal) {
+  const query = params
+    ? "?" +
+      Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== "")
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join("&")
+    : "";
+  return request<SIMOPSConflictItem[] | { results: SIMOPSConflictItem[] }>(`/permits/simops-conflicts/${query}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
+}
+
+export function overrideSIMOPSConflict(id: number, data: { reason: string }) {
+  return request<SIMOPSConflictItem>(`/permits/simops-conflicts/${id}/override/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchPermitGatekeeperCheck(id: number, signal?: AbortSignal) {
+  return request<GatekeeperCheckResult>(`/permits/${id}/gatekeeper-check/`, { signal });
 }
 
 export function completePermit(id: number) {
@@ -1136,7 +1500,8 @@ export function fetchShiftHandovers(params?: Record<string, string | number>, si
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
         .join("&")
     : "";
-  return request<ShiftHandoverItem[]>(`/permits/handovers/${query}`, { signal });
+  return request<ShiftHandoverItem[] | { results: ShiftHandoverItem[] }>(`/permits/handovers/${query}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
 }
 
 export function fetchShiftHandoverDetail(id: number, signal?: AbortSignal) {
@@ -2117,3 +2482,924 @@ export function fetchPermitCompetencyStatus(permitId: number, signal?: AbortSign
   return request<PermitCompetencyValidation>(`/permits/${permitId}/competency-status/`, { signal });
 }
 
+// ---------------------------------------------------------------------------
+// Phase 12: Jobs, Contractors & Attendance
+// ---------------------------------------------------------------------------
+
+export interface JobPosition {
+  id: number;
+  organization: number;
+  code: string;
+  title: string;
+  description: string;
+  department: string;
+  risk_level: "low" | "medium" | "high" | "critical";
+  risk_level_display?: string;
+  required_competencies: number[];
+  required_competency_details?: { id: number; code: string; name: string }[];
+  required_qualifications: string;
+  is_active: boolean;
+  assignments_count?: number;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EmployeeJobAssignment {
+  id: number;
+  organization: number;
+  employee: number;
+  employee_name?: string;
+  job_position: number;
+  job_position_title?: string;
+  job_position_code?: string;
+  start_date: string;
+  end_date?: string | null;
+  is_primary: boolean;
+  notes?: string;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContractorCompany {
+  id: number;
+  organization: number;
+  name: string;
+  registration_no: string;
+  economic_code: string;
+  contact_person: string;
+  contact_phone: string;
+  contact_email: string;
+  contract_start?: string | null;
+  contract_end?: string | null;
+  status: "pending" | "approved" | "suspended" | "blacklisted";
+  status_display?: string;
+  safety_score: number | string;
+  notes?: string;
+  workers_count?: number;
+  documents_count?: number;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContractorDocument {
+  id: number;
+  organization: number;
+  contractor: number;
+  contractor_name?: string;
+  document_type: "hse_plan" | "insurance_policy" | "qualification_cert" | "iso_cert" | "other";
+  document_type_display?: string;
+  title: string;
+  file_url?: string;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  status: "submitted" | "verified" | "expired" | "rejected";
+  status_display?: string;
+  verified_by?: number | null;
+  verified_by_name?: string | null;
+  verification_notes?: string;
+  is_expired?: boolean;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContractorWorker {
+  id: number;
+  organization: number;
+  contractor: number;
+  contractor_name?: string;
+  national_id: string;
+  first_name: string;
+  last_name: string;
+  full_name?: string;
+  mobile: string;
+  trade: string;
+  badge_number: string;
+  is_active: boolean;
+  medical_clearance_date?: string | null;
+  medical_expiry_date?: string | null;
+  safety_induction_date?: string | null;
+  notes?: string;
+  is_synthetic?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContractorEvaluation {
+  id: number;
+  organization: number;
+  contractor: number;
+  contractor_name?: string;
+  evaluation_date: string;
+  evaluator?: number | null;
+  evaluator_name?: string | null;
+  score: number | string;
+  criteria_scores?: Record<string, any>;
+  findings: string;
+  recommendation: "continue" | "warning" | "conditional_approval" | "terminate";
+  recommendation_display?: string;
+  is_synthetic?: boolean;
+  created_at?: string;
+}
+
+export interface AttendanceRecord {
+  id: number;
+  organization: number;
+  workplace?: number | null;
+  workplace_name?: string | null;
+  person_type: "employee" | "contractor_worker";
+  person_type_display?: string;
+  employee?: number | null;
+  employee_name?: string | null;
+  contractor_worker?: number | null;
+  contractor_worker_name?: string | null;
+  person_name?: string;
+  date: string;
+  check_in: string;
+  check_out?: string | null;
+  entry_source: "gate_scanner" | "biometric" | "manual_roster" | "mobile_kiosk";
+  entry_source_display?: string;
+  status: "present" | "late" | "absent" | "early_departure";
+  status_display?: string;
+  verified_by?: number | null;
+  verified_by_name?: string | null;
+  notes?: string;
+  is_synthetic?: boolean;
+  created_at?: string;
+}
+
+export interface AttendanceRoster {
+  date: string;
+  total_recorded: number;
+  present_count: number;
+  late_count: number;
+  absent_count: number;
+  early_departure_count: number;
+  employee_count: number;
+  contractor_worker_count: number;
+}
+
+export function fetchJobPositions(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<JobPosition[]>(`/workforce/jobs/${workforceQuery(params)}`, { signal });
+}
+
+export function createJobPosition(data: Record<string, unknown>) {
+  return request<JobPosition>("/workforce/jobs/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchEmployeeJobAssignments(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<EmployeeJobAssignment[]>(`/workforce/job-assignments/${workforceQuery(params)}`, { signal });
+}
+
+export function createEmployeeJobAssignment(data: Record<string, unknown>) {
+  return request<EmployeeJobAssignment>("/workforce/job-assignments/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchContractors(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<ContractorCompany[] | { results: ContractorCompany[] }>(`/workforce/contractors/${workforceQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
+}
+export const fetchContractorCompanies = fetchContractors;
+
+export function createContractor(data: Record<string, unknown>) {
+  return request<ContractorCompany>("/workforce/contractors/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchContractorDocuments(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<ContractorDocument[] | { results: ContractorDocument[] }>(`/workforce/contractor-documents/${workforceQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
+}
+
+export function createContractorDocument(data: Record<string, unknown>) {
+  return request<ContractorDocument>("/workforce/contractor-documents/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function verifyContractorDocument(id: number, data: { status: string; verification_notes?: string }) {
+  return request<ContractorDocument>(`/workforce/contractor-documents/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchContractorWorkers(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<ContractorWorker[] | { results: ContractorWorker[] }>(`/workforce/contractor-workers/${workforceQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
+}
+
+export function createContractorWorker(data: Record<string, unknown>) {
+  return request<ContractorWorker>("/workforce/contractor-workers/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchContractorEvaluations(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<ContractorEvaluation[] | { results: ContractorEvaluation[] }>(`/workforce/contractor-evaluations/${workforceQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : (res as any)?.results ?? []));
+}
+
+export function createContractorEvaluation(data: Record<string, unknown>) {
+  return request<ContractorEvaluation>("/workforce/contractor-evaluations/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchAttendanceRecords(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal,
+) {
+  return request<AttendanceRecord[]>(`/workforce/attendance/${workforceQuery(params)}`, { signal });
+}
+
+export function createAttendanceRecord(data: Record<string, unknown>) {
+  return request<AttendanceRecord>("/workforce/attendance/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchAttendanceRoster(
+  date?: string,
+  organizationId?: number,
+  signal?: AbortSignal,
+) {
+  const p: Record<string, string | number | undefined> = {};
+  if (date) p.date = date;
+  if (organizationId) p.organization = organizationId;
+  return request<AttendanceRoster>(`/workforce/attendance/roster/${workforceQuery(p)}`, { signal });
+}
+
+// ==========================================
+// Phase 14: Environmental & Occupational Hygiene
+// ==========================================
+
+export type EnvironmentalThreshold = {
+  id: number;
+  name: string;
+  category: "wastewater" | "stack_emission" | "noise" | "heat_stress" | "dust" | "toxic_gas";
+  category_display: string;
+  parameter: string;
+  limit_type: "max_limit" | "min_limit" | "range";
+  limit_type_display: string;
+  limit_value: number;
+  min_value?: number | null;
+  unit: string;
+  standard_reference: string;
+  is_active: boolean;
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EnvironmentalAspect = {
+  id: number;
+  workplace: number;
+  workplace_name?: string;
+  activity_or_process: string;
+  aspect: string;
+  impact: string;
+  condition: "normal" | "abnormal" | "emergency";
+  condition_display?: string;
+  severity_score: number;
+  probability_score: number;
+  significance_score: number;
+  is_significant: boolean;
+  control_measures: string;
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WasteRecord = {
+  id: number;
+  workplace: number;
+  workplace_name?: string;
+  waste_name: string;
+  waste_type: "hazardous" | "non_hazardous" | "recyclable";
+  waste_type_display?: string;
+  quantity: number;
+  unit: "kg" | "ton" | "liter" | "drum";
+  unit_display?: string;
+  storage_location: string;
+  generation_date: string;
+  status: "stored" | "transferred" | "disposed";
+  status_display?: string;
+  consignment_number?: string;
+  contractor?: number | null;
+  contractor_name?: string;
+  disposal_facility?: string;
+  disposal_method?: string;
+  disposal_date?: string | null;
+  notes?: string;
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WastewaterEmissionRecord = {
+  id: number;
+  workplace: number;
+  workplace_name?: string;
+  sampling_point: string;
+  category: "wastewater" | "stack_emission" | "ambient_air";
+  category_display?: string;
+  sample_date: string;
+  parameter: string;
+  measured_value: number;
+  unit: string;
+  threshold?: number | null;
+  threshold_name?: string;
+  standard_limit?: number | null;
+  is_exceedance: boolean;
+  laboratory_name?: string;
+  test_report_number?: string;
+  non_conformity?: number | null;
+  non_conformity_desc?: string;
+  notes?: string;
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OccupationalHygieneRecord = {
+  id: number;
+  workplace: number;
+  workplace_name?: string;
+  category: "noise" | "heat_stress" | "lighting" | "dust_particulate" | "chemical_vapor";
+  category_display?: string;
+  location_details: string;
+  survey_date: string;
+  surveyor_name: string;
+  measured_value: number;
+  unit: string;
+  threshold?: number | null;
+  threshold_name?: string;
+  standard_limit?: number | null;
+  is_exceedance: boolean;
+  assessment_result: "acceptable" | "warning" | "unacceptable";
+  assessment_result_display?: string;
+  control_recommendation?: string;
+  non_conformity?: number | null;
+  non_conformity_desc?: string;
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EnvironmentalSummary = {
+  aspects_total: number;
+  aspects_significant: number;
+  waste_records_count: number;
+  hazardous_waste_kg: number;
+  non_hazardous_waste_kg: number;
+  active_stored_waste_count: number;
+  emission_records_count: number;
+  emission_exceedances_count: number;
+  hygiene_surveys_count: number;
+  hygiene_exceedances_count: number;
+};
+
+function envQuery(params?: Record<string, string | number | undefined>): string {
+  if (!params) return "";
+  const filtered = Object.entries(params).filter(([, v]) => v !== undefined && v !== "");
+  if (!filtered.length) return "";
+  return `?${new URLSearchParams(filtered.map(([k, v]) => [k, String(v)])).toString()}`;
+}
+
+export function fetchEnvironmentalSummary(organizationId?: number, signal?: AbortSignal) {
+  const p: Record<string, string | number | undefined> = {};
+  if (organizationId) p.organization = organizationId;
+  return request<EnvironmentalSummary>(`/environment/summary/${envQuery(p)}`, { signal });
+}
+
+export function fetchEnvironmentalThresholds(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<EnvironmentalThreshold[] | { results: EnvironmentalThreshold[] }>(`/environment/thresholds/${envQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createEnvironmentalThreshold(data: Record<string, unknown>) {
+  return request<EnvironmentalThreshold>("/environment/thresholds/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchEnvironmentalAspects(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<EnvironmentalAspect[] | { results: EnvironmentalAspect[] }>(`/environment/aspects/${envQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createEnvironmentalAspect(data: Record<string, unknown>) {
+  return request<EnvironmentalAspect>("/environment/aspects/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchWasteRecords(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<WasteRecord[] | { results: WasteRecord[] }>(`/environment/waste/${envQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createWasteRecord(data: Record<string, unknown>) {
+  return request<WasteRecord>("/environment/waste/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateWasteStatus(id: number, data: { status: string; consignment_number?: string; contractor?: number; disposal_facility?: string; disposal_method?: string; disposal_date?: string }) {
+  return request<WasteRecord>(`/environment/waste/${id}/update-status/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchWastewaterEmissions(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<WastewaterEmissionRecord[] | { results: WastewaterEmissionRecord[] }>(`/environment/emissions/${envQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createWastewaterEmission(data: Record<string, unknown>) {
+  return request<WastewaterEmissionRecord>("/environment/emissions/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchOccupationalHygienes(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<OccupationalHygieneRecord[] | { results: OccupationalHygieneRecord[] }>(`/environment/hygiene/${envQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createOccupationalHygiene(data: Record<string, unknown>) {
+  return request<OccupationalHygieneRecord>("/environment/hygiene/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+// ==========================================
+// Phase 15: Scaffold Tag Management & Specialized Inspections
+// ==========================================
+
+export type Scaffold = {
+  id: number;
+  workplace: number;
+  workplace_name?: string;
+  tag_number: string;
+  scaffold_type: "tube_coupler" | "modular_system" | "mobile_tower" | "suspended" | "cantilever";
+  scaffold_type_display: string;
+  load_duty: "light_duty" | "medium_duty" | "heavy_duty" | "special_duty";
+  load_duty_display: string;
+  location_details: string;
+  height_meters: number;
+  length_meters: number;
+  width_meters: number;
+  contractor?: number | null;
+  contractor_name?: string;
+  erected_by?: string;
+  erection_date: string;
+  intended_use: string;
+  tag_status: "green_safe" | "yellow_restricted" | "red_unsafe" | "dismantled";
+  tag_status_display: string;
+  current_tag_valid_until?: string | null;
+  yellow_restrictions?: string;
+  inspection_interval_days: number;
+  last_inspection_date?: string | null;
+  next_inspection_due?: string | null;
+  is_inspection_overdue: boolean;
+  is_usable_for_work: boolean;
+  recent_inspections?: ScaffoldInspection[];
+  is_synthetic?: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ScaffoldInspection = {
+  id: number;
+  scaffold: number;
+  inspection_date: string;
+  inspector?: number | null;
+  inspector_name: string;
+  result_tag: "green_safe" | "yellow_restricted" | "red_unsafe";
+  result_tag_display: string;
+  validity_days: number;
+  base_plates_ok: boolean;
+  bracing_ok: boolean;
+  guardrails_ok: boolean;
+  toeboards_ok: boolean;
+  planks_decking_ok: boolean;
+  ties_anchors_ok: boolean;
+  ladder_access_ok: boolean;
+  findings?: string;
+  restrictions_notes?: string;
+  non_conformity?: number | null;
+  non_conformity_desc?: string;
+  is_synthetic?: boolean;
+  created_at: string;
+};
+
+export type ScaffoldTagLog = {
+  id: number;
+  scaffold: number;
+  previous_tag: string;
+  previous_tag_display: string;
+  new_tag: string;
+  new_tag_display: string;
+  changed_by?: number | null;
+  changed_by_name?: string;
+  reason: string;
+  valid_until?: string | null;
+  created_at: string;
+};
+
+export type ScaffoldSummary = {
+  total_scaffolds: number;
+  green_count: number;
+  yellow_count: number;
+  red_count: number;
+  dismantled_count: number;
+  overdue_inspections_count: number;
+};
+
+export type ScaffoldTagCard = {
+  tag_number: string;
+  organization_name: string;
+  workplace_name: string;
+  location_details: string;
+  scaffold_type_display: string;
+  load_duty_display: string;
+  tag_status: string;
+  tag_status_display: string;
+  valid_until?: string | null;
+  next_inspection_due?: string | null;
+  is_overdue: boolean;
+  restrictions?: string;
+  erected_by: string;
+  qr_payload: string;
+};
+
+function scfQuery(params?: Record<string, string | number | undefined>): string {
+  if (!params) return "";
+  const filtered = Object.entries(params).filter(([, v]) => v !== undefined && v !== "");
+  if (!filtered.length) return "";
+  return `?${new URLSearchParams(filtered.map(([k, v]) => [k, String(v)])).toString()}`;
+}
+
+export function fetchScaffoldSummary(organizationId?: number, signal?: AbortSignal) {
+  const p: Record<string, string | number | undefined> = {};
+  if (organizationId) p.organization = organizationId;
+  return request<ScaffoldSummary>(`/scaffolds/summary/${scfQuery(p)}`, { signal });
+}
+
+export function fetchScaffolds(params?: Record<string, string | number | undefined>, signal?: AbortSignal) {
+  return request<Scaffold[] | { results: Scaffold[] }>(`/scaffolds/scaffolds/${scfQuery(params)}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function createScaffold(data: Record<string, unknown>) {
+  return request<Scaffold>("/scaffolds/scaffolds/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function inspectScaffold(id: number, data: Record<string, unknown>) {
+  return request<ScaffoldInspection>(`/scaffolds/scaffolds/${id}/inspect/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function changeScaffoldTag(id: number, data: { new_tag: string; reason: string; yellow_restrictions?: string }) {
+  return request<Scaffold>(`/scaffolds/scaffolds/${id}/change-tag/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchScaffoldHistory(id: number, signal?: AbortSignal) {
+  return request<ScaffoldTagLog[]>(`/scaffolds/scaffolds/${id}/history/`, { signal });
+}
+
+export function fetchScaffoldTagCard(id: number, signal?: AbortSignal) {
+  return request<ScaffoldTagCard>(`/scaffolds/scaffolds/${id}/tag-card/`, { signal });
+}
+
+// ==========================================
+// Phase 16: HSE Document Control, Versioning & Secure Archive
+// ==========================================
+
+export type DocumentCategoryType =
+  | "policy"
+  | "procedure"
+  | "work_instruction"
+  | "form"
+  | "sds"
+  | "risk_assessment"
+  | "permit_template"
+  | "certificate"
+  | "training_material"
+  | "inspection_audit"
+  | "technical_file"
+  | "environmental_record"
+  | "other";
+
+export type ConfidentialityType = "public" | "internal" | "confidential" | "strictly_confidential";
+
+export type DocumentStatusType =
+  | "draft"
+  | "submitted"
+  | "under_review"
+  | "approved"
+  | "effective"
+  | "rejected"
+  | "superseded"
+  | "expired"
+  | "archived"
+  | "withdrawn";
+
+export type VersionStatusType = "draft" | "under_review" | "approved" | "rejected" | "superseded" | "archived";
+
+export interface DocumentVersionItem {
+  id: number;
+  document: number;
+  version_number: string;
+  original_filename: string;
+  file_size_bytes: number;
+  file_hash_sha256: string;
+  mime_type: string;
+  change_summary: string;
+  uploaded_by?: number | null;
+  uploaded_by_name: string;
+  status: VersionStatusType;
+  status_display: string;
+  reviewed_by?: number | null;
+  reviewed_by_name: string;
+  reviewed_at?: string | null;
+  review_notes?: string;
+  created_at: string;
+  download_url: string;
+}
+
+export interface DocumentAcknowledgmentItem {
+  id: number;
+  document: number;
+  version: number;
+  version_number: string;
+  user: number;
+  user_name: string;
+  acknowledged_at: string;
+  signature_note?: string;
+}
+
+export interface DocumentReviewLogItem {
+  id: number;
+  document: number;
+  version?: number | null;
+  version_number: string;
+  reviewer?: number | null;
+  reviewer_name: string;
+  action: string;
+  action_display: string;
+  decision_reason: string;
+  created_at: string;
+}
+
+export interface DocumentLinkItem {
+  id: number;
+  document: number;
+  target_type: string;
+  target_type_display: string;
+  target_id: number;
+  link_title: string;
+  link_note: string;
+  created_by?: number | null;
+  created_by_name: string;
+  created_at: string;
+}
+
+export interface ControlledDocument {
+  id: number;
+  organization: number;
+  document_number: string;
+  title: string;
+  description?: string;
+  category: DocumentCategoryType;
+  category_display: string;
+  confidentiality: ConfidentialityType;
+  confidentiality_display: string;
+  status: DocumentStatusType;
+  status_display: string;
+  department: string;
+  workplace?: number | null;
+  workplace_name?: string;
+  owner?: number | null;
+  owner_name: string;
+  author?: number | null;
+  author_name: string;
+  assigned_reviewer?: number | null;
+  assigned_reviewer_name: string;
+  current_version_id?: number | null;
+  current_version_number: string;
+  current_version_filename: string;
+  current_version_size: number;
+  current_version_hash: string;
+  effective_date?: string | null;
+  next_review_date?: string | null;
+  expiry_date?: string | null;
+  retention_years?: number;
+  is_expired: boolean;
+  is_review_overdue: boolean;
+  is_review_due_soon: boolean;
+  is_effective: boolean;
+  requires_acknowledgment: boolean;
+  acknowledgments_count: number;
+  versions_count: number;
+  tags: string;
+  archived_at?: string | null;
+  archived_reason?: string;
+  archived_by_name?: string;
+  versions?: DocumentVersionItem[];
+  review_logs?: DocumentReviewLogItem[];
+  cross_links?: DocumentLinkItem[];
+  acknowledgments?: DocumentAcknowledgmentItem[];
+  updated_at: string;
+  created_at: string;
+}
+
+export interface DocumentSummary {
+  total_documents: number;
+  effective_documents: number;
+  under_review_documents: number;
+  draft_documents: number;
+  rejected_documents: number;
+  archived_documents: number;
+  expiring_soon: number;
+  review_due_soon: number;
+  total_acknowledgments: number;
+  categories_breakdown: Array<{ category: string; count: number }>;
+}
+
+function docQuery(params?: Record<string, string | number | undefined>): string {
+  if (!params) return "";
+  const filtered = Object.entries(params).filter(([, v]) => v !== undefined && v !== "");
+  if (!filtered.length) return "";
+  return `?${new URLSearchParams(filtered.map(([k, v]) => [k, String(v)])).toString()}`;
+}
+
+export function fetchDocumentSummary(organizationId?: number, signal?: AbortSignal) {
+  const p: Record<string, string | number | undefined> = {};
+  if (organizationId) p.organization = organizationId;
+  return request<DocumentSummary>(`/documents/summary/${docQuery(p)}`, { signal });
+}
+
+export function fetchDocuments(
+  params?: Record<string, string | number | undefined>,
+  signal?: AbortSignal
+) {
+  return request<ControlledDocument[] | { results: ControlledDocument[] }>(
+    `/documents/documents/${docQuery(params)}`,
+    { signal }
+  ).then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function fetchDocumentDetail(id: number, signal?: AbortSignal) {
+  return request<ControlledDocument>(`/documents/documents/${id}/`, { signal });
+}
+
+export function createDocument(formData: FormData) {
+  return request<ControlledDocument>("/documents/documents/", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export function uploadDocumentRevision(id: number, formData: FormData) {
+  return request<{ message: string; version: DocumentVersionItem }>(
+    `/documents/documents/${id}/revisions/`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+}
+
+export function submitDocumentForReview(id: number) {
+  return request<{ message: string; document: ControlledDocument }>(
+    `/documents/documents/${id}/submit/`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function reviewDocument(
+  id: number,
+  data: {
+    action: "approve" | "reject";
+    notes?: string;
+    reason?: string;
+    effective_date?: string;
+    next_review_date?: string;
+    expiry_date?: string;
+  }
+) {
+  return request<{ message: string; document: ControlledDocument }>(
+    `/documents/documents/${id}/review/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export function archiveDocument(id: number, data: { reason: string }) {
+  return request<{ message: string; document: ControlledDocument }>(
+    `/documents/documents/${id}/archive/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export function restoreDocument(id: number, data?: { reason?: string }) {
+  return request<{ message: string; document: ControlledDocument }>(
+    `/documents/documents/${id}/restore/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    }
+  );
+}
+
+export function acknowledgeDocument(id: number, data?: { signature_note?: string }) {
+  return request<{ message: string; acknowledgment: DocumentAcknowledgmentItem }>(
+    `/documents/documents/${id}/acknowledge/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    }
+  );
+}
+
+export function linkDocument(
+  id: number,
+  data: {
+    target_type: string;
+    target_id: number;
+    link_title?: string;
+    link_note?: string;
+  }
+) {
+  return request<{ message: string; link: DocumentLinkItem }>(
+    `/documents/documents/${id}/link/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export function getDocumentDownloadUrl(docId: number, versionId?: number): string {
+  if (versionId) {
+    return `${API_BASE_URL}/documents/documents/${docId}/versions/${versionId}/download/`;
+  }
+  return `${API_BASE_URL}/documents/documents/${docId}/download/`;
+}

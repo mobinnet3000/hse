@@ -140,45 +140,49 @@ export function AuditLogPage() {
       )}
 
       {!loading && filtered.length > 0 && (
-        <section className="card" style={{ overflowX: "auto" }}>
-          <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: "2px solid #ccc", textAlign: "right" }}>
-                <th style={{ padding: "0.5rem" }}>شناسه</th>
-                <th style={{ padding: "0.5rem" }}>زمان</th>
-                <th style={{ padding: "0.5rem" }}>کاربر (عامل)</th>
-                <th style={{ padding: "0.5rem" }}>عملیات</th>
-                <th style={{ padding: "0.5rem" }}>موجودیت</th>
-                <th style={{ padding: "0.5rem" }}>شناسه موجودیت</th>
-                <th style={{ padding: "0.5rem" }}>جزئیات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((ev) => (
-                <tr key={ev.id} style={{ borderBottom: "1px solid #eee" }}>
-                  <td style={{ padding: "0.5rem" }}>{ev.id}</td>
-                  <td style={{ padding: "0.5rem", whiteSpace: "nowrap" }}>
-                    {ev.created_at ? ev.created_at.replace("T", " ").substring(0, 16) : ""}
-                  </td>
-                  <td style={{ padding: "0.5rem" }}>
-                    {ev.actor_username || "سیستم"}
-                  </td>
-                  <td style={{ padding: "0.5rem" }}>
-                    <span className="badge">
-                      {ACTION_LABELS[ev.action] ?? ev.action}
-                    </span>
-                  </td>
-                  <td style={{ padding: "0.5rem" }}>{ev.entity_type}</td>
-                  <td style={{ padding: "0.5rem" }}>{ev.entity_id ?? "—"}</td>
-                  <td style={{ padding: "0.5rem", fontSize: "0.85rem" }}>
-                    {ev.details && Object.keys(ev.details).length > 0
-                      ? JSON.stringify(ev.details)
-                      : "—"}
-                  </td>
+        <section className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="table-container" style={{ margin: 0, border: "none" }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>شناسه</th>
+                  <th>زمان</th>
+                  <th>کاربر (عامل)</th>
+                  <th>عملیات</th>
+                  <th>موجودیت</th>
+                  <th>شناسه موجودیت</th>
+                  <th>جزئیات</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((ev) => (
+                  <tr key={ev.id}>
+                    <td>#{ev.id}</td>
+                    <td style={{ whiteSpace: "nowrap" }} className="muted">
+                      {ev.created_at ? ev.created_at.replace("T", " ").substring(0, 16) : ""}
+                    </td>
+                    <td>
+                      <span className="badge badge-neutral">{ev.actor_username || "سیستم"}</span>
+                    </td>
+                    <td>
+                      <span className="badge badge-info">
+                        {ACTION_LABELS[ev.action] ?? ev.action}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="badge badge-neutral">{ev.entity_type}</span>
+                    </td>
+                    <td>{ev.entity_id ?? "—"}</td>
+                    <td style={{ fontSize: "0.85rem", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {ev.details && Object.keys(ev.details).length > 0
+                        ? JSON.stringify(ev.details)
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
     </div>

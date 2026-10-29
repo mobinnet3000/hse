@@ -143,6 +143,37 @@ class Permit(models.Model):
     )
     controls_verified_at = models.DateTimeField(null=True, blank=True)
 
+    # Contractor execution
+    contractor = models.ForeignKey(
+        "workforce.ContractorCompany",
+        on_delete=models.SET_NULL,
+        related_name="permits",
+        null=True,
+        blank=True,
+        help_text="شرکت پیمانکار مجری در صورت برون‌سپاری فعالیت",
+    )
+
+    # Scaffold Integration (Phase 15)
+    scaffold = models.ForeignKey(
+        "scaffolds.Scaffold",
+        on_delete=models.SET_NULL,
+        related_name="permits",
+        null=True,
+        blank=True,
+        help_text="داربست مستقر در محل فعالیت (در صورت کار در ارتفاع)",
+    )
+
+    # Weather and Environmental Check
+    weather_condition_ok = models.BooleanField(
+        default=True,
+        help_text="تایید مساعد بودن شرایط جوی و محیطی برای شروع کار",
+    )
+    weather_notes = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="شرح وضعیت آب و هوا (سرعت باد، دما، بارندگی)",
+    )
+
     # Workflow notes
     status = models.CharField(
         max_length=24,
@@ -153,7 +184,26 @@ class Permit(models.Model):
     review_notes = models.TextField(blank=True)
     rejection_reason = models.TextField(blank=True)
     suspension_reason = models.TextField(blank=True)
+    resumption_notes = models.TextField(blank=True, help_text="توضیحات و رفع موانع حین ازسرگیری مجدد")
     closure_summary = models.TextField(blank=True)
+
+    # SIMOPS Override Authorization
+    simops_override_approved = models.BooleanField(
+        default=False,
+        help_text="تایید بای‌پس تداخل همزمانی (SIMOPS) توسط مدیر مجاز",
+    )
+    simops_override_reason = models.TextField(
+        blank=True,
+        help_text="دلیل و تمهیدات کنترلی جبرانی برای نادیده گرفتن تعارض همزمانی",
+    )
+    simops_override_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        related_name="permits_simops_overridden",
+        null=True,
+        blank=True,
+    )
+    simops_override_at = models.DateTimeField(null=True, blank=True)
 
     # Synthetic demo flag
     is_synthetic = models.BooleanField(default=False)
@@ -207,6 +257,12 @@ class Permit(models.Model):
 
         if self.workplace_id and self.workplace.organization_id != self.organization_id:
             raise ValidationError({"workplace": "محل کار باید متعلق به همان سازمان باشد."})
+
+        if self.contractor_id and self.contractor.organization_id != self.organization_id:
+            raise ValidationError({"contractor": "شرکت پیمانکار باید متعلق به همان سازمان باشد."})
+
+        if self.scaffold_id and self.scaffold.organization_id != self.organization_id:
+            raise ValidationError({"scaffold": "داربست باید متعلق به همان سازمان باشد."})
 
 
 class PermitTypeCompetencyRequirement(models.Model):
@@ -385,3 +441,79 @@ class ShiftHandover(models.Model):
     def clean(self):
         if self.workplace_id and self.workplace.organization_id != self.organization_id:
             raise ValidationError({"workplace": "محل کار باید متعلق به همان سازمان باشد."})
+
+
+class SIMOPSConflict(models.Model):
+    class ConflictType(models.TextChoices):
+        INCOMPATIBLE_TYPES = "incompatible_types", "تداخل فعالیت‌های ناسازگار"
+        SPATIAL_OVERLAP = "spatial_overlap", "هم‌پوشانی مکانی در یک زون"
+        HEIGHT_OVERHEAD = "height_overhead", "کار در ارتفاع هم‌راستا با فعالیت سطحی"
+        ISOLATION_CONFLICT = "isolation_conflict", "تداخل با ایزولاسیون برقی/مکانیکی"
+
+    class Severity(models.TextChoices):
+        INFO = "info", "اطلاع‌رسانی"
+        WARNING = "warning", "هشدار همزمانی"
+        CRITICAL_BLOCK = "critical_block", "بلاک بحرانی عملیات"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="simops_conflicts",
+    )
+    permit_a = models.ForeignKey(
+        Permit,
+        on_delete=models.CASCADE,
+        related_name="conflicts_as_primary",
+    )
+    permit_b = models.ForeignKey(
+        Permit,
+        on_delete=models.CASCADE,
+        related_name="conflicts_as_secondary",
+    )
+    workplace = models.ForeignKey(
+        "workplaces.Workplace",
+        on_delete=models.CASCADE,
+        related_name="simops_conflicts",
+    )
+    conflict_type = models.CharField(
+        max_length=32,
+        choices=ConflictType.choices,
+        default=ConflictType.INCOMPATIBLE_TYPES,
+    )
+    severity = models.CharField(
+        max_length=20,
+        choices=Severity.choices,
+        default=Severity.WARNING,
+    )
+    description = models.TextField()
+    is_resolved = models.BooleanField(default=False)
+    override_approved = models.BooleanField(default=False)
+    override_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="simops_overrides",
+    )
+    override_reason = models.TextField(blank=True)
+    override_at = models.DateTimeField(null=True, blank=True)
+    is_synthetic = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "workplace"]),
+            models.Index(fields=["organization", "severity"]),
+        ]
+
+    def __str__(self):
+        return f"SIMOPS [{self.get_severity_display()}]: {self.permit_a.reference_code} vs {self.permit_b.reference_code}"
+
+    def clean(self):
+        if self.permit_a_id and self.permit_a.organization_id != self.organization_id:
+            raise ValidationError({"permit_a": "مجوز اول باید متعلق به همین سازمان باشد."})
+        if self.permit_b_id and self.permit_b.organization_id != self.organization_id:
+            raise ValidationError({"permit_b": "مجوز دوم باید متعلق به همین سازمان باشد."})
+        if self.workplace_id and self.workplace.organization_id != self.organization_id:
+            raise ValidationError({"workplace": "کارگاه باید متعلق به همین سازمان باشد."})

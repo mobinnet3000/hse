@@ -16,9 +16,16 @@ from apps.workplaces.models import Workplace
 from apps.workforce.models import (
     COMPETENCY_DUE_SOON_DAYS,
     PPE_REPLACEMENT_DUE_SOON_DAYS,
+    AttendanceRecord,
     Competency,
+    ContractorCompany,
+    ContractorDocument,
+    ContractorEvaluation,
+    ContractorWorker,
     Employee,
     EmployeeCompetency,
+    EmployeeJobAssignment,
+    JobPosition,
     PPEAssignment,
     PPEAssignmentEvent,
     PPEItem,
@@ -968,3 +975,210 @@ class WorkforceReportAndStatsTests(WorkforceTestBase):
         self.assertIn("courses_active", res.data)
         self.assertIn("competency_valid", res.data)
         self.assertIn("ppe_active_assignments", res.data)
+
+
+class Phase12WorkforceContractorsAttendanceTests(WorkforceTestBase):
+    def test_job_position_creation_and_tenant_isolation(self):
+        self.client.force_login(self.manager_a)
+        res = self.client.post(
+            "/api/v1/workforce/jobs/",
+            {
+                "code": "JOB-ELEC-01",
+                "title": "تکنسین برق صنعتی",
+                "department": "تعمیرات",
+                "risk_level": "high",
+                "required_qualifications": "مدرک برق صنعتی و ۵ سال سابقه",
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        job_id = res.data["id"]
+
+        # User in org B cannot see it
+        self.client.force_login(self.admin_b)
+        res_b = self.client.get(f"/api/v1/workforce/jobs/{job_id}/")
+        self.assertEqual(res_b.status_code, status.HTTP_404_NOT_FOUND)
+
+        # User in org B cannot delete it
+        res_del = self.client.delete(f"/api/v1/workforce/jobs/{job_id}/")
+        self.assertEqual(res_del.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_employee_job_assignment_lifecycle(self):
+        job = JobPosition.objects.create(
+            organization=self.org_a,
+            code="JOB-MEC-01",
+            title="مکانیک تجهیزات دوار",
+            risk_level="medium",
+        )
+        self.client.force_login(self.manager_a)
+        res = self.client.post(
+            "/api/v1/workforce/job-assignments/",
+            {
+                "employee": self.emp_a1.id,
+                "job_position": job.id,
+                "start_date": self.today.isoformat(),
+                "is_primary": True,
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        assign_id = res.data["id"]
+
+        # Deleting job position while assignment exists must be blocked
+        res_del = self.client.delete(f"/api/v1/workforce/jobs/{job.id}/")
+        self.assertEqual(res_del.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Close assignment
+        res_patch = self.client.patch(
+            f"/api/v1/workforce/job-assignments/{assign_id}/",
+            {"end_date": self.today.isoformat()},
+            format="json",
+        )
+        self.assertEqual(res_patch.status_code, status.HTTP_200_OK)
+
+        # Deleting job position while history exists is still blocked
+        res_del2 = self.client.delete(f"/api/v1/workforce/jobs/{job.id}/")
+        self.assertEqual(res_del2.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Once assignment is deleted, job position can be deleted
+        self.client.delete(f"/api/v1/workforce/job-assignments/{assign_id}/")
+        res_del3 = self.client.delete(f"/api/v1/workforce/jobs/{job.id}/")
+        self.assertEqual(res_del3.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_contractor_lifecycle_and_document_management(self):
+        self.client.force_login(self.manager_a)
+        # 1. Create contractor
+        res_c = self.client.post(
+            "/api/v1/workforce/contractors/",
+            {
+                "name": "شرکت مهندسی پایدار سازه",
+                "registration_no": "REG-123456",
+                "contact_person": "مهندس مرادی",
+                "contact_phone": "09123456789",
+                "status": "pending",
+            },
+            format="json",
+        )
+        self.assertEqual(res_c.status_code, status.HTTP_201_CREATED)
+        contractor_id = res_c.data["id"]
+
+        # 2. Add document
+        res_doc = self.client.post(
+            "/api/v1/workforce/contractor-documents/",
+            {
+                "contractor": contractor_id,
+                "document_type": "hse_plan",
+                "title": "طرح ایمنی و بهداشت کارگاه الف",
+                "valid_from": self.today.isoformat(),
+                "valid_until": (self.today + timedelta(days=365)).isoformat(),
+                "status": "submitted",
+            },
+            format="json",
+        )
+        self.assertEqual(res_doc.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(res_doc.data["is_expired"])
+
+        # 3. Verify document
+        doc_id = res_doc.data["id"]
+        res_v = self.client.patch(
+            f"/api/v1/workforce/contractor-documents/{doc_id}/",
+            {
+                "status": "verified",
+                "verification_notes": "مدارک بررسی و مورد تأیید قرار گرفت.",
+            },
+            format="json",
+        )
+        self.assertEqual(res_v.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_v.data["status"], "verified")
+
+    def test_contractor_evaluation_updates_safety_score(self):
+        contractor = ContractorCompany.objects.create(
+            organization=self.org_a,
+            name="پیمانکاری برق و ابزاردقیق پارس",
+            status="approved",
+            safety_score=100.0,
+        )
+        self.client.force_login(self.manager_a)
+        res_eval = self.client.post(
+            "/api/v1/workforce/contractor-evaluations/",
+            {
+                "contractor": contractor.id,
+                "score": "87.50",
+                "criteria_scores": {"ppe": 90, "permits": 85, "housekeeping": 88},
+                "findings": "رعایت کامل الزامات در تعمیرات تابلوهای برق",
+                "recommendation": "continue",
+            },
+            format="json",
+        )
+        self.assertEqual(res_eval.status_code, status.HTTP_201_CREATED)
+
+        # Refresh contractor and verify safety score updated
+        contractor.refresh_from_db()
+        self.assertEqual(float(contractor.safety_score), 87.50)
+
+    def test_contractor_worker_and_attendance_roster(self):
+        contractor = ContractorCompany.objects.create(
+            organization=self.org_a,
+            name="پیمانکاری سبلان گستر",
+            status="approved",
+        )
+        self.client.force_login(self.manager_a)
+
+        # Register contractor worker
+        res_w = self.client.post(
+            "/api/v1/workforce/contractor-workers/",
+            {
+                "contractor": contractor.id,
+                "national_id": "0081234567",
+                "first_name": "سهراب",
+                "last_name": "سپهری",
+                "trade": "داربست‌بند",
+                "mobile": "09121112233",
+            },
+            format="json",
+        )
+        self.assertEqual(res_w.status_code, status.HTTP_201_CREATED)
+        worker_id = res_w.data["id"]
+
+        now = timezone.now()
+        # Record attendance for internal employee
+        res_att1 = self.client.post(
+            "/api/v1/workforce/attendance/",
+            {
+                "workplace": self.workplace_a.id,
+                "person_type": "employee",
+                "employee": self.emp_a1.id,
+                "date": self.today.isoformat(),
+                "check_in": now.isoformat(),
+                "status": "present",
+            },
+            format="json",
+        )
+        self.assertEqual(res_att1.status_code, status.HTTP_201_CREATED)
+
+        # Record attendance for contractor worker
+        res_att2 = self.client.post(
+            "/api/v1/workforce/attendance/",
+            {
+                "workplace": self.workplace_a.id,
+                "person_type": "contractor_worker",
+                "contractor_worker": worker_id,
+                "date": self.today.isoformat(),
+                "check_in": now.isoformat(),
+                "status": "late",
+            },
+            format="json",
+        )
+        self.assertEqual(res_att2.status_code, status.HTTP_201_CREATED)
+
+        # Check Attendance Roster summary
+        res_roster = self.client.get(
+            f"/api/v1/workforce/attendance/roster/?date={self.today.isoformat()}"
+        )
+        self.assertEqual(res_roster.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_roster.data["total_recorded"], 2)
+        self.assertEqual(res_roster.data["present_count"], 1)
+        self.assertEqual(res_roster.data["late_count"], 1)
+        self.assertEqual(res_roster.data["employee_count"], 1)
+        self.assertEqual(res_roster.data["contractor_worker_count"], 1)
+

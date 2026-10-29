@@ -14,8 +14,9 @@ from apps.capa.models import CorrectiveAction
 from apps.findings.models import NonConformity
 from apps.incidents.models import Incident
 from apps.organizations.models import Membership, Organization
-from apps.permits.models import Permit, ShiftHandover
+from apps.permits.models import Permit, ShiftHandover, SIMOPSConflict
 from apps.risks.models import Hazard
+<<<<<<< HEAD
 from apps.workforce.models import (
     Competency,
     Employee,
@@ -28,6 +29,9 @@ from apps.workforce.models import (
     TrainingCourse,
     TrainingSession,
 )
+=======
+from apps.workforce.models import ContractorCompany
+>>>>>>> 9ac8cc2ee68accd659473f440b628c66d05ae2fc
 from apps.workplaces.models import Workplace
 
 
@@ -755,6 +759,7 @@ class DemoSeedSafetyTests(TestCase):
         synthetic_permit_count = Permit.objects.filter(is_synthetic=True).count()
         handover_count = ShiftHandover.objects.count()
         user_count = User.objects.count()
+<<<<<<< HEAD
         workforce_counts = {
             "employees": Employee.objects.filter(is_synthetic=True).count(),
             "courses": TrainingCourse.objects.filter(is_synthetic=True).count(),
@@ -769,6 +774,9 @@ class DemoSeedSafetyTests(TestCase):
         }
         self.assertTrue(all(count > 0 for count in workforce_counts.values()))
         self.assertEqual(synthetic_permit_count, 6)
+=======
+        self.assertEqual(synthetic_permit_count, 8)
+>>>>>>> 9ac8cc2ee68accd659473f440b628c66d05ae2fc
         self.assertEqual(ShiftHandover.objects.filter(is_synthetic=True).count(), 2)
 
         # A deliberate password change by the operator must survive re-seeding.
@@ -859,6 +867,242 @@ class DemoSeedSafetyTests(TestCase):
         self.assertEqual(real_permit.title, "مجوز واقعی که نباید تغییر کند")
         self.assertFalse(real_permit.is_synthetic)
         self.assertEqual(real_permit.organization_id, real_org.id)
+<<<<<<< HEAD
         # One of the six fixed demo references was reserved by real data, so
         # only the other five synthetic permits are created.
         self.assertEqual(Permit.objects.filter(is_synthetic=True).count(), 5)
+=======
+        # One of the fixed demo references was reserved by real data, so
+        # only the other seven synthetic permits are created.
+        self.assertEqual(Permit.objects.filter(is_synthetic=True).count(), 7)
+
+
+class Phase13AdvancedPTWAndSIMOPSTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+        # Users
+        self.hse_mgr = User.objects.create_user(
+            username="p13_hse_mgr", email="mgr@test.com", password="Pass-12345-abc"
+        )
+        self.supervisor = User.objects.create_user(
+            username="p13_supervisor", email="sup@test.com", password="Pass-12345-abc"
+        )
+        self.worker = User.objects.create_user(
+            username="p13_worker", email="worker@test.com", password="Pass-12345-abc"
+        )
+
+        # Organizations
+        self.org = Organization.objects.create(name="مجتمع پتروشیمی نمونه", code="PETRO-P13")
+
+        # Memberships
+        Membership.objects.create(user=self.hse_mgr, organization=self.org, role=Membership.Roles.HSE_MANAGER)
+        Membership.objects.create(user=self.supervisor, organization=self.org, role=Membership.Roles.HSE_INSPECTOR)
+        Membership.objects.create(user=self.worker, organization=self.org, role=Membership.Roles.ACTION_OWNER)
+
+        # Workplace
+        self.workplace = Workplace.objects.create(organization=self.org, name="کارگاه برج تقطیر")
+
+        # Contractors
+        self.contractor_approved = ContractorCompany.objects.create(
+            organization=self.org,
+            name="پیمانکار تاییدشده الف",
+            status=ContractorCompany.Status.APPROVED,
+            safety_score=88.5,
+        )
+        self.contractor_suspended = ContractorCompany.objects.create(
+            organization=self.org,
+            name="پیمانکار معلق‌شده ب",
+            status=ContractorCompany.Status.SUSPENDED,
+            safety_score=55.0,
+        )
+
+    def test_gatekeeper_contractor_safety_score_and_status(self):
+        now = timezone.now()
+        permit = Permit.objects.create(
+            organization=self.org,
+            workplace=self.workplace,
+            reference_code="PTW-P13-0001",
+            permit_type=Permit.PermitType.GENERAL_HIGH_RISK,
+            title="تعمیرات عمومی برج",
+            description="تعمیرات پمپ با پیمانکار معلق",
+            valid_from=now + timedelta(hours=1),
+            valid_until=now + timedelta(hours=6),
+            requester=self.worker,
+            responsible_supervisor=self.supervisor,
+            contractor=self.contractor_suspended,
+            status=Permit.Status.APPROVED,
+        )
+
+        self.client.force_authenticate(user=self.supervisor)
+        # Check gatekeeper endpoint
+        chk_res = self.client.get(f"/api/v1/permits/{permit.id}/gatekeeper-check/")
+        self.assertEqual(chk_res.status_code, status.HTTP_200_OK)
+        self.assertFalse(chk_res.data["is_ready_for_activation"])
+        self.assertEqual(chk_res.data["contractor"]["status"], "fail")
+
+        # Activate should fail due to contractor suspended & low safety score
+        act_res = self.client.post(f"/api/v1/permits/{permit.id}/activate/", format="json")
+        self.assertEqual(act_res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("عدم احراز شرایط ایمنی", str(act_res.data))
+
+        # Switch to approved contractor
+        permit.contractor = self.contractor_approved
+        permit.save(update_fields=["contractor"])
+
+        act_res_ok = self.client.post(f"/api/v1/permits/{permit.id}/activate/", format="json")
+        self.assertEqual(act_res_ok.status_code, status.HTTP_200_OK)
+        permit.refresh_from_db()
+        self.assertEqual(permit.status, Permit.Status.ACTIVE)
+
+    def test_gatekeeper_weather_blocking(self):
+        now = timezone.now()
+        permit = Permit.objects.create(
+            organization=self.org,
+            workplace=self.workplace,
+            reference_code="PTW-P13-0002",
+            permit_type=Permit.PermitType.WORK_AT_HEIGHT,
+            title="کار در ارتفاع روی سقف کوره",
+            description="رنگ‌آمیزی دکل در ارتفاع",
+            valid_from=now + timedelta(hours=1),
+            valid_until=now + timedelta(hours=6),
+            requester=self.worker,
+            responsible_supervisor=self.supervisor,
+            weather_condition_ok=False,
+            weather_notes="وزش باد شدید با سرعت ۵۵ کیلومتر بر ساعت و طوفان",
+            status=Permit.Status.APPROVED,
+        )
+
+        self.client.force_authenticate(user=self.supervisor)
+        act_res = self.client.post(f"/api/v1/permits/{permit.id}/activate/", format="json")
+        self.assertEqual(act_res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("شرایط جوی", str(act_res.data))
+
+    def test_simops_conflict_detection_and_override_lifecycle(self):
+        now = timezone.now()
+        # Active Hot Work Permit
+        permit_hot = Permit.objects.create(
+            organization=self.org,
+            workplace=self.workplace,
+            reference_code="PTW-P13-HOT",
+            permit_type=Permit.PermitType.HOT_WORK,
+            title="جوشکاری فلنج لوله گاز",
+            description="جوشکاری و کار گرم",
+            valid_from=now - timedelta(hours=1),
+            valid_until=now + timedelta(hours=5),
+            requester=self.worker,
+            responsible_supervisor=self.supervisor,
+            status=Permit.Status.ACTIVE,
+        )
+
+        # Confined Space permit overlapping same time & workplace
+        permit_confined = Permit.objects.create(
+            organization=self.org,
+            workplace=self.workplace,
+            reference_code="PTW-P13-CONF",
+            permit_type=Permit.PermitType.CONFINED_SPACE,
+            title="ورود به فضای بسته مخزن V-200",
+            description="بازرسی رسوب‌زدایی داخل مخزن",
+            valid_from=now,
+            valid_until=now + timedelta(hours=4),
+            requester=self.worker,
+            responsible_supervisor=self.supervisor,
+            gas_testing_required=True,
+            gas_testing_results="O2: 20.9%, LEL: 0%, H2S: 0ppm",
+            status=Permit.Status.APPROVED,
+        )
+
+        self.client.force_authenticate(user=self.supervisor)
+
+        # Check gatekeeper check detects critical SIMOPS conflict
+        chk_res = self.client.get(f"/api/v1/permits/{permit_confined.id}/gatekeeper-check/")
+        self.assertEqual(chk_res.status_code, status.HTTP_200_OK)
+        self.assertFalse(chk_res.data["is_ready_for_activation"])
+        self.assertEqual(chk_res.data["simops"]["status"], "fail")
+        self.assertEqual(chk_res.data["simops"]["blocking_count"], 1)
+
+        # Activation attempt must be blocked
+        act_res = self.client.post(f"/api/v1/permits/{permit_confined.id}/activate/", format="json")
+        self.assertEqual(act_res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("تعارض بحرانی همزمانی عملیات (SIMOPS)", str(act_res.data))
+
+        # Retrieve detected conflict
+        conflict = SIMOPSConflict.objects.get(permit_a=permit_confined, permit_b=permit_hot)
+        self.assertEqual(conflict.severity, SIMOPSConflict.Severity.CRITICAL_BLOCK)
+        self.assertFalse(conflict.is_resolved)
+
+        # Non-manager cannot override
+        self.client.force_authenticate(user=self.worker)
+        ovr_fail = self.client.post(
+            f"/api/v1/permits/simops-conflicts/{conflict.id}/override/",
+            {"reason": "تایید بدون مجوز"},
+            format="json",
+        )
+        self.assertEqual(ovr_fail.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # HSE Manager overrides SIMOPS conflict
+        self.client.force_authenticate(user=self.hse_mgr)
+        ovr_res = self.client.post(
+            f"/api/v1/permits/simops-conflicts/{conflict.id}/override/",
+            {"reason": "انجام تست نیتروژن، نصب پرده نسوز و فاصله ایمنی ۴۰ متر با نظارت افسر ایمنی"},
+            format="json",
+        )
+        self.assertEqual(ovr_res.status_code, status.HTTP_200_OK)
+        self.assertTrue(ovr_res.data["is_resolved"])
+        self.assertTrue(ovr_res.data["override_approved"])
+
+        # Now activation should succeed
+        self.client.force_authenticate(user=self.supervisor)
+        act_res_ok = self.client.post(f"/api/v1/permits/{permit_confined.id}/activate/", format="json")
+        self.assertEqual(act_res_ok.status_code, status.HTTP_200_OK)
+        permit_confined.refresh_from_db()
+        self.assertEqual(permit_confined.status, Permit.Status.ACTIVE)
+
+    def test_simops_radar_view(self):
+        self.client.force_authenticate(user=self.supervisor)
+        res = self.client.get("/api/v1/permits/simops-radar/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("workplaces", res.data)
+        self.assertIn("active_conflicts", res.data)
+        self.assertIn("total_active_planned_permits", res.data)
+
+    def test_permit_suspension_and_resumption_workflow(self):
+        now = timezone.now()
+        permit = Permit.objects.create(
+            organization=self.org,
+            workplace=self.workplace,
+            reference_code="PTW-P13-SUSP",
+            permit_type=Permit.PermitType.GENERAL_HIGH_RISK,
+            title="تعمیرات سیستم هیدرولیک",
+            description="فعالیت تست تعلیق و ازسرگیری",
+            valid_from=now - timedelta(hours=1),
+            valid_until=now + timedelta(hours=5),
+            requester=self.worker,
+            responsible_supervisor=self.supervisor,
+            status=Permit.Status.ACTIVE,
+        )
+
+        self.client.force_authenticate(user=self.supervisor)
+
+        # Suspend
+        susp_res = self.client.post(
+            f"/api/v1/permits/{permit.id}/suspend/",
+            {"reason": "نشت روغن هیدرولیک در محوطه کاری"},
+            format="json",
+        )
+        self.assertEqual(susp_res.status_code, status.HTTP_200_OK)
+        permit.refresh_from_db()
+        self.assertEqual(permit.status, Permit.Status.SUSPENDED)
+        self.assertEqual(permit.suspension_reason, "نشت روغن هیدرولیک در محوطه کاری")
+
+        # Resume with resumption notes
+        res_res = self.client.post(
+            f"/api/v1/permits/{permit.id}/resume/",
+            {"resumption_notes": "پاکسازی روغن، شستشو با فوم و تایید سلامت اتصالات هیدرولیک"},
+            format="json",
+        )
+        self.assertEqual(res_res.status_code, status.HTTP_200_OK)
+        permit.refresh_from_db()
+        self.assertEqual(permit.status, Permit.Status.ACTIVE)
+        self.assertEqual(permit.resumption_notes, "پاکسازی روغن، شستشو با فوم و تایید سلامت اتصالات هیدرولیک")
+>>>>>>> 9ac8cc2ee68accd659473f440b628c66d05ae2fc

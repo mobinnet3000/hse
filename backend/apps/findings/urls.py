@@ -1,5 +1,4 @@
 from django.urls import path
-
 from . import views
 
 urlpatterns = [
@@ -13,5 +12,15 @@ urlpatterns = [
         "<int:pk>/close/",
         views.NonConformityCloseView.as_view(),
         name="nonconformity-close",
+    ),
+    path(
+        "<int:pk>/reopen/",
+        views.NonConformityReopenView.as_view(),
+        name="nonconformity-reopen",
+    ),
+    path(
+        "<int:pk>/evidence/",
+        views.NonConformityEvidenceUploadView.as_view(),
+        name="nonconformity-evidence",
     ),
 ]

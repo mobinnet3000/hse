@@ -11,6 +11,8 @@ from apps.core.views_utils import resolve_organization
 from apps.findings.models import NonConformity
 from apps.inspections.models import Inspection
 from apps.risks.models import Hazard, RiskAssessment
+from .indicators_engine import compute_organization_indicators
+
 
 class DashboardMetricsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -135,3 +137,130 @@ class DashboardMetricsView(APIView):
             }
         })
 
+
+class ProactiveIndicatorsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        organization_id = request.query_params.get("organization")
+        from apps.organizations.models import Organization
+        if organization_id:
+            try:
+                org_id = int(organization_id)
+            except ValueError:
+                return Response({"error": {"code": "invalid_parameter", "message": "شناسه سازمان نامعتبر است."}}, status=400)
+            if not can_view_organization(request.user, org_id):
+                return Response({"error": {"code": "not_found", "message": "سازمان یافت نشد."}}, status=404)
+            try:
+                org = Organization.objects.get(id=org_id)
+            except Organization.DoesNotExist:
+                return Response({"error": {"code": "not_found", "message": "سازمان یافت نشد."}}, status=404)
+        else:
+            org = resolve_organization(request)
+            if not org:
+                acc_ids = list(accessible_organization_ids(request.user))
+                org = Organization.objects.filter(id__in=acc_ids).first()
+
+        if not org:
+            return Response({"error": {"code": "no_organization", "message": "هیچ سازمانی برای کاربر یافت نشد."}}, status=404)
+
+        try:
+            days = int(request.query_params.get("days", 90))
+        except ValueError:
+            days = 90
+
+        data = compute_organization_indicators(org, days=days)
+        data["organization_id"] = org.id
+        data["organization_name"] = org.name
+        return Response(data)
+
+
+class PersonalWorkspaceAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        org_ids = list(accessible_organization_ids(user))
+        today = timezone.now().date()
+
+        # 1. Pending Approvals
+        from apps.permits.models import Permit
+        pending_permits = list(
+            Permit.objects.filter(
+                organization_id__in=org_ids,
+                status="submitted",
+            ).values("id", "permit_number", "title", "permit_type", "created_at")[:10]
+        )
+
+        from apps.lifting.models import LiftingPlan
+        pending_lifts = list(
+            LiftingPlan.objects.filter(
+                organization_id__in=org_ids,
+                status__in=["submitted", "under_review"],
+            ).values("id", "plan_number", "title", "lift_category", "created_at")[:10]
+        )
+
+        from apps.pssr.models import PSSRReview
+        pending_pssr = list(
+            PSSRReview.objects.filter(
+                organization_id__in=org_ids,
+                status="submitted",
+            ).values("id", "reference_number", "title", "category", "target_startup_date")[:10]
+        )
+
+        # 2. My Tasks
+        my_actions_qs = CorrectiveAction.objects.filter(
+            organization_id__in=org_ids,
+            responsible=user,
+        ).exclude(status="completed")
+        my_actions = [
+            {
+                "id": act.id,
+                "description": act.description,
+                "due_date": act.due_date,
+                "status": act.status,
+                "is_overdue": bool(act.due_date and act.due_date < today),
+            }
+            for act in my_actions_qs[:15]
+        ]
+
+        from apps.inspections.models import Inspection
+        my_inspections = list(
+            Inspection.objects.filter(
+                organization_id__in=org_ids,
+                inspector=user,
+                status__in=["draft", "in_progress"],
+            ).values("id", "title", "scheduled_at", "status")[:10]
+        )
+
+        # 3. Unread counts
+        from apps.notifications.models import Notification
+        unread_notifications = Notification.objects.filter(user=user, is_read=False).count()
+
+        from apps.chat.models import ChatParticipant
+        unread_messages_count = sum(
+            part.unread_count for part in ChatParticipant.objects.filter(user=user, is_active=True)
+        )
+
+        return Response({
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "full_name": user.get_full_name() or user.username,
+            },
+            "unread_counts": {
+                "notifications": unread_notifications,
+                "messages": unread_messages_count,
+            },
+            "pending_approvals": {
+                "permits": pending_permits,
+                "lifting_plans": pending_lifts,
+                "pssr_reviews": pending_pssr,
+                "total": len(pending_permits) + len(pending_lifts) + len(pending_pssr),
+            },
+            "my_tasks": {
+                "actions": my_actions,
+                "inspections": my_inspections,
+                "total": len(my_actions) + len(my_inspections),
+            },
+        })

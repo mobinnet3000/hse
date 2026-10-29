@@ -21,6 +21,15 @@ urlpatterns = [
     path("api/v1/permits/", include("apps.permits.urls")),
     path("api/v1/assets/", include("apps.assets.urls")),
     path("api/v1/workforce/", include("apps.workforce.urls")),
+    path("api/v1/environment/", include("apps.environment.urls")),
+    path("api/v1/scaffolds/", include("apps.scaffolds.urls")),
+    path("api/v1/documents/", include("apps.documents.urls")),
+    path("api/v1/calculators/", include("apps.calculators.urls")),
+    path("api/v1/lifting/", include("apps.lifting.urls")),
+    path("api/v1/pssr/", include("apps.pssr.urls")),
+    path("api/v1/surveys/", include("apps.surveys.urls")),
+    path("api/v1/chat/", include("apps.chat.urls")),
+    path("api/v1/fleet-energy/", include("apps.fleet_energy.urls")),
     path("api/v1/", include("apps.core.urls")),
 ]
 
