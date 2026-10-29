@@ -1100,4 +1100,23 @@ class WorkforceStatsView(APIView):
                 organization_ids = [int(organization_id)]
             else:
                 organization_ids = []
-        return Response(workforce_stats(organization_ids))
+        data = workforce_stats(organization_ids)
+        data["capabilities"] = {
+            "can_manage": any(
+                can_manage_workforce(request.user, org_id)
+                for org_id in organization_ids
+            ),
+            "can_conduct_training": any(
+                can_conduct_training(request.user, org_id)
+                for org_id in organization_ids
+            ),
+            "can_issue_competency": any(
+                can_issue_competency(request.user, org_id)
+                for org_id in organization_ids
+            ),
+            "can_operate_ppe": any(
+                can_operate_ppe(request.user, org_id)
+                for org_id in organization_ids
+            ),
+        }
+        return Response(data)

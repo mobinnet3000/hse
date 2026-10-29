@@ -16,6 +16,18 @@ from apps.incidents.models import Incident
 from apps.organizations.models import Membership, Organization
 from apps.permits.models import Permit, ShiftHandover
 from apps.risks.models import Hazard
+from apps.workforce.models import (
+    Competency,
+    Employee,
+    EmployeeCompetency,
+    PPEAssignment,
+    PPEAssignmentEvent,
+    PPEItem,
+    PPEStock,
+    TrainingAttendance,
+    TrainingCourse,
+    TrainingSession,
+)
 from apps.workplaces.models import Workplace
 
 
@@ -743,7 +755,20 @@ class DemoSeedSafetyTests(TestCase):
         synthetic_permit_count = Permit.objects.filter(is_synthetic=True).count()
         handover_count = ShiftHandover.objects.count()
         user_count = User.objects.count()
-        self.assertEqual(synthetic_permit_count, 5)
+        workforce_counts = {
+            "employees": Employee.objects.filter(is_synthetic=True).count(),
+            "courses": TrainingCourse.objects.filter(is_synthetic=True).count(),
+            "sessions": TrainingSession.objects.filter(is_synthetic=True).count(),
+            "attendance": TrainingAttendance.objects.filter(is_synthetic=True).count(),
+            "competencies": Competency.objects.filter(is_synthetic=True).count(),
+            "employee_competencies": EmployeeCompetency.objects.filter(is_synthetic=True).count(),
+            "ppe_items": PPEItem.objects.filter(is_synthetic=True).count(),
+            "ppe_stocks": PPEStock.objects.filter(is_synthetic=True).count(),
+            "ppe_assignments": PPEAssignment.objects.filter(is_synthetic=True).count(),
+            "ppe_events": PPEAssignmentEvent.objects.filter(is_synthetic=True).count(),
+        }
+        self.assertTrue(all(count > 0 for count in workforce_counts.values()))
+        self.assertEqual(synthetic_permit_count, 6)
         self.assertEqual(ShiftHandover.objects.filter(is_synthetic=True).count(), 2)
 
         # A deliberate password change by the operator must survive re-seeding.
@@ -767,6 +792,21 @@ class DemoSeedSafetyTests(TestCase):
         )
         self.assertEqual(
             ShiftHandover.objects.filter(is_synthetic=True).count(), handover_count
+        )
+        self.assertEqual(
+            {
+                "employees": Employee.objects.filter(is_synthetic=True).count(),
+                "courses": TrainingCourse.objects.filter(is_synthetic=True).count(),
+                "sessions": TrainingSession.objects.filter(is_synthetic=True).count(),
+                "attendance": TrainingAttendance.objects.filter(is_synthetic=True).count(),
+                "competencies": Competency.objects.filter(is_synthetic=True).count(),
+                "employee_competencies": EmployeeCompetency.objects.filter(is_synthetic=True).count(),
+                "ppe_items": PPEItem.objects.filter(is_synthetic=True).count(),
+                "ppe_stocks": PPEStock.objects.filter(is_synthetic=True).count(),
+                "ppe_assignments": PPEAssignment.objects.filter(is_synthetic=True).count(),
+                "ppe_events": PPEAssignmentEvent.objects.filter(is_synthetic=True).count(),
+            },
+            workforce_counts,
         )
 
     def test_seed_refuses_to_repurpose_or_repassword_a_real_account(self):
@@ -819,6 +859,6 @@ class DemoSeedSafetyTests(TestCase):
         self.assertEqual(real_permit.title, "مجوز واقعی که نباید تغییر کند")
         self.assertFalse(real_permit.is_synthetic)
         self.assertEqual(real_permit.organization_id, real_org.id)
-        # One of the five fixed demo references was reserved by real data, so
-        # only the other four synthetic permits are created.
-        self.assertEqual(Permit.objects.filter(is_synthetic=True).count(), 4)
+        # One of the six fixed demo references was reserved by real data, so
+        # only the other five synthetic permits are created.
+        self.assertEqual(Permit.objects.filter(is_synthetic=True).count(), 5)

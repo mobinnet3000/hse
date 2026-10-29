@@ -749,11 +749,13 @@ export function PermitsPage() {
                       color: selectedPermit.competency_validation.is_compliant ? "#2e7d32" : "#c62828",
                     }}
                   >
-                    {selectedPermit.competency_validation.has_requirements
-                      ? selectedPermit.competency_validation.is_compliant
-                        ? "✓ صلاحیت‌ها احراز شد"
-                        : "⚠️ عدم احراز صلاحیت الزامی"
-                      : "بدون الزام صلاحیت خاص"}
+                    {selectedPermit.competency_validation.is_unknown
+                      ? "⚠️ صلاحیت نفرات نامشخص است"
+                      : selectedPermit.competency_validation.has_requirements
+                        ? selectedPermit.competency_validation.is_compliant
+                          ? "✓ صلاحیت‌ها احراز شد"
+                          : "⚠️ عدم احراز صلاحیت الزامی"
+                        : "بدون الزام صلاحیت خاص"}
                   </span>
                 )}
               </div>
@@ -766,6 +768,55 @@ export function PermitsPage() {
                       <span key={emp.id} style={{ background: "#e2e8f0", padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.8rem" }}>
                         {emp.full_name} ({emp.employee_no}) - {emp.job_title}
                       </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedPermit.competency_validation?.reason && (
+                <div style={{ marginTop: "0.5rem", color: "#c62828", fontSize: "0.85rem" }}>
+                  {selectedPermit.competency_validation.reason}
+                </div>
+              )}
+
+              {selectedPermit.competency_validation?.people && selectedPermit.competency_validation.people.length > 0 && (
+                <div style={{ marginTop: "0.5rem" }}>
+                  <span className="muted">صلاحیت هر نفر:</span>
+                  <div style={{ display: "grid", gap: "0.35rem", marginTop: "0.25rem" }}>
+                    {selectedPermit.competency_validation.people.map((person) => (
+                      <div key={person.employee_id} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "4px", padding: "0.4rem 0.55rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap" }}>
+                          <strong>{person.full_name} ({person.employee_no})</strong>
+                          <span className="muted" style={{ fontSize: "0.75rem" }}>{person.source_display ?? person.source}</span>
+                        </div>
+                        {person.checks.length === 0 ? (
+                          <div className="muted" style={{ fontSize: "0.8rem" }}>صلاحیت الزامی برای این نوع مجوز تعریف نشده است.</div>
+                        ) : (
+                          <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
+                            {person.checks.map((check) => (
+                              <span
+                                key={check.competency_id}
+                                title={check.expires_on ? `انقضا: ${new Date(`${check.expires_on}T12:00:00`).toLocaleDateString("fa-IR")}` : undefined}
+                                style={{
+                                  padding: "0.15rem 0.45rem",
+                                  borderRadius: "4px",
+                                  fontSize: "0.75rem",
+                                  background: check.is_valid ? "#e8f5e9" : "#ffebee",
+                                  color: check.is_valid ? "#2e7d32" : "#c62828",
+                                }}
+                              >
+                                {check.competency_name}: {check.status_display}
+                                {check.expires_on ? ` — ${new Date(`${check.expires_on}T12:00:00`).toLocaleDateString("fa-IR")}` : ""}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {person.checks.some((check) => check.blocking_reason) && (
+                          <div style={{ color: "#c62828", fontSize: "0.75rem", marginTop: "0.2rem" }}>
+                            {person.checks.filter((check) => check.blocking_reason).map((check) => check.blocking_reason).join(" | ")}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>

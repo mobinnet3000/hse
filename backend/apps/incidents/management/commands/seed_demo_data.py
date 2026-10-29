@@ -1071,14 +1071,17 @@ class Command(BaseCommand):
             return course
 
         def seed_session(organization, course, scheduled_on, defaults):
+            # The instructor is a stable natural key, so re-running the seed on a
+            # later day refreshes relative dates instead of duplicating sessions.
             existing = TrainingSession.objects.filter(
                 organization=organization,
                 course=course,
-                scheduled_on=scheduled_on,
+                instructor_name=(defaults.get("instructor_name") or "").strip(),
                 is_synthetic=True,
             ).first()
             payload = {
                 **defaults,
+                "scheduled_on": scheduled_on,
                 "is_synthetic": True,
                 "created_by": hse_mgr_user,
             }
@@ -1091,7 +1094,6 @@ class Command(BaseCommand):
             session = TrainingSession(
                 organization=organization,
                 course=course,
-                scheduled_on=scheduled_on,
                 **payload,
             )
             session.full_clean()
@@ -1155,14 +1157,22 @@ class Command(BaseCommand):
             return competency
 
         def seed_employee_competency(employee, competency, achieved_on, defaults):
-            existing = EmployeeCompetency.objects.filter(
-                employee=employee,
-                competency=competency,
-                achieved_on=achieved_on,
-                is_synthetic=True,
-            ).first()
+            # Certificate number is the stable identity for demo competency
+            # records. Without it, fall back to the achievement date.
+            certificate_number = (defaults.get("certificate_number") or "").strip()
+            lookup = {
+                "employee": employee,
+                "competency": competency,
+                "is_synthetic": True,
+            }
+            if certificate_number:
+                lookup["certificate_number"] = certificate_number
+            else:
+                lookup["achieved_on"] = achieved_on
+            existing = EmployeeCompetency.objects.filter(**lookup).first()
             payload = {
                 **defaults,
+                "achieved_on": achieved_on,
                 "is_synthetic": True,
                 "recorded_by": hse_mgr_user,
             }
@@ -1176,7 +1186,6 @@ class Command(BaseCommand):
                 organization=employee.organization,
                 employee=employee,
                 competency=competency,
-                achieved_on=achieved_on,
                 **payload,
             )
             record.full_clean()
@@ -1271,19 +1280,27 @@ class Command(BaseCommand):
 
         def seed_assignment(employee, item, stock, issued_on, defaults):
             serial_number = defaults.pop("serial_number", "")
-            existing = PPEAssignment.objects.filter(
-                organization=employee.organization,
-                employee=employee,
-                item=item,
-                serial_number=serial_number,
-                issued_on=issued_on,
-                is_synthetic=True,
-            ).first()
+            # Never use a date in the lookup: demo dates move with "today".
+            # A serial (when present) or the note/condition pair identifies the
+            # synthetic assignment across repeated runs.
+            lookup = {
+                "organization": employee.organization,
+                "employee": employee,
+                "item": item,
+                "is_synthetic": True,
+            }
+            if serial_number:
+                lookup["serial_number"] = serial_number
+            else:
+                lookup["notes"] = defaults.get("notes", "")
+                lookup["condition_on_issue"] = defaults.get("condition_on_issue", "سالم")
+            existing = PPEAssignment.objects.filter(**lookup).first()
             # Real assignments with a similar natural key are never overwritten;
             # a separately marked synthetic row is created instead.
             payload = {
                 **defaults,
                 "serial_number": serial_number,
+                "issued_on": issued_on,
                 "is_synthetic": True,
                 "issued_by": hse_mgr_user,
             }
@@ -1298,7 +1315,6 @@ class Command(BaseCommand):
                 employee=employee,
                 item=item,
                 stock=stock,
-                issued_on=issued_on,
                 **payload,
             )
             assignment.full_clean()
@@ -1309,10 +1325,14 @@ class Command(BaseCommand):
             existing = PPEAssignmentEvent.objects.filter(
                 assignment=assignment,
                 event_type=event_type,
-                occurred_on=occurred_on,
                 is_synthetic=True,
             ).first()
-            payload = {**defaults, "is_synthetic": True, "actor": hse_mgr_user}
+            payload = {
+                **defaults,
+                "occurred_on": occurred_on,
+                "is_synthetic": True,
+                "actor": hse_mgr_user,
+            }
             if existing is not None:
                 for field, value in payload.items():
                     setattr(existing, field, value)
@@ -1322,7 +1342,6 @@ class Command(BaseCommand):
                 organization=assignment.organization,
                 assignment=assignment,
                 event_type=event_type,
-                occurred_on=occurred_on,
                 **payload,
             )
 

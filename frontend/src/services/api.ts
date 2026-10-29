@@ -1544,9 +1544,12 @@ export interface Employee {
   is_active: boolean;
   notes?: string;
   training_count?: number;
-  active_competency_count?: number;
+  valid_competency_count?: number;
+  expiring_competency_count?: number;
   active_ppe_count?: number;
   can_manage?: boolean;
+  can_issue_competency?: boolean;
+  can_operate_ppe?: boolean;
   is_synthetic?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -1586,8 +1589,9 @@ export interface TrainingSession {
   course_detail?: { id: number; code: string; title: string; duration_minutes: number };
   workplace?: number | null;
   workplace_name?: string | null;
+  instructor_name: string;
   scheduled_on: string;
-  trainer_name: string;
+  duration_minutes?: number | null;
   capacity?: number | null;
   status: SessionStatus;
   status_display?: string;
@@ -1686,22 +1690,43 @@ export interface PermitTypeCompetencyRequirement {
   created_at?: string;
 }
 
+export interface PermitCompetencyCheck {
+  competency_id: number;
+  competency_code: string;
+  competency_name: string;
+  status: string;
+  status_display: string;
+  expires_on?: string | null;
+  record_id?: number | null;
+  is_valid: boolean;
+  blocking_reason?: string | null;
+}
+
+export interface PermitCompetencyPerson {
+  employee_id: number;
+  employee_no: string;
+  full_name: string;
+  is_active: boolean;
+  source: string;
+  source_display?: string;
+  checks: PermitCompetencyCheck[];
+}
+
 export interface PermitCompetencyValidation {
-  permit_id: number;
-  permit_type: string;
   has_requirements: boolean;
-  required_competencies: Array<{ id: number; code: string; name: string }>;
-  assigned_employees: Array<{ id: number; employee_no: string; full_name: string }>;
   is_compliant: boolean;
-  blocking_reasons: string[];
-  matrix: Array<{
-    employee_id: number;
-    employee_name: string;
+  is_unknown: boolean;
+  reason: string | null;
+  unstructured_workers?: boolean;
+  requirements: Array<{
+    id: number;
     competency_id: number;
+    competency_code: string;
     competency_name: string;
-    status: string;
-    is_valid: boolean;
+    notes?: string;
   }>;
+  people: PermitCompetencyPerson[];
+  blocking_reasons: string[];
 }
 
 export interface PPEItem {
@@ -1729,8 +1754,7 @@ export interface PPEStock {
   id: number;
   organization: number;
   item: number;
-  item_code?: string;
-  item_name?: string;
+  item_detail?: { id: number; code: string; name: string; category: string; tracks_serial: boolean };
   workplace?: number | null;
   workplace_name?: string | null;
   location_name: string;
@@ -1749,13 +1773,25 @@ export interface PPEAssignment {
   id: number;
   organization: number;
   employee: number;
-  employee_detail?: { id: number; employee_no: string; full_name: string };
+  employee_detail?: { id: number; employee_no: string; full_name: string; job_title?: string };
   item: number;
+  item_detail?: { id: number; code: string; name: string; category: string; tracks_serial: boolean };
   item_code?: string;
   item_name?: string;
   item_category?: string;
-  tracks_serial?: boolean;
   stock: number;
+  stock_detail?: {
+    id: number;
+    item: number;
+    item_code: string;
+    item_name: string;
+    workplace?: number | null;
+    workplace_name?: string | null;
+    location_name: string;
+    quantity_on_hand: number;
+    quantity_minimum: number;
+    is_active: boolean;
+  };
   stock_location?: string;
   quantity: number;
   serial_number: string;
@@ -1766,17 +1802,24 @@ export interface PPEAssignment {
   return_condition?: string;
   status: PPEAssignmentStatus;
   status_display?: string;
+  usage_status?: "in_use" | "due_soon" | "overdue" | "returned" | "replaced" | "disposed";
+  usage_status_display?: string;
   is_overdue?: boolean;
   is_due_soon?: boolean;
   notes?: string;
-  can_operate?: boolean;
+  can_return?: boolean;
+  can_replace?: boolean;
+  can_dispose?: boolean;
   events?: Array<{
     id: number;
     event_type: string;
     event_type_display: string;
+    occurred_on: string;
     event_date: string;
+    quantity: number;
+    condition?: string;
+    notes?: string;
     actor_name?: string;
-    details?: Record<string, unknown>;
   }>;
   is_synthetic?: boolean;
   created_at?: string;
@@ -1807,6 +1850,12 @@ export interface WorkforceStats {
   ppe_assignments_due_soon: number;
   ppe_assignments_overdue: number;
   ppe_replacement_due_soon_days: number;
+  capabilities?: {
+    can_manage: boolean;
+    can_conduct_training: boolean;
+    can_issue_competency: boolean;
+    can_operate_ppe: boolean;
+  };
 }
 
 function workforceQuery(params?: Record<string, string | number | undefined | boolean>) {
@@ -2043,7 +2092,7 @@ export function createPPEAssignment(data: Record<string, unknown>) {
   });
 }
 
-export function returnPPEAssignment(id: number, data: { condition?: string; returned_on?: string; notes?: string }) {
+export function returnPPEAssignment(id: number, data: { condition?: string; returned_on?: string; notes?: string; restock?: boolean }) {
   return request<PPEAssignment>(`/workforce/ppe-assignments/${id}/return/`, {
     method: "POST",
     body: JSON.stringify(data),

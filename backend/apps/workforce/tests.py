@@ -222,7 +222,7 @@ class TrainingWorkflowTests(WorkforceTestBase):
                 "course": self.course_a.id,
                 "workplace": self.workplace_a.id,
                 "scheduled_on": str(self.today),
-                "trainer_name": "مهندس صادقی",
+                "instructor_name": "مهندس صادقی",
                 "status": TrainingSession.Status.COMPLETED,
                 "capacity": 20,
             },
@@ -544,6 +544,407 @@ class PPEStockAndAssignmentTests(WorkforceTestBase):
             "unique_active_ppe_serial_per_item" in str(ctx.exception)
             or "تخصیص داده شده است" in str(ctx.exception)
         )
+
+
+class WorkforceSecurityAndHistoryTests(WorkforceTestBase):
+    def test_cross_tenant_relationships_are_rejected(self):
+        self.client.force_login(self.admin_a)
+        res = self.client.post(
+            "/api/v1/workforce/training-sessions/",
+            {
+                "course": self.course_a.id,
+                "workplace": self.workplace_b.id,
+                "instructor_name": "مدرس آزمون",
+                "scheduled_on": str(self.today),
+                "status": TrainingSession.Status.SCHEDULED,
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+        res = self.client.post(
+            "/api/v1/workforce/ppe-assignments/",
+            {
+                "employee": self.emp_b1.id,
+                "item": self.ppe_item_a.id,
+                "stock": self.ppe_stock_a.id,
+                "quantity": 1,
+                "serial_number": "CROSS-ORG-1",
+                "issued_on": str(self.today),
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_worker_cannot_create_workforce_records(self):
+        self.client.force_login(self.worker_a)
+        res = self.client.post(
+            "/api/v1/workforce/employees/",
+            {
+                "employee_no": "EMP-NO-PERM",
+                "first_name": "بدون",
+                "last_name": "دسترسی",
+            },
+            format="json",
+        )
+        # The organization resolver deliberately returns 404 for unauthorized
+        # organizations so it never discloses whether another tenant exists.
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_training_history_survives_course_deactivation(self):
+        session = TrainingSession.objects.create(
+            organization=self.org_a,
+            course=self.course_a,
+            scheduled_on=self.today,
+            instructor_name="مدرس",
+            status=TrainingSession.Status.COMPLETED,
+        )
+        attendance = create_attendance(
+            session=session,
+            actor=self.manager_a,
+            data={
+                "employee": self.emp_a1,
+                "attendance_status": TrainingAttendance.AttendanceStatus.ATTENDED,
+                "assessment_result": TrainingAttendance.AssessmentResult.PASSED,
+                "score": 88,
+                "completed_on": self.today,
+            },
+        )
+        self.client.force_login(self.manager_a)
+        res = self.client.patch(
+            f"/api/v1/workforce/courses/{self.course_a.id}/",
+            {"is_active": False},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertFalse(res.data["is_active"])
+
+        history = self.client.get(
+            f"/api/v1/workforce/employees/{self.emp_a1.id}/training/"
+        )
+        self.assertEqual(history.status_code, status.HTTP_200_OK)
+        self.assertEqual(history.data[0]["id"], attendance.id)
+
+    def test_competency_issuance_audit_and_renewal_history(self):
+        self.client.force_login(self.manager_a)
+        payload = {
+            "employee": self.emp_a1.id,
+            "competency": self.competency_a.id,
+            "achieved_on": str(self.today - timedelta(days=400)),
+            "expires_on": str(self.today - timedelta(days=30)),
+        }
+        first = self.client.post(
+            "/api/v1/workforce/employee-competencies/", payload, format="json"
+        )
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(first.data["effective_status"], "expired")
+        self.assertFalse(first.data["is_valid"])
+
+        second = self.client.post(
+            "/api/v1/workforce/employee-competencies/",
+            {
+                **payload,
+                "achieved_on": str(self.today),
+                "expires_on": str(self.today + timedelta(days=365)),
+                "certificate_number": "RENEW-001",
+            },
+            format="json",
+        )
+        self.assertEqual(second.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(second.data["is_valid"])
+
+        history = self.client.get(
+            f"/api/v1/workforce/employees/{self.emp_a1.id}/competencies/"
+        )
+        self.assertEqual(history.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(history.data), 2)
+        self.assertIn(
+            "employee_competency.issued",
+            AuditEvent.objects.filter(
+                entity_type="employee_competency"
+            ).values_list("action", flat=True),
+        )
+
+    def test_competency_rejects_future_date_and_unaccepted_source_course(self):
+        other_course = TrainingCourse.objects.create(
+            organization=self.org_a,
+            code="TR-OTHER",
+            title="دوره نامرتبط",
+            category="عمومی",
+            duration_minutes=60,
+        )
+        self.client.force_login(self.manager_a)
+        res = self.client.post(
+            "/api/v1/workforce/employee-competencies/",
+            {
+                "employee": self.emp_a1.id,
+                "competency": self.competency_a.id,
+                "achieved_on": str(self.today + timedelta(days=1)),
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+        res = self.client.post(
+            "/api/v1/workforce/employee-competencies/",
+            {
+                "employee": self.emp_a1.id,
+                "competency": self.competency_a.id,
+                "achieved_on": str(self.today),
+                "source_course": other_course.id,
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_revoked_competency_is_never_valid(self):
+        record = EmployeeCompetency.objects.create(
+            organization=self.org_a,
+            employee=self.emp_a1,
+            competency=self.competency_a,
+            achieved_on=self.today - timedelta(days=10),
+            expires_on=self.today + timedelta(days=100),
+            status=EmployeeCompetency.Status.REVOKED,
+        )
+        self.assertFalse(record.is_valid)
+        self.assertEqual(record.effective_status, "revoked")
+
+    def test_attendance_result_requires_attendance_and_closed_session(self):
+        session = TrainingSession.objects.create(
+            organization=self.org_a,
+            course=self.course_a,
+            scheduled_on=self.today,
+            status=TrainingSession.Status.COMPLETED,
+        )
+        with self.assertRaises(ValidationError):
+            create_attendance(
+                session=session,
+                actor=self.manager_a,
+                data={
+                    "employee": self.emp_a1,
+                    "attendance_status": TrainingAttendance.AttendanceStatus.ABSENT,
+                    "assessment_result": TrainingAttendance.AssessmentResult.PASSED,
+                    "completed_on": self.today,
+                },
+            )
+
+
+
+class PermitRevalidationTests(WorkforceTestBase):
+    def setUp(self):
+        super().setUp()
+        PermitTypeCompetencyRequirement.objects.create(
+            organization=self.org_a,
+            permit_type=Permit.PermitType.HOT_WORK,
+            competency=self.competency_a,
+        )
+        self.permit = Permit.objects.create(
+            organization=self.org_a,
+            workplace=self.workplace_a,
+            permit_type=Permit.PermitType.HOT_WORK,
+            title="جوشکاری مخزن",
+            description="آزمون اعتبارسنجی مجدد",
+            reference_code="PTW-REVALIDATE-001",
+            work_area="محوطه",
+            valid_from=timezone.now(),
+            valid_until=timezone.now() + timedelta(hours=8),
+            requester=self.supervisor_a,
+            responsible_supervisor=self.supervisor_a,
+            status=Permit.Status.REQUESTED,
+        )
+        EmployeeCompetency.objects.create(
+            organization=self.org_a,
+            employee=self.emp_a1,
+            competency=self.competency_a,
+            achieved_on=self.today,
+            expires_on=self.today + timedelta(days=365),
+        )
+        self.permit.assigned_employees.add(self.emp_a1)
+
+    def test_activation_revalidates_after_crew_change(self):
+        review_permit(self.permit, self.manager_a, status_choice=Permit.Status.UNDER_REVIEW)
+        approved = approve_permit(self.permit, self.manager_a)
+        expired = EmployeeCompetency.objects.create(
+            organization=self.org_a,
+            employee=self.emp_a2,
+            competency=self.competency_a,
+            achieved_on=self.today - timedelta(days=400),
+            expires_on=self.today - timedelta(days=1),
+        )
+        self.assertFalse(expired.is_valid)
+        approved.assigned_employees.add(self.emp_a2)
+        with self.assertRaises(ValidationError):
+            verify_controls_and_activate(approved, self.supervisor_a)
+
+    def test_activation_revalidates_after_removing_crew(self):
+        review_permit(self.permit, self.manager_a, status_choice=Permit.Status.UNDER_REVIEW)
+        approved = approve_permit(self.permit, self.manager_a)
+        approved.assigned_employees.clear()
+        with self.assertRaises(ValidationError):
+            verify_controls_and_activate(approved, self.supervisor_a)
+
+    def test_free_text_crew_is_unknown_even_when_requester_maps_to_employee(self):
+        self.emp_a2.user = self.supervisor_a
+        self.emp_a2.save(update_fields=["user"])
+        self.permit.assigned_employees.clear()
+        self.permit.assigned_workers = "تیم پیمانکاری بدون شناسه ساختاریافته"
+        self.permit.save(update_fields=["assigned_workers"])
+        validation = validate_permit_competencies(self.permit)
+        self.assertTrue(validation["is_unknown"])
+        self.assertFalse(validation["is_compliant"])
+        self.assertTrue(validation["unstructured_workers"])
+        with self.assertRaises(ValidationError):
+            assert_permit_competencies(self.permit)
+
+    def test_suspended_competency_blocks_activation(self):
+        EmployeeCompetency.objects.filter(employee=self.emp_a1).update(
+            status=EmployeeCompetency.Status.SUSPENDED
+        )
+        review_permit(self.permit, self.manager_a, status_choice=Permit.Status.UNDER_REVIEW)
+        with self.assertRaises(ValidationError):
+            approve_permit(self.permit, self.manager_a)
+
+
+class PPESafetyAndAuditTests(WorkforceTestBase):
+    def test_second_issue_beyond_stock_does_not_go_negative(self):
+        first = create_assignment(
+            organization=self.org_a,
+            actor=self.supervisor_a,
+            data={
+                "employee": self.emp_a1,
+                "item": self.ppe_item_consumable,
+                "stock": self.ppe_stock_consumable,
+                "quantity": 4,
+                "issued_on": self.today,
+            },
+        )
+        self.assertEqual(first.quantity, 4)
+        with self.assertRaises(ValidationError):
+            create_assignment(
+                organization=self.org_a,
+                actor=self.supervisor_a,
+                data={
+                    "employee": self.emp_a2,
+                    "item": self.ppe_item_consumable,
+                    "stock": self.ppe_stock_consumable,
+                    "quantity": 2,
+                    "issued_on": self.today,
+                },
+            )
+        self.ppe_stock_consumable.refresh_from_db()
+        self.assertEqual(self.ppe_stock_consumable.quantity_on_hand, 1)
+        self.assertGreaterEqual(self.ppe_stock_consumable.quantity_on_hand, 0)
+
+    def test_damaged_return_is_not_restocked(self):
+        assignment = create_assignment(
+            organization=self.org_a,
+            actor=self.supervisor_a,
+            data={
+                "employee": self.emp_a1,
+                "item": self.ppe_item_consumable,
+                "stock": self.ppe_stock_consumable,
+                "quantity": 2,
+                "issued_on": self.today,
+            },
+        )
+        self.ppe_stock_consumable.refresh_from_db()
+        self.assertEqual(self.ppe_stock_consumable.quantity_on_hand, 3)
+        returned = return_assignment(
+            assignment=assignment,
+            actor=self.supervisor_a,
+            condition="پاره و غیرقابل استفاده",
+            returned_on=self.today,
+            restock=False,
+        )
+        self.assertEqual(returned.status, PPEAssignment.Status.RETURNED)
+        self.ppe_stock_consumable.refresh_from_db()
+        self.assertEqual(self.ppe_stock_consumable.quantity_on_hand, 3)
+        self.assertTrue(returned.events.filter(event_type=PPEAssignmentEvent.EventType.RETURNED).exists())
+
+    def test_replacement_default_does_not_restock_old_item(self):
+        assignment = create_assignment(
+            organization=self.org_a,
+            actor=self.supervisor_a,
+            data={
+                "employee": self.emp_a1,
+                "item": self.ppe_item_a,
+                "stock": self.ppe_stock_a,
+                "quantity": 1,
+                "serial_number": "OLD-HARNESS",
+                "issued_on": self.today,
+            },
+        )
+        replacement = replace_assignment(
+            assignment=assignment,
+            actor=self.supervisor_a,
+            data={
+                "serial_number": "NEW-HARNESS",
+                "issued_on": self.today,
+                "replacement_due_on": self.today + timedelta(days=365),
+            },
+        )
+        self.assertEqual(replacement.status, PPEAssignment.Status.ACTIVE)
+        self.ppe_stock_a.refresh_from_db()
+        # Old item is not assumed serviceable, new item consumes one unit:
+        # 10 - 1 (initial issue) - 1 (replacement issue) = 8.
+        self.assertEqual(self.ppe_stock_a.quantity_on_hand, 8)
+        self.assertTrue(
+            assignment.events.filter(event_type=PPEAssignmentEvent.EventType.REPLACED).exists()
+        )
+
+    def test_dispose_keeps_history_and_does_not_restock(self):
+        assignment = create_assignment(
+            organization=self.org_a,
+            actor=self.supervisor_a,
+            data={
+                "employee": self.emp_a1,
+                "item": self.ppe_item_consumable,
+                "stock": self.ppe_stock_consumable,
+                "quantity": 2,
+                "issued_on": self.today,
+            },
+        )
+        dispose_assignment(
+            assignment=assignment,
+            actor=self.supervisor_a,
+            condition="آسیب‌دیده",
+            notes="خروج از سرویس",
+        )
+        self.ppe_stock_consumable.refresh_from_db()
+        self.assertEqual(self.ppe_stock_consumable.quantity_on_hand, 3)
+        assignment.refresh_from_db()
+        self.assertEqual(assignment.status, PPEAssignment.Status.DISPOSED)
+        self.assertTrue(
+            assignment.events.filter(event_type=PPEAssignmentEvent.EventType.DISPOSED).exists()
+        )
+        with self.assertRaises(ValidationError):
+            assignment.delete()
+
+    def test_ppe_audit_events_are_written(self):
+        assignment = create_assignment(
+            organization=self.org_a,
+            actor=self.supervisor_a,
+            data={
+                "employee": self.emp_a1,
+                "item": self.ppe_item_consumable,
+                "stock": self.ppe_stock_consumable,
+                "quantity": 1,
+                "issued_on": self.today,
+            },
+        )
+        return_assignment(
+            assignment=assignment,
+            actor=self.supervisor_a,
+            condition="سالم",
+            returned_on=self.today,
+        )
+        actions = set(
+            AuditEvent.objects.filter(entity_type="ppe_assignment").values_list(
+                "action", flat=True
+            )
+        )
+        self.assertIn("ppe_assignment.issued", actions)
+        self.assertIn("ppe_assignment.returned", actions)
 
 
 class WorkforceReportAndStatsTests(WorkforceTestBase):
