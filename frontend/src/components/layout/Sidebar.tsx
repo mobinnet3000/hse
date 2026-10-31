@@ -54,12 +54,17 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
+    groupTitle: "هوش مصنوعی و ارزیابی هوشمند",
+    items: [
+      { id: "ai", label: "دستیار هوشمند HSE", icon: <Sparkles size={18} /> },
+    ],
+  },
+  {
     groupTitle: "اصلی",
     items: [
       { id: "dashboard", label: "داشبورد و شاخص‌ها", icon: <LayoutDashboard size={18} /> },
       { id: "workspace", label: "کارتابل وظایف من", icon: <UserCheck size={18} /> },
       { id: "chat", label: "پیام‌رسان سازمانی", icon: <MessageSquare size={18} /> },
-      { id: "all", label: "همه بخش‌ها", icon: <Layers size={18} /> },
     ],
   },
   {
@@ -91,7 +96,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "documents", label: "کنترل مدارک و آرشیو", icon: <FileText size={18} /> },
       { id: "knowledge", label: "پایگاه دانش و مقررات", icon: <BookOpen size={18} /> },
-      { id: "ai", label: "دستیار هوشمند HSE", icon: <Sparkles size={18} /> },
+      { id: "quick_tools", label: "ابزارهای سریع ایمنی و مقررات", icon: <Layers size={18} /> },
     ],
   },
   {
@@ -159,12 +164,13 @@ export function Sidebar({
               <ul className="nav-group-list">
                 {group.items.map((item) => {
                   const isActive = activeTab === item.id;
+                  const isAi = item.id === "ai";
                   return (
                     <li key={item.id} className="nav-item">
                       <a
                         href={`#${item.id}`}
                         aria-current={isActive ? "page" : undefined}
-                        className={`nav-link ${isActive ? "active" : ""}`}
+                        className={`nav-link ${isActive ? "active" : ""} ${isAi ? "nav-link-ai" : ""}`}
                         title={item.label}
                         onClick={(e) => {
                           if (onTabChange) {
@@ -181,6 +187,34 @@ export function Sidebar({
                         {item.id === "notifications" && unreadCount > 0 && (
                           <span className="nav-badge" aria-label={`${unreadCount} اعلان خوانده نشده`}>
                             {unreadCount}
+                          </span>
+                        )}
+                        {isAi && (
+                          <span
+                            className="nav-badge"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.25rem",
+                              backgroundColor: isActive ? "rgba(255, 255, 255, 0.2)" : "rgba(99, 102, 241, 0.12)",
+                              color: isActive ? "#ffffff" : "#6366f1",
+                              fontSize: "0.65rem",
+                              fontWeight: 800,
+                              padding: "0.15rem 0.5rem",
+                              borderRadius: "9999px",
+                              border: isActive ? "1px solid rgba(255, 255, 255, 0.3)" : "1px solid rgba(99, 102, 241, 0.25)",
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: "6px",
+                                height: "6px",
+                                borderRadius: "50%",
+                                backgroundColor: isActive ? "#a7f3d0" : "#10b981",
+                                display: "inline-block",
+                              }}
+                            />
+                            AvalAI
                           </span>
                         )}
                       </a>

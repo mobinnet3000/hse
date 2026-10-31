@@ -230,18 +230,18 @@
     "semantic_hash": ""
   },
   "backend/apps/ai_assistant/tests.py": {
-    "mtime": 1792414521.666544,
-    "ast_hash": "27f11729a6695c4325dcf5cce5ca9fbc",
+    "mtime": 1793457173.4739811,
+    "ast_hash": "f64c90a814537099d73a82374e4c7f7e",
     "semantic_hash": ""
   },
   "backend/apps/ai_assistant/urls.py": {
-    "mtime": 1792414340.643613,
-    "ast_hash": "c69d028145caccc8dd657dcdd1ee7579",
+    "mtime": 1793448929.9564967,
+    "ast_hash": "bce5ecef1206700468efbff8c5fa4d0f",
     "semantic_hash": ""
   },
   "backend/apps/ai_assistant/views.py": {
-    "mtime": 1792414336.6683562,
-    "ast_hash": "162369ec312f5e416a160e28d7c3bbd4",
+    "mtime": 1793457024.1689138,
+    "ast_hash": "910fcfb04b797b9e9baa84f7c1f10d17",
     "semantic_hash": ""
   },
   "backend/apps/assets/__init__.py": {
@@ -1705,13 +1705,13 @@
     "semantic_hash": ""
   },
   "backend/config/settings.py": {
-    "mtime": 1793446634.6762044,
-    "ast_hash": "830201a538cd0f1885766bcc4d5184be",
+    "mtime": 1793454261.7738836,
+    "ast_hash": "13794702d86fe3cc6d4d4b9930ea5cab",
     "semantic_hash": ""
   },
   "backend/config/urls.py": {
-    "mtime": 1793447246.055781,
-    "ast_hash": "c3466dbbba902c81efa41b2e83086245",
+    "mtime": 1793448939.433236,
+    "ast_hash": "cbd0962708497734820e24cad1bb0873",
     "semantic_hash": ""
   },
   "backend/config/wsgi.py": {
@@ -1745,18 +1745,18 @@
     "semantic_hash": ""
   },
   "frontend/src/app/App.tsx": {
-    "mtime": 1793446634.6858432,
-    "ast_hash": "7fbb46353e9d952cc10cf6e0f764680d",
+    "mtime": 1793453325.189224,
+    "ast_hash": "f4bbdefe8973608cab6a0c76c4a8abba",
     "semantic_hash": ""
   },
   "frontend/src/components/layout/Header.tsx": {
-    "mtime": 1793446634.6858432,
-    "ast_hash": "5a80b79127b8dc48909e16f8f20e87fd",
+    "mtime": 1793453335.107756,
+    "ast_hash": "28dee75f735f23731e84547554636256",
     "semantic_hash": ""
   },
   "frontend/src/components/layout/Sidebar.tsx": {
-    "mtime": 1793446634.6858432,
-    "ast_hash": "d802f9db97d58b9966b5e45811b9625c",
+    "mtime": 1793452657.9227414,
+    "ast_hash": "2e5529c54448a52043a4551c45807dfd",
     "semantic_hash": ""
   },
   "frontend/src/components/ui/EmptyState.tsx": {
@@ -1785,8 +1785,8 @@
     "semantic_hash": ""
   },
   "frontend/src/features/ai/AiAssistantPage.tsx": {
-    "mtime": 1793011457.737664,
-    "ast_hash": "a3202d41e0d37fb66e87d06101c818ca",
+    "mtime": 1793453177.7920592,
+    "ast_hash": "ab984fce226cf9cc6e978829e29b8c69",
     "semantic_hash": ""
   },
   "frontend/src/features/ai/ai.test.tsx": {
@@ -1900,8 +1900,8 @@
     "semantic_hash": ""
   },
   "frontend/src/features/health/HealthStatus.tsx": {
-    "mtime": 1792399677.8628619,
-    "ast_hash": "2ab64a36b7834c9ec484156d71c1357f",
+    "mtime": 1793452622.6142094,
+    "ast_hash": "363415c6242325987ccd437d9257135f",
     "semantic_hash": ""
   },
   "frontend/src/features/incidents/IncidentsPage.tsx": {
@@ -2015,8 +2015,8 @@
     "semantic_hash": ""
   },
   "frontend/src/layouts/AppLayout.tsx": {
-    "mtime": 1793446634.6928566,
-    "ast_hash": "35e93f755b5f5363833cb42501a044c6",
+    "mtime": 1793452639.1346405,
+    "ast_hash": "0567c42992a249c8462d4f48eb900b40",
     "semantic_hash": ""
   },
   "frontend/src/main.tsx": {
@@ -2025,8 +2025,8 @@
     "semantic_hash": ""
   },
   "frontend/src/services/api.ts": {
-    "mtime": 1793446634.6959097,
-    "ast_hash": "a438318098837575a964aec3bccf980c",
+    "mtime": 1793451035.621695,
+    "ast_hash": "09a563e9d32ad5701860d34d79822aaf",
     "semantic_hash": ""
   },
   "frontend/src/test/mockApi.ts": {
@@ -2682,6 +2682,96 @@
   "docs/reports/18-controlled-staging-and-hardening.md": {
     "mtime": 1793448152.5960782,
     "ast_hash": "45933dbffda902d0d84b7bc9027edd9c",
+    "semantic_hash": ""
+  },
+  "backend/apps/ai_assistant/admin.py": {
+    "mtime": 1793448711.5885503,
+    "ast_hash": "35205ea4fab547f265d19d970d5a6e64",
+    "semantic_hash": ""
+  },
+  "backend/apps/ai_assistant/avalai_client.py": {
+    "mtime": 1793457002.7905645,
+    "ast_hash": "004140f1f98d57c2f04cc7fd35d1e028",
+    "semantic_hash": ""
+  },
+  "backend/apps/ai_assistant/checklist_generator.py": {
+    "mtime": 1793449393.934049,
+    "ast_hash": "827fda6f33faba8cfbc3f9488c7cf3f6",
+    "semantic_hash": ""
+  },
+  "backend/apps/ai_assistant/migrations/0001_initial.py": {
+    "mtime": 1793448718.2920964,
+    "ast_hash": "0f6b481d4a48cdff273b7872dbd2a967",
+    "semantic_hash": ""
+  },
+  "backend/apps/ai_assistant/migrations/__init__.py": {
+    "mtime": 1793448718.2900915,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "backend/apps/ai_assistant/models.py": {
+    "mtime": 1793448702.2587729,
+    "ast_hash": "afc27992bdef86ff653bdd6a7c96e107",
+    "semantic_hash": ""
+  },
+  "backend/apps/ai_assistant/schema_validator.py": {
+    "mtime": 1793457104.6233873,
+    "ast_hash": "5fe4af200eadff4c2ec8c50e0599c6e4",
+    "semantic_hash": ""
+  },
+  "backend/apps/ai_assistant/serializers.py": {
+    "mtime": 1793448852.4901314,
+    "ast_hash": "3954b895cfc81a01e69fd2b3148dc557",
+    "semantic_hash": ""
+  },
+  "frontend/src/features/ai/ai-assistant-phase19.test.tsx": {
+    "mtime": 1793450277.9162047,
+    "ast_hash": "28399d619ec237fd0357a04cf32e2eeb",
+    "semantic_hash": ""
+  },
+  "frontend/src/features/ai/components/AIAnalysisProgress.tsx": {
+    "mtime": 1793455633.0072105,
+    "ast_hash": "8403bffb3c03bfbc7ceceb3ee2b03b8b",
+    "semantic_hash": ""
+  },
+  "frontend/src/features/ai/components/AIAssessmentDashboard.tsx": {
+    "mtime": 1793452037.572579,
+    "ast_hash": "b9bc656b90d5cc21a99e28359c4bce85",
+    "semantic_hash": ""
+  },
+  "frontend/src/features/ai/components/AssessmentApprovalModal.tsx": {
+    "mtime": 1793451983.630903,
+    "ast_hash": "87519edfe0cd828a48cc4be23bad556a",
+    "semantic_hash": ""
+  },
+  "frontend/src/features/ai/components/AssessmentResultsView.tsx": {
+    "mtime": 1793455675.0909677,
+    "ast_hash": "34bfc6aa3695b3e6302c12f125844e71",
+    "semantic_hash": ""
+  },
+  "frontend/src/features/ai/components/AssessmentWizard.tsx": {
+    "mtime": 1793451884.3065484,
+    "ast_hash": "df061c1e84a2ea274fa5732a95caebda",
+    "semantic_hash": ""
+  },
+  "frontend/src/features/ai/components/ChecklistDraftEditor.tsx": {
+    "mtime": 1793451893.9235463,
+    "ast_hash": "f008c2b7edf28ecf91c05c2250361b50",
+    "semantic_hash": ""
+  },
+  "docs/ai-assistant/ARCHITECTURE.md": {
+    "mtime": 1793450502.0848324,
+    "ast_hash": "74be116e4cfc630744ba24c968a6efd3",
+    "semantic_hash": ""
+  },
+  "docs/ai-assistant/AVALAI_SETUP.md": {
+    "mtime": 1793450525.9255772,
+    "ast_hash": "482e6f6d52fb043325ece9585b9d6366",
+    "semantic_hash": ""
+  },
+  "docs/ai-assistant/WORKPLACE_ASSESSMENT_GUIDE.md": {
+    "mtime": 1793450541.1823654,
+    "ast_hash": "ce0e3437547b3f3ad9f3ff401d4ae78b",
     "semantic_hash": ""
   }
 }

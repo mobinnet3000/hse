@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR.parent / ".env")
+if not os.getenv("AVALAI_API_KEY"):
+    load_dotenv(BASE_DIR / ".env.example")
 
 
 def env_bool(name, default=False):

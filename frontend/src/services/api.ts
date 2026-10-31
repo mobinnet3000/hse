@@ -4053,3 +4053,293 @@ export function reopenAnomaly(id: number, data: { reopened_reason: string }) {
   return request<NonConformity>(`/non-conformities/${id}/reopen/`, { method: "POST", body: JSON.stringify(data) });
 }
 
+// ==========================================
+// 11. Phase 19 Intelligent AI HSE Assistant
+// ==========================================
+
+export interface AIAssessmentListItem {
+  id: number;
+  organization: number;
+  workplace: number;
+  workplace_name?: string;
+  title: string;
+  status: "draft" | "analyzing" | "analyzed" | "editing" | "validated" | "approved" | "checklist_generated" | "analysis_failed";
+  status_display: string;
+  ai_model: string;
+  created_by?: number | null;
+  created_by_username?: string;
+  approved_by?: number | null;
+  approved_by_username?: string;
+  approved_at?: string | null;
+  generated_checklist?: number | null;
+  generated_checklist_title?: string;
+  hazards_count: number;
+  checklist_items_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AIHazardItem {
+  id: string;
+  category: string;
+  hazard_title: string;
+  hazard_description: string;
+  location_or_source: string;
+  exposed_groups: string[];
+  potential_consequences: string[];
+  initial_probability: number;
+  initial_severity: number;
+  initial_risk_score: number;
+  initial_risk_level: "low" | "medium" | "high" | "critical";
+  recommended_controls: {
+    elimination?: string[];
+    substitution?: string[];
+    engineering?: string[];
+    administrative?: string[];
+    ppe?: string[];
+  };
+  emergency_actions?: string[];
+  regulatory_references?: string[];
+}
+
+export interface AIChecklistItem {
+  id: string;
+  title: string;
+  inspection_criterion: string;
+  related_hazard_id?: string;
+  response_type: "yes_no" | "yes_no_na" | "score_1_5" | "text" | "photo";
+  is_critical: boolean;
+  evidence_required: string[];
+  regulatory_reference?: string;
+  recommended_frequency?: string;
+}
+
+export interface AIChecklistSection {
+  id: string;
+  title: string;
+  description?: string;
+  items: AIChecklistItem[];
+}
+
+export interface AIChecklistDraft {
+  title: string;
+  description?: string;
+  sections: AIChecklistSection[];
+}
+
+export interface AIAnalysisResult {
+  assessment_summary: {
+    overall_risk_rating: "low" | "medium" | "high" | "critical";
+    summary_persian: string;
+    total_hazards_identified: number;
+    critical_hazards_count: number;
+    high_hazards_count: number;
+  };
+  data_quality: {
+    completeness_score: number;
+    missing_critical_data: string[];
+    assumptions_made: string[];
+  };
+  hazards: AIHazardItem[];
+  emergency_readiness_assessment?: {
+    strengths?: string[];
+    gaps?: string[];
+    priority_actions?: string[];
+  };
+  regulatory_compliance_notes?: string[];
+  checklist: AIChecklistDraft;
+}
+
+export interface AIAssessmentWorkplaceData {
+  general_info: {
+    workplace_name: string;
+    industry_type: string;
+    workshop_type: string;
+    shift_count: number;
+    worker_count: number;
+    special_groups?: string[];
+    contractor_present?: boolean;
+    contractor_count?: number;
+  };
+  physical_environment?: {
+    area_sqm?: number;
+    ceiling_height_meters?: number;
+    ventilation_type?: string;
+    lighting_condition?: string;
+    noise_level?: string;
+    temperature_condition?: string;
+    humidity_condition?: string;
+    housekeeping_status?: string;
+  };
+  activities_and_processes?: {
+    primary_processes?: string[];
+    hazardous_operations?: string[];
+    material_handling?: string[];
+  };
+  machinery_and_equipment?: Array<{
+    name: string;
+    type?: string;
+    guarding_status?: string;
+    maintenance_status?: string;
+    safety_devices?: string[];
+  }>;
+  materials_and_chemicals?: Array<{
+    name: string;
+    classification?: string;
+    storage_method?: string;
+    msds_available?: boolean;
+    approximate_volume?: string;
+  }>;
+  existing_controls?: {
+    engineering_controls?: string[];
+    administrative_controls?: string[];
+    ppe_provided?: string[];
+    permits_required?: string[];
+  };
+  historical_incidents?: Array<{
+    date_or_period?: string;
+    incident_type?: string;
+    description?: string;
+    severity?: string;
+  }>;
+  emergency_readiness?: {
+    fire_extinguishers_available?: boolean;
+    eyewash_available?: boolean;
+    first_aid_kit_available?: boolean;
+    emergency_exits_marked?: boolean;
+    evacuation_plan_exists?: boolean;
+    trained_first_aiders?: number;
+  };
+  regulatory_context?: {
+    applicable_standards?: string[];
+    internal_policies?: string[];
+    special_permits?: string[];
+  };
+}
+
+export interface AIAssessmentDetail extends AIAssessmentListItem {
+  workplace_data: AIAssessmentWorkplaceData;
+  analysis_result?: AIAnalysisResult | null;
+  checklist_draft?: AIChecklistDraft | null;
+  approval_notes?: string;
+  error_message?: string;
+  provider_metadata?: Record<string, any>;
+}
+
+export interface AIServiceStatus {
+  service_status: "ready" | "fallback_only" | "simulated_mock";
+  provider: string;
+  base_url: string;
+  model: string;
+  api_key_configured: boolean;
+  offline_mode_allowed: boolean;
+  message: string;
+}
+
+export interface AIAssessmentStatistics {
+  total_assessments: number;
+  by_status: Record<string, number>;
+  checklists_generated_count: number;
+}
+
+export interface GenerateChecklistResponse {
+  message: string;
+  checklist_id: number;
+  checklist_title: string;
+  items_count: number;
+  created_at: string;
+}
+
+export function fetchAIAssessments(params?: Record<string, any>, signal?: AbortSignal) {
+  const query = params ? `?${new URLSearchParams(params).toString()}` : "";
+  return request<AIAssessmentListItem[] | { results: AIAssessmentListItem[] }>(`/ai-assistant/assessments/${query}`, { signal })
+    .then((res) => (Array.isArray(res) ? res : res.results ?? []));
+}
+
+export function fetchAIAssessment(id: number, signal?: AbortSignal) {
+  return request<AIAssessmentDetail>(`/ai-assistant/assessments/${id}/`, { signal });
+}
+
+export function createAIAssessment(data: {
+  workplace: number;
+  title: string;
+  workplace_data: AIAssessmentWorkplaceData;
+  organization?: number;
+}) {
+  return request<AIAssessmentDetail>("/ai-assistant/assessments/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateAIAssessment(id: number, data: Partial<AIAssessmentDetail>) {
+  return request<AIAssessmentDetail>(`/ai-assistant/assessments/${id}/`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteAIAssessment(id: number) {
+  return request<void>(`/ai-assistant/assessments/${id}/`, {
+    method: "DELETE",
+  });
+}
+
+export function analyzeAIAssessment(id: number) {
+  return request<AIAssessmentDetail>(`/ai-assistant/assessments/${id}/analyze/`, {
+    method: "POST",
+  });
+}
+
+export function fetchAIChecklistDraft(id: number, signal?: AbortSignal) {
+  return request<AIChecklistDraft>(`/ai-assistant/assessments/${id}/checklist-draft/`, { signal });
+}
+
+export function updateAIChecklistDraft(id: number, draft: Partial<AIChecklistDraft>) {
+  return request<AIChecklistDraft>(`/ai-assistant/assessments/${id}/checklist-draft/`, {
+    method: "PUT",
+    body: JSON.stringify(draft),
+  });
+}
+
+export function validateAIChecklistDraft(id: number) {
+  return request<{ is_valid: boolean; message?: string; errors?: string[] }>(`/ai-assistant/assessments/${id}/validate-draft/`, {
+    method: "POST",
+  });
+}
+
+export function approveAIAssessment(id: number, data: { confirmed_reviewed: boolean; approval_notes?: string }) {
+  return request<AIAssessmentDetail>(`/ai-assistant/assessments/${id}/approve/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function generateRealChecklist(id: number) {
+  return request<GenerateChecklistResponse>(`/ai-assistant/assessments/${id}/generate-checklist/`, {
+    method: "POST",
+  });
+}
+
+export function fetchAIServiceStatus(signal?: AbortSignal) {
+  return request<AIServiceStatus>("/ai-assistant/assessments/service-status/", { signal });
+}
+
+export function fetchAIStatistics(signal?: AbortSignal) {
+  return request<AIAssessmentStatistics>("/ai-assistant/assessments/statistics/", { signal });
+}
+
+export function testAIServiceConnection() {
+  return request<{
+    success: boolean;
+    latency_ms: number;
+    status: string;
+    message: string;
+    model?: string;
+    base_url?: string;
+    reply?: string;
+  }>("/ai-assistant/assessments/test-connection/", {
+    method: "POST",
+  });
+}
+

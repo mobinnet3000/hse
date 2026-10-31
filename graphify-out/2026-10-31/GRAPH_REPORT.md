@@ -1,16 +1,16 @@
 # Graph Report - hse  (2026-10-31)
 
 ## Corpus Check
-- 532 files · ~356,734 words
+- 551 files · ~383,965 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 5998 nodes · 16424 edges · 452 communities (306 shown, 146 thin omitted)
-- Extraction: 65% EXTRACTED · 35% INFERRED · 0% AMBIGUOUS · INFERRED: 5790 edges (avg confidence: 0.5)
+- 6167 nodes · 16876 edges · 430 communities (306 shown, 124 thin omitted)
+- Extraction: 65% EXTRACTED · 35% INFERRED · 0% AMBIGUOUS · INFERRED: 5876 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1a70df75`
+- Built from commit: `cd8690e3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,25 +19,25 @@
 - Permit
 - Hazard
 - environment/views.py
-- api.ts
+- can_manage_workforce
 - request
 - LiftingPlan
 - seed_demo_data.py
 - PSSRReview
-- can_view_organization
+- _serialize
 - Survey
 - workforce.test.tsx
-- ai_assistant/views.py
+- Checklist
 - scaffolds/tests.py
 - App.tsx
-- Inspection
+- can_view_organization
 - documents/services.py
-- organizations/views.py
-- InspectionsPage.tsx
+- Organization
+- LiftingPlansPage.tsx
 - PermitsPage.tsx
 - search
 - ChatParticipant
-- MaintenanceWorkOrderSerializer
+- MaintenancePlan
 - InspectionTests
 - ExcavationOperation
 - accessible_organization_ids
@@ -45,12 +45,12 @@
 - OrganizationAccessTests
 - AuthContext.tsx
 - slide_search_core.py
-- documents/views.py
+- AiAssistantPage.tsx
 - Any
-- IncidentAttachment
+- User
 - IncidentsPage.tsx
 - calculators/tests.py
-- _serialize
+- documents/views.py
 - devDependencies
 - Brand Guidelines v1.0
 - AssetsPage.tsx
@@ -61,22 +61,22 @@
 - spacing
 - Prerequisites
 - calculators/views.py
-- MaintenanceWorkOrder
+- Equipment
 - assets/views.py
-- can_manage_workforce
+- RisksPage.tsx
 - Form & Input Components
 - Tailwind CSS Responsive Design
-- HazardApiTests
+- ai_assistant/views.py
 - Typography Specifications
 - TestTailwindConfigGenerator
 - WorkforceTestBase
 - ۶. مسیر دمو پیشنهادی
-- membership_role
+- access.py
 - Logo Usage Rules
 - Component Specifications
 - shadcn/ui Accessibility Patterns
-- .auth
-- Incident
+- assets/tests.py
+- NotificationTests
 - html-token-validator.py
 - What You Must Do When Invoked
 - HSE Guard — گزارش فنی فاز ۹: مدیریت دارایی، نگهداری پیشگیرانه و کالیبراسیون
@@ -92,34 +92,34 @@
 - UI Styling Skill
 - StagingSecurityHardeningTests
 - Workflow
-- RisksPage.tsx
+- ai_assistant/services.py
 - Design System
 - gray
 - Tailwind CSS Customization
 - TailwindConfigGenerator
 - HSE Guard — Technical Architecture
-- EnvironmentPage.tsx
-- User
-- color
+- api.ts
+- SubscriptionEntitlementTests
+- AIAssessmentViewSet
 - RegisterSerializer
 - Routing by Task Type
 - generate-slide.py
 - shadcn/ui Theming & Customization
-- action
+- InspectionsPage.tsx
 - ۴. سناریوهای گام‌به‌گام دمو (Walkthrough)
 - Asset Organization Guide
 - Primary Color Meanings
 - Core Logo Types
 - color
 - DesignSystemGenerator
-- assets/serializers.py
-- Document
+- _full_name
+- validate_and_normalize_ai_response
 - HSE Guard — گزارش مهندسی فاز ۷: مدیریت حوادث، شبه‌حوادث و ریشه‌یابی
 - Brand Consistency Checklist
 - CIP Mockup Prompt Engineering
 - Color Semantics
 - fetch-background.py
-- design_system.py
+- persist_design_system
 - Notification
 - HSE Guard — گزارش مهندسی فاز ۸: مجوزهای کار (PTW) و تحویل شیفت
 - HSE Guard — Controlled Staging Environment Setup Guide
@@ -128,16 +128,16 @@
 - Design Principles
 - icon/generate.py
 - fontSize
-- radius
+- معماری دستیار هوشمند HSE (Phase 19)
 - TestShadcnInstaller
 - HSE Guard — Backup and Disaster Recovery Runbook
 - HSE Guard — گزارش مهندسی فاز ۱۰: مدیریت آموزش، صلاحیت کارکنان و تجهیزات حفاظت فردی (PPE)
 - ۳. سناریوهای آزمایشی
-- FleetEnergyPage.tsx
+- CorrectiveAction
 - CIP Design Reference
 - Icon Design Reference
 - Copywriting Formulas
-- shadow
+- radius
 - Copywriting Formulas
 - ۴. سناریوهای آزمون دستی گام‌به‌گام (Step-by-Step Walkthrough)
 - Banner Design - Multi-Format Creative Banner System
@@ -148,10 +148,10 @@
 - Layout Patterns
 - Tailwind Integration
 - Layout Patterns
-- ChecklistTests
-- NotificationTests
-- create_assignment
-- ScaffoldsPage.tsx
+- راهنمای راه‌اندازی و اتصال به AvalAI
+- راهنمای جامع ارزیابی محیط کار و تولید چک‌لیست
+- EquipmentDetailSerializer
+- fetchWorkplaces
 - brand/references/update.md
 - Logo Design Reference
 - Token Architecture
@@ -161,11 +161,11 @@
 - HSE Guard — سامانه جامع مدیریت ایمنی، بهداشت و محیط زیست (MVP Release v1.0)
 - Primitive Tokens
 - validate-tokens.cjs
-- card
+- input
 - ShadcnInstaller
 - .check_shadcn_config
 - ._format_plugins
-- EquipmentDetailSerializer
+- create_assignment
 - PermitManagementTests
 - 3. Migration Procedure: SQLite to PostgreSQL
 - ۳. مراحل اجرای سناریوهای دمو
@@ -178,11 +178,11 @@
 - patch
 - test_tailwind_config_gen.py
 - search
-- Equipment
-- DocumentListSerializer
+- CalculatorsPage.tsx
+- _generate_intelligent_overrides
 - IncidentManagementTests
-- risk.py
-- WorkplaceSerializer
+- xl
+- action
 - HSE Guard — برنامه بازیابی، ممیزی مستقل و تکمیل فاز ۸
 - HSE Guard — برنامه اجرایی فاز ۹: مدیریت دارایی، نگهداری پیشگیرانه و کالیبراسیون
 - ۳. سناریوی گام‌به‌گام دمو
@@ -198,9 +198,9 @@
 - Slide Strategies
 - ._base_config
 - AiAssistantTests
-- can_conduct_training
+- EndToEndScenarioTests
 - FleetEnergyTestCase
-- KnowledgeBaseTests
+- auditlog/services.py
 - گزارش مهندسی فاز ۱۱: مدیریت پیشرفته ریسک، نمودارهای پاپیونی (BowTie)، سلامت موانع و HCMS
 - گزارش مهندسی فاز ۱۶: کنترل مدارک، نسخه‌بندی غیرقابل‌تغییر، آرشیو امن و تصدیق مطالعه کارکنان (HSE Document Control & Secure Archive)
 - گزارش جامع ممیزی ۱۰ فاز نخست سامانه HSE Guard (Pre-Phase 11 Audit)
@@ -215,8 +215,8 @@
 - HSE Guard — Master Execution Plan: Phase 16
 - گزارش مهندسی فاز ۱۲: توسعه نیروی کار، شناسنامه مشاغل، مدیریت پیمانکاران و پایش حضور و غیاب شیفت
 - راهنمای دمو و سناریوهای آزمون فاز ۱۵: مدیریت برچسب داربست‌ها (Scaffold Tags)، بازرسی ۷ گانه و یکپارچگی کار در ارتفاع
-- input
-- format_ascii_box
+- UserAdmin
+- design_system.py
 - README.md
 - گزارش مهندسی فاز ۱۵: مدیریت برچسب داربست‌ها (Scaffold Tags)، بازرسی‌های تخصصی ۷ گانه و یکپارچگی با مجوزهای کار در ارتفاع
 - راهنمای دمو و سناریوهای آزمون فاز ۱۴: محیط زیست (ISO 14001)، پایش آلاینده‌ها و بهداشت حرفه‌ای
@@ -224,10 +224,9 @@
 - HTML Slide Template
 - Frontend Design
 - HTML Slide Template
-- AuditLogTests
 - DashboardTests
-- DemoSeedSafetyTests
 - Phase13AdvancedPTWAndSIMOPSTests
+- _get_requirement
 - ReportTests
 - HSE Guard — Controlled Staging Acceptance Criteria & Sign-Off Matrix
 - HSE Guard — Master Execution Plan: Phase 17
@@ -242,9 +241,8 @@
 - راهنمای دمو و سناریوهای آزمون فاز ۱۳: مجوز کار پیشرفته (PTW)، رادار تداخل همزمانی (SIMOPS) و گیت‌کیپر ایمنی
 - ۵. راهنمای استقرار واقعی (Production Deployment)
 - Brand Guidelines Template
-- $type
-- $type
-- radius
+- dashboard/views.py
+- padding-y
 - CalculatorAPITestCase
 - RequestCorrelationMiddleware
 - perform_backup
@@ -257,11 +255,11 @@
 - ۷. بازرسی‌های ادواری، چک‌لیست‌ها، عدم‌انطباق‌ها و اقدامات اصلاحی (CAPA)
 - ۸. ثبت، تحقیق و تحلیل ریشه‌ای حوادث و شبه‌حوادث (Incidents & RCA)
 - ۹. محیط زیست (ISO 14001)، بهداشت حرفه‌ای و مدیریت پسماند
-- 50
-- padding-y
+- .test_add_components_already_installed
 - graphify reference: add a URL and watch a folder
 - graphify reference: commit hook and native CLAUDE.md integration
 - graphify reference: incremental update and cluster-only
+- Document
 - AGENT.md — پروتکل دائمی توسعه مستقل و چندعاملی HSE Guard
 - HSE Guard — برنامه اجرایی فاز ۷: مدیریت حوادث و شبه‌حوادث (PHASE-07.md)
 - ۱۱. انبارداری و تحویل تجهیزات حفاظت فردی (PPE)
@@ -272,12 +270,6 @@
 - AGENT.md — HSE Guard Autonomous Development Protocol
 - test_sync_brand_to_tokens.py
 - main
-- destructive
-- destructive-foreground
-- muted
-- primary-foreground
-- ring
-- secondary-foreground
 - graphify reference: GitHub clone and cross-repo merge
 - graphify reference: transcribe video and audio
 - .__init__
@@ -294,10 +286,11 @@
 - CoreConfig
 - DashboardConfig
 - DocumentsConfig
-- get_document_summary
+- WorkplaceSerializer
 - EnvironmentConfig
 - FindingsConfig
 - FleetEnergyConfig
+- ChecklistTests
 - .summary
 - IncidentsConfig
 - InspectionsConfig
@@ -312,8 +305,8 @@
 - ScaffoldsConfig
 - SurveysConfig
 - WorkforceConfig
-- _get_requirement
 - WorkplacesConfig
+- AvalAIError
 - HSE Guard — Phase 17 Requirements & Acceptance Matrix
 - EmptyState.tsx
 - Modal.tsx
@@ -322,10 +315,9 @@
 - slides-create.md
 - extraction-spec.md
 - create.md
-- .test_add_components_no_config
-- .test_add_components_already_installed
+- HSE GUARD — PHASE 18 VERIFICATION REPORT
 - .test_init_default_project_root
-- .test_init_dry_run
+- DocumentListSerializer
 - .test_check_shadcn_config_exists
 - .test_get_installed_components_empty
 - .test_get_installed_components_with_files
@@ -345,7 +337,6 @@
 - .test_base_config_structure
 - .test_default_content_paths_vue
 - .test_add_colors
-- format_output
 - workflows/graphify.md
 - accounts/migrations/0001_initial.py
 - ai_assistant/__init__.py
@@ -357,8 +348,6 @@
 - chat/migrations/0001_initial.py
 - checklists/migrations/0001_initial.py
 - dashboard/migrations/0001_initial.py
-- documents/migrations/0001_initial.py
-- document_file_upload_path
 - environment/__init__.py
 - environment/migrations/0001_initial.py
 - findings/migrations/0001_initial.py
@@ -381,23 +370,6 @@
 - 0002_permit_assigned_employees_and_more.py
 - 0003_permit_contractor_permit_resumption_notes_and_more.py
 - 0004_permit_scaffold.py
-- .test_activate_requires_controls_verification
-- .test_approve_requires_review_first
-- .test_expired_active_permit_is_not_reported_as_active
-- .test_expired_requested_permit_can_be_closed_with_audit
-- .test_incoming_supervisor_requires_handover_role
-- .test_only_designated_incoming_supervisor_can_acknowledge
-- .test_permit_detail_is_read_only
-- .test_permit_lifecycle_flow
-- .test_permit_rejection_and_cancellation
-- .test_permit_summary_stats
-- .test_request_rejects_cross_tenant_hazard_and_supervisor
-- .test_requester_cannot_cancel_active_permit
-- .test_review_cannot_jump_directly_to_approved
-- .test_shift_handover_flow
-- .test_shift_handover_safety_summary
-- .test_tenant_isolation_list_and_detail
-- .test_terminal_permits_cannot_be_cancelled
 - pssr/migrations/0001_initial.py
 - risks/migrations/0001_initial.py
 - 0002_bowtieconsequence_hazard_owner_and_more.py
@@ -408,10 +380,16 @@
 - 0002_contractorcompany_contractordocument_and_more.py
 - workplaces/migrations/0001_initial.py
 - backup.sh script
+- ai_assistant/migrations/0001_initial.py
+- .test_add_components_no_components
+- get_document_summary
+- .test_init_dry_run
+- documents/migrations/0001_initial.py
+- document_file_upload_path
 
 ## God Nodes (most connected - your core abstractions)
-1. `request()` - 249 edges
-2. `User` - 187 edges
+1. `request()` - 263 edges
+2. `User` - 188 edges
 3. `EmployeeCompetency` - 120 edges
 4. `PPEAssignment` - 119 edges
 5. `TrainingAttendance` - 117 edges
@@ -422,8 +400,6 @@
 10. `Competency` - 112 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Meta` --uses--> `CorrectiveAction`  [INFERRED]
-  backend/apps/capa/serializers.py → backend/apps/capa/models.py
 - `Meta` --uses--> `Workplace`  [INFERRED]
   backend/apps/workplaces/serializers.py → backend/apps/workplaces/models.py
 - `TestShadcnInstaller` --uses--> `ShadcnInstaller`  [INFERRED]
@@ -432,51 +408,53 @@
   .agents/skills/ui-styling/scripts/tests/test_tailwind_config_gen.py → .agents/skills/ui-styling/scripts/tailwind_config_gen.py
 - `TestTailwindConfigGenerator` --uses--> `TailwindConfigGenerator`  [INFERRED]
   .agents/skills/ui-styling/scripts/tests/test_tailwind_config_gen.py → .agents/skills/ui-styling/scripts/tailwind_config_gen.py
+- `UserAdmin` --uses--> `User`  [INFERRED]
+  backend/apps/accounts/admin.py → backend/apps/accounts/models.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (452 total, 146 thin omitted)
+## Communities (430 total, 124 thin omitted)
 
 ### Community 0 - "workforce/views.py"
 Cohesion: 0.12
-Nodes (135): CompetencyAdmin, EmployeeAdmin, EmployeeCompetencyAdmin, PPEAssignmentAdmin, PPEAssignmentEventAdmin, PPEItemAdmin, PPEStockAdmin, register (+127 more)
+Nodes (136): CompetencyAdmin, EmployeeAdmin, EmployeeCompetencyAdmin, PPEAssignmentAdmin, PPEAssignmentEventAdmin, PPEItemAdmin, PPEStockAdmin, register (+128 more)
 
 ### Community 1 - "Permit"
 Cohesion: 0.07
-Nodes (95): can_approve_permits(), can_conduct_shift_handover(), can_control_permits(), Can activate, verify controls, suspend, resume, or close permits., PermitAdmin, PermitAttachmentInline, PermitTypeCompetencyRequirementAdmin, register (+87 more)
+Nodes (93): can_approve_permits(), can_control_permits(), Can activate, verify controls, suspend, resume, or close permits., PermitAdmin, PermitAttachmentInline, PermitTypeCompetencyRequirementAdmin, register, ShiftHandoverAdmin (+85 more)
 
 ### Community 2 - "Hazard"
-Cohesion: 0.12
-Nodes (49): can_approve_risks(), can_edit_risks(), Barrier, BarrierAssessment, BarrierType, BowTieConsequence, BowTieDiagram, BowTieThreat (+41 more)
+Cohesion: 0.07
+Nodes (58): can_edit_risks(), Barrier, BarrierAssessment, BarrierType, BowTieConsequence, BowTieDiagram, BowTieThreat, Category (+50 more)
 
 ### Community 3 - "environment/views.py"
 Cohesion: 0.08
 Nodes (53): AssessmentResult, Category, Condition, EnvironmentalAspect, EnvironmentalThreshold, LimitType, Meta, OccupationalHygieneRecord (+45 more)
 
-### Community 4 - "api.ts"
-Cohesion: 0.03
-Nodes (88): LiftingPlansPage(), PSSRPage(), SubscriptionsPage(), AiChecklistItem, AiSuggestedHazard, ApiError, approveLiftingPlan(), approvePSSRReview() (+80 more)
+### Community 4 - "can_manage_workforce"
+Cohesion: 0.06
+Nodes (8): can_conduct_training(), can_issue_competency(), can_manage_workforce(), Manage personnel, course catalogue, competency definitions and PPE…, Create delivery sessions and record attendance/assessment results., Issue, suspend or revoke employee competency records., _request_user(), workforce_stats()
 
 ### Community 5 - "request"
 Cohesion: 0.05
-Nodes (85): WorkforcePage(), WorkforceTab, AttendanceRecord, AttendanceRoster, Competency, ContractorDocument, ContractorWorker, createAttendanceRecord() (+77 more)
+Nodes (87): WorkforcePage(), WorkforceTab, AttendanceRecord, AttendanceRoster, Competency, ContractorDocument, ContractorWorker, createAttendanceRecord() (+79 more)
 
 ### Community 6 - "LiftingPlan"
 Cohesion: 0.07
 Nodes (38): CraneSpecificationAdmin, LiftApprovalLogInline, LiftingPlanAdmin, register, CraneSpecification, LiftApprovalLog, LiftCategory, LiftingPlan (+30 more)
 
 ### Community 7 - "seed_demo_data.py"
-Cohesion: 0.09
-Nodes (22): AuditEvent, Meta, AuditEventSerializer, Meta, sanitize_details(), AuditEventListView, APIView, CorrectiveAction (+14 more)
+Cohesion: 0.15
+Nodes (9): AnomalyType, Meta, NonConformity, Priority, Severity, Source, Status, Meta (+1 more)
 
 ### Community 8 - "PSSRReview"
 Cohesion: 0.08
 Nodes (37): PSSRChecklistItemInline, PSSROutstandingActionInline, PSSRReviewAdmin, register, ActionStatus, Category, Meta, PSSRChecklistItem (+29 more)
 
-### Community 9 - "can_view_organization"
-Cohesion: 0.06
-Nodes (27): CorrectiveActionSerializer, Meta, can_edit_action(), CorrectiveActionDetailView, CorrectiveActionListCreateView, CorrectiveActionVerifyView, APIView, can_review() (+19 more)
+### Community 9 - "_serialize"
+Cohesion: 0.10
+Nodes (12): can_operate_ppe(), Issue, return or replace PPE assignments., _get_assignment(), _get_attendance(), _get_course(), _get_employee_competency(), _get_ppe_item(), _get_session() (+4 more)
 
 ### Community 10 - "Survey"
 Cohesion: 0.11
@@ -486,9 +464,9 @@ Nodes (36): register, SurveyAdmin, SurveyQuestionAdmin, SurveyQuestionInline, Su
 Cohesion: 0.06
 Nodes (42): App(), calibration, detail, equipment, managerMembership, plan, routes(), stats (+34 more)
 
-### Community 12 - "ai_assistant/views.py"
-Cohesion: 0.09
-Nodes (31): analyze_workplace_activities(), find_matching_sources(), get_ai_status(), Any, Generates an evidence-grounded checklist with actionable verification items., Generates 5-tier Hierarchy of Controls (Elimination, Substitution, Engineering,…, Retrieve verified knowledge sources matching tokens in the query text., Analyzes workplace activities and generates grounded hazard suggestions linked… (+23 more)
+### Community 12 - "Checklist"
+Cohesion: 0.18
+Nodes (12): Checklist, ChecklistItem, Meta, ChecklistItemSerializer, ChecklistSerializer, Meta, ChecklistDetailView, ChecklistItemDetailView (+4 more)
 
 ### Community 13 - "scaffolds/tests.py"
 Cohesion: 0.09
@@ -496,39 +474,39 @@ Nodes (31): LoadDuty, Meta, Scaffold, ScaffoldInspection, ScaffoldTagLog, Scaffo
 
 ### Community 14 - "App.tsx"
 Cohesion: 0.06
-Nodes (46): AppContent(), AnomaliesPage(), CalcTab, CalculatorsPage(), ChatPage(), HealthStatus(), State, NotificationsPage() (+38 more)
+Nodes (47): AppContent(), AnomaliesPage(), ChatPage(), HealthStatus(), State, NotificationsPage(), PSSRPage(), SurveysPage() (+39 more)
 
-### Community 15 - "Inspection"
-Cohesion: 0.09
-Nodes (27): can_conduct_inspections(), resolve_organization(), compute_organization_indicators(), models_due_date_or_fallback(), Any, Computes reproducible proactive leading & lagging HSE indicators based on live…, HSEIndicatorConfig, IndicatorType (+19 more)
+### Community 15 - "can_view_organization"
+Cohesion: 0.06
+Nodes (30): can_conduct_inspections(), can_view_organization(), is_active_member(), Validates uploaded file against path traversal, disallowed executable…, validate_file_upload(), resolve_organization(), AnomalyEvidence, AnomalyEvidenceSerializer (+22 more)
 
 ### Community 16 - "documents/services.py"
 Cohesion: 0.08
 Nodes (33): active_membership(), approve_document_version(), archive_document(), can_access_document(), can_manage_document(), can_review_document(), create_document_revision(), create_document_with_initial_version() (+25 more)
 
-### Community 17 - "organizations/views.py"
-Cohesion: 0.16
-Nodes (25): accessible_organizations(), can_manage_organization(), Meta, ModuleEntitlement, OrganizationSubscription, Source, Status, SubscriptionPaymentRequest (+17 more)
+### Community 17 - "Organization"
+Cohesion: 0.15
+Nodes (30): accessible_organizations(), can_manage_organization(), check_module_entitlement(), Membership, Meta, ModuleEntitlement, Organization, OrganizationSubscription (+22 more)
 
-### Community 18 - "InspectionsPage.tsx"
-Cohesion: 0.07
-Nodes (47): AiAssistantPage(), errorMessage(), ACTION_LABELS, AuditLogPage(), errorMessage(), InspectionsPage(), Tab, ReportDefinition (+39 more)
+### Community 18 - "LiftingPlansPage.tsx"
+Cohesion: 0.26
+Nodes (12): LiftingPlansPage(), approveLiftingPlan(), CraneSpecification, createLiftingPlan(), fetchCraneSpecifications(), fetchLiftingPlans(), fetchLiftingSimulationData(), fetchLiftingSummary() (+4 more)
 
 ### Community 19 - "PermitsPage.tsx"
 Cohesion: 0.07
-Nodes (49): mockDetail, mockHandovers, mockPermits, mockSafetySummary, mockStats, CreatePermitModal(), CreatePermitModalProps, CreateShiftHandoverModal() (+41 more)
+Nodes (50): mockDetail, mockHandovers, mockPermits, mockSafetySummary, mockStats, CreatePermitModal(), CreatePermitModalProps, CreateShiftHandoverModal() (+42 more)
 
 ### Community 20 - "search"
 Cohesion: 0.07
 Nodes (42): BM25, detect_domain(), get_cip_brief(), _load_csv(), Load CSV and return list of dicts, Core search function using BM25, Auto-detect the most relevant domain from query, Main search function with auto-domain detection (+34 more)
 
 ### Community 21 - "ChatParticipant"
-Cohesion: 0.12
-Nodes (26): ChatConversationAdmin, ChatMessageAdmin, ChatMessageInline, ChatParticipantInline, register, ChatAttachment, ChatConversation, ChatMessage (+18 more)
+Cohesion: 0.13
+Nodes (24): ChatConversationAdmin, ChatMessageAdmin, ChatMessageInline, ChatParticipantInline, register, ChatAttachment, ChatConversation, ChatMessage (+16 more)
 
-### Community 22 - "MaintenanceWorkOrderSerializer"
+### Community 22 - "MaintenancePlan"
 Cohesion: 0.20
-Nodes (28): CalibrationRecordCreateSerializer, CalibrationRecordSerializer, EquipmentCreateSerializer, EquipmentStatusActionSerializer, EquipmentUpdateSerializer, MaintenancePlanCreateSerializer, MaintenancePlanSerializer, MaintenancePlanUpdateSerializer (+20 more)
+Nodes (32): CalibrationRecord, MaintenancePlan, Result, CalibrationRecordCreateSerializer, CalibrationRecordSerializer, EquipmentCreateSerializer, EquipmentListSerializer, EquipmentStatusActionSerializer (+24 more)
 
 ### Community 23 - "InspectionTests"
 Cohesion: 0.08
@@ -537,6 +515,10 @@ Nodes (6): CorrectiveActionTests, EndToEndWorkflowTests, FindingsTests, Inspecti
 ### Community 24 - "ExcavationOperation"
 Cohesion: 0.15
 Nodes (27): EnergyConsumptionLogAdmin, ExcavationOperationAdmin, FleetFuelLogAdmin, FleetVehicleAdmin, register, EnergyConsumptionLog, ExcavationOperation, FleetFuelLog (+19 more)
+
+### Community 25 - "accessible_organization_ids"
+Cohesion: 0.05
+Nodes (7): accessible_organization_ids(), export_csv(), APIView, Guards against CSV/Formula Injection by prepending a single quote to strings…, ReportExportView, sanitize_csv_cell(), _filter_org()
 
 ### Community 26 - "Tailwind CSS Utility Reference"
 Cohesion: 0.05
@@ -554,29 +536,29 @@ Nodes (34): Header(), HeaderProps, TAB_TITLES, NAV_GROUPS, NavGroup, NavItem, Si
 Cohesion: 0.08
 Nodes (36): format_context(), format_result(), main(), Format a single search result for display, Format contextual recommendations for display., BM25, calculate_pattern_break(), detect_domain() (+28 more)
 
-### Community 30 - "documents/views.py"
-Cohesion: 0.24
-Nodes (26): Action, ConfidentialityLevel, DocumentAcknowledgment, DocumentCategory, DocumentReviewLog, DocumentStatus, DocumentVersion, Meta (+18 more)
+### Community 30 - "AiAssistantPage.tsx"
+Cohesion: 0.06
+Nodes (54): mockAssessments, mockDetail, mockServiceStatus, mockStats, mockWorkplaces, AiAssistantPage(), AiAssistantPageProps, errorMessage() (+46 more)
 
 ### Community 31 - "Any"
 Cohesion: 0.09
 Nodes (23): ABC, api_view, BaseIntegrationAdapter, BiometricAttendanceAdapter, EmailAdapter, get_all_integrations_status(), IntegrationStatus, IoTSensorAdapter (+15 more)
 
-### Community 32 - "IncidentAttachment"
-Cohesion: 0.17
-Nodes (22): IncidentAttachment, Meta, IncidentAttachmentSerializer, IncidentCloseActionSerializer, IncidentCreateSerializer, IncidentDetailSerializer, IncidentInvestigationActionSerializer, IncidentLinkCapaActionSerializer (+14 more)
+### Community 32 - "User"
+Cohesion: 0.11
+Nodes (47): AbstractUser, GlobalRoles, User, can_investigate_incident(), can_manage_incidents(), IncidentAdmin, IncidentAttachmentInline, register (+39 more)
 
 ### Community 33 - "IncidentsPage.tsx"
-Cohesion: 0.07
-Nodes (38): ACTION_STATUS_LABELS, DashboardPage(), INSPECTION_STATUS_LABELS, mockIncidentDetail, mockIncidents, mockStats, errorMessage(), IncidentsPage() (+30 more)
+Cohesion: 0.11
+Nodes (26): mockIncidentDetail, mockIncidents, mockStats, errorMessage(), IncidentsPage(), SEVERITY_LABELS, STATUS_LABELS, TYPE_LABELS (+18 more)
 
 ### Community 34 - "calculators/tests.py"
 Cohesion: 0.10
 Nodes (25): calculate_crane_lift_parameters(), calculate_electricity_and_emissions(), calculate_excavation_geometry(), calculate_fleet_fuel_efficiency(), calculate_hse_rates(), calculate_load_weight_from_geometry(), calculate_noise_dose_and_twa(), calculate_sling_tension_and_rigging() (+17 more)
 
-### Community 35 - "_serialize"
-Cohesion: 0.09
-Nodes (12): can_operate_ppe(), Issue, return or replace PPE assignments., _get_assignment(), _get_attendance(), _get_competency(), _get_course(), _get_employee_competency(), _get_ppe_item() (+4 more)
+### Community 35 - "documents/views.py"
+Cohesion: 0.24
+Nodes (26): Action, ConfidentialityLevel, DocumentAcknowledgment, DocumentCategory, DocumentReviewLog, DocumentStatus, DocumentVersion, Meta (+18 more)
 
 ### Community 36 - "devDependencies"
 Cohesion: 0.05
@@ -587,8 +569,8 @@ Cohesion: 0.05
 Nodes (37): 1. Color Palette, 2. Typography, 3. Logo Usage, 4. Voice & Tone, 5. Imagery Guidelines, 6. Design Components, Accessibility, AI Image Generation (+29 more)
 
 ### Community 38 - "AssetsPage.tsx"
-Cohesion: 0.09
-Nodes (36): AssetsPage(), CATEGORY_LABELS, emptyCalibrationForm, emptyEquipmentForm, emptyOrderForm, emptyPlanForm, errorMessage(), pickPayload() (+28 more)
+Cohesion: 0.07
+Nodes (46): AssetsPage(), CATEGORY_LABELS, emptyCalibrationForm, emptyEquipmentForm, emptyOrderForm, emptyPlanForm, errorMessage(), pickPayload() (+38 more)
 
 ### Community 39 - "DocumentsPage.tsx"
 Cohesion: 0.09
@@ -603,8 +585,8 @@ Cohesion: 0.06
 Nodes (35): 1. Visual Communication First, 2. Minimal Text Integration, 3. Expert Craftsmanship, 4. Systematic Patterns, Analog Meditation, Approach, Canvas Boundaries, Canvas Design System (+27 more)
 
 ### Community 42 - "log_event"
-Cohesion: 0.21
-Nodes (33): log_event(), change_employee_competency_status(), _check_code_available(), create_attendance(), create_competency(), create_course(), create_employee(), create_ppe_item() (+25 more)
+Cohesion: 0.22
+Nodes (32): log_event(), change_employee_competency_status(), _check_code_available(), create_attendance(), create_competency(), create_course(), create_employee(), create_ppe_item() (+24 more)
 
 ### Community 43 - "spacing"
 Cohesion: 0.06
@@ -618,17 +600,17 @@ Nodes (33): Accessibility, Available Domains, Available Stacks, Common Rules for
 Cohesion: 0.23
 Nodes (24): Ensures that the authenticated user belongs to at least one active organization…, TenantRequiredPermission, CalculationRecordAdmin, register, CalculationRecord, CalculatorType, Meta, CalculationRecordSerializer (+16 more)
 
-### Community 46 - "MaintenanceWorkOrder"
+### Community 46 - "Equipment"
 Cohesion: 0.10
-Nodes (14): CalibrationRecordAdmin, EquipmentAdmin, MaintenancePlanAdmin, MaintenanceWorkOrderAdmin, register, CalibrationRecord, MaintenancePlan, MaintenanceWorkOrder (+6 more)
+Nodes (11): CalibrationRecordAdmin, EquipmentAdmin, MaintenancePlanAdmin, MaintenanceWorkOrderAdmin, register, Category, Equipment, MaintenanceWorkOrder (+3 more)
 
 ### Community 47 - "assets/views.py"
-Cohesion: 0.14
-Nodes (27): calculate_next_due_date(), cancel_maintenance_work_order(), change_equipment_status(), _check_code_available(), complete_maintenance_work_order(), create_equipment(), create_maintenance_plan(), create_maintenance_work_order() (+19 more)
+Cohesion: 0.15
+Nodes (25): calculate_next_due_date(), cancel_maintenance_work_order(), change_equipment_status(), _check_code_available(), complete_maintenance_work_order(), create_equipment(), create_maintenance_plan(), create_maintenance_work_order() (+17 more)
 
-### Community 48 - "can_manage_workforce"
-Cohesion: 0.08
-Nodes (4): can_manage_workforce(), Manage personnel, course catalogue, competency definitions and PPE…, _request_user(), _org_from_request()
+### Community 48 - "RisksPage.tsx"
+Cohesion: 0.09
+Nodes (33): ACTION_LABELS, AuditLogPage(), ReportDefinition, REPORTS, ReportsPage(), emptyHazardForm, errorMessage(), FormState (+25 more)
 
 ### Community 49 - "Form & Input Components"
 Cohesion: 0.06
@@ -638,9 +620,9 @@ Nodes (32): Accordion, Alert, Alert Dialog, Avatar, Badge, Button, Card, Checkbo
 Cohesion: 0.06
 Nodes (32): 1. Mobile-First Design, 2. Consistent Breakpoint Usage, 3. Test at Breakpoint Boundaries, 4. Use Container for Content Width, 5. Progressive Enhancement, 6. Avoid Too Many Breakpoints, Best Practices, Breakpoint System (+24 more)
 
-### Community 51 - "HazardApiTests"
-Cohesion: 0.06
-Nodes (5): AssessmentApiTests, HazardApiTests, Phase11BowTieAndHCMSTests, TestCase, RiskApiBase
+### Community 51 - "ai_assistant/views.py"
+Cohesion: 0.24
+Nodes (21): AIAssessmentAdmin, AIGenerationLogAdmin, register, AIAssessment, AIGenerationLog, Meta, Status, AIAssessmentApprovalSerializer (+13 more)
 
 ### Community 52 - "Typography Specifications"
 Cohesion: 0.06
@@ -658,9 +640,9 @@ Nodes (8): CompetencyLifecycleTests, Phase12WorkforceContractorsAttendanceTests,
 Cohesion: 0.06
 Nodes (30): HSE Guard — راهنمای دمو فاز ۹, اجرای مجدد بدون تکرار داده, بازنشانی رمز دمو (فقط در صورت نیاز), ترمینال اول — Backend, ترمینال دوم — Frontend, سناریوی کالیبراسیون ناموفق, فولاد البرز, مدیریت تجهیزات، نگهداری پیشگیرانه و کالیبراسیون (+22 more)
 
-### Community 56 - "membership_role"
+### Community 56 - "access.py"
 Cohesion: 0.09
-Nodes (15): membership_role(), KnowledgeSourceAdmin, register, Command, BaseCommand, Category, KnowledgeSource, Meta (+7 more)
+Nodes (20): can_approve_risks(), can_conduct_shift_handover(), can_review(), membership_role(), KnowledgeSourceAdmin, register, Command, BaseCommand (+12 more)
 
 ### Community 57 - "Logo Usage Rules"
 Cohesion: 0.07
@@ -674,13 +656,13 @@ Nodes (28): Alert, Anatomy, Anatomy, Anatomy, Anatomy, Anatomy, Badge, Button (+
 Cohesion: 0.07
 Nodes (28): Accordion, Alert, ARIA Labels, Checkbox and Radio, Color Contrast, Command Palette Navigation, Component-Specific Patterns, Dialog/Modal Navigation (+20 more)
 
-### Community 60 - ".auth"
-Cohesion: 0.12
-Nodes (5): AssetCalibrationTests, AssetIntegrationTests, AssetMaintenanceTests, AssetTenantAndCrudTests, AssetTestBase
+### Community 60 - "assets/tests.py"
+Cohesion: 0.11
+Nodes (7): AssetCalibrationTests, AssetIntegrationTests, AssetMaintenanceTests, AssetSeedTests, AssetTenantAndCrudTests, AssetTestBase, TestCase
 
-### Community 61 - "Incident"
-Cohesion: 0.14
-Nodes (22): can_investigate_incident(), can_manage_incidents(), IncidentAdmin, IncidentAttachmentInline, register, Incident, IncidentType, Severity (+14 more)
+### Community 61 - "NotificationTests"
+Cohesion: 0.15
+Nodes (6): Command, BaseCommand, check_deadline_notifications(), Scans for corrective actions with upcoming (<= 3 days) or overdue deadlines and…, NotificationTests, TestCase
 
 ### Community 62 - "html-token-validator.py"
 Cohesion: 0.13
@@ -742,17 +724,17 @@ Nodes (9): TestCase, Verifies that tenants cannot access or mutate each other's 
 Cohesion: 0.08
 Nodes (23): Art Direction Styles (Reuse from Banner), Color & Contrast, Design Best Practices, HTML Design Rules, HTML Template Structure, Option A: Chrome Headless CLI (Recommended — zero dependencies), Option B: chrome-devtools skill, Option C: Playwright script (+15 more)
 
-### Community 77 - "RisksPage.tsx"
-Cohesion: 0.13
-Nodes (23): emptyHazardForm, errorMessage(), FormState, RisksPage(), assessBarrier(), Barrier, BowTieDiagram, createAssessment() (+15 more)
+### Community 77 - "ai_assistant/services.py"
+Cohesion: 0.16
+Nodes (12): analyze_workplace_activities(), find_matching_sources(), get_ai_status(), Any, Generates an evidence-grounded checklist with actionable verification items., Generates 5-tier Hierarchy of Controls (Elimination, Substitution, Engineering,…, Retrieve verified knowledge sources matching tokens in the query text., Analyzes workplace activities and generates grounded hazard suggestions linked… (+4 more)
 
 ### Community 78 - "Design System"
 Cohesion: 0.09
 Nodes (22): Best Practices, Chart.js Integration, Command, Component Spec Pattern, Contextual Decision Flow, Decision System CSVs, Design System, Integration (+14 more)
 
 ### Community 79 - "gray"
-Cohesion: 0.09
-Nodes (23): $type, $value, $type, $value, $type, $value, $type, $value (+15 more)
+Cohesion: 0.05
+Nodes (53): $type, $value, $type, $value, $type, $value, $type, $value (+45 more)
 
 ### Community 80 - "Tailwind CSS Customization"
 Cohesion: 0.09
@@ -766,20 +748,16 @@ Nodes (12): main(), Add custom font families. Args: fonts: Dict of font_type: [f
 Cohesion: 0.09
 Nodes (21): 10. هوش مصنوعی, 11. فایل‌ها, 12. تنظیمات و اسرار, 13. SQLite و پشتیبان‌گیری, 14. آزمون‌های الزامی, 15. اجرای محلی بدون Docker, 16. استقرار و عملیات, 17. ماژول دارایی، نگهداری و کالیبراسیون (فاز ۹) (+13 more)
 
-### Community 83 - "EnvironmentPage.tsx"
-Cohesion: 0.16
-Nodes (21): EnvironmentPage(), TabType, createEnvironmentalAspect(), createEnvironmentalThreshold(), createOccupationalHygiene(), createWasteRecord(), createWastewaterEmission(), EnvironmentalAspect (+13 more)
+### Community 83 - "api.ts"
+Cohesion: 0.03
+Nodes (101): EnvironmentPage(), TabType, FleetEnergyPage(), Tab, SubscriptionsPage(), AiSuggestedHazard, ApiError, AssessmentResult (+93 more)
 
-### Community 84 - "User"
-Cohesion: 0.10
-Nodes (11): AbstractUser, register, UserAdmin, GlobalRoles, User, EndToEndScenarioTests, TestCase, End-to-End scenario test covering: 1. Authentication & organization access 2.… (+3 more)
-
-### Community 85 - "color"
-Cohesion: 0.15
-Nodes (21): $type, $value, $type, $value, 500, 600, blue, green (+13 more)
+### Community 85 - "AIAssessmentViewSet"
+Cohesion: 0.19
+Nodes (6): generate_real_checklist_from_assessment(), atomic, Transforms an approved/validated AI checklist draft into a real, first-class…, AIAssessmentViewSet, action, Checklist
 
 ### Community 86 - "RegisterSerializer"
-Cohesion: 0.23
+Cohesion: 0.22
 Nodes (11): LoginSerializer, Meta, RegisterSerializer, UserSerializer, CsrfView, LoginView, LogoutView, MeView (+3 more)
 
 ### Community 87 - "Routing by Task Type"
@@ -794,9 +772,9 @@ Nodes (19): _e(), generate_chart_slide(), generate_cta_slide(), generate_deck(),
 Cohesion: 0.10
 Nodes (19): Base Color Presets, Best Practices, Color Customization, Color Format, Component Customization, CSS Variable System, Customize Styles, Customize Variants (+11 more)
 
-### Community 90 - "action"
-Cohesion: 0.11
-Nodes (10): action, Upload a new revision file for the controlled document., Submit document for formal review and approval., Approve or reject document., Archive a document with reason., Restore an archived document., Employee records acknowledgment / read receipt., Secure file streaming for a specific version. Enforces tenant isolation,… (+2 more)
+### Community 90 - "InspectionsPage.tsx"
+Cohesion: 0.14
+Nodes (24): errorMessage(), InspectionsPage(), Tab, addChecklistItem(), Checklist, closeNonConformity(), completeInspection(), CorrectiveAction (+16 more)
 
 ### Community 91 - "۴. سناریوهای گام‌به‌گام دمو (Walkthrough)"
 Cohesion: 0.10
@@ -815,20 +793,16 @@ Cohesion: 0.11
 Nodes (18): 1. Wordmark (Logotype), 2. Lettermark (Monogram), 3. Pictorial Mark (Brand Mark), 4. Abstract Mark, 5. Mascot, 6. Emblem, 7. Combination Mark, Aesthetic Styles (+10 more)
 
 ### Community 95 - "color"
-Cohesion: 0.11
-Nodes (19): $type, $value, background, foreground, muted-foreground, primary, primary-hover, secondary (+11 more)
+Cohesion: 0.05
+Nodes (37): $type, $value, background, destructive, destructive-foreground, foreground, muted, muted-foreground (+29 more)
 
 ### Community 96 - "DesignSystemGenerator"
-Cohesion: 0.14
-Nodes (11): DesignSystemGenerator, Find matching reasoning rule for a category., Apply reasoning rules to search results., Select best matching result based on priority keywords., Extract results list from search result dict., Generate complete design system recommendation. variance/motion/density are…, Bucket a 1-10 dial value into its tier config. Returns None if value is None., Generates design system recommendations from aggregated searches. (+3 more)
+Cohesion: 0.16
+Nodes (9): DesignSystemGenerator, Find matching reasoning rule for a category., Apply reasoning rules to search results., Select best matching result based on priority keywords., Extract results list from search result dict., Generate complete design system recommendation. variance/motion/density are…, Generates design system recommendations from aggregated searches., Load reasoning rules from CSV. (+1 more)
 
-### Community 97 - "assets/serializers.py"
-Cohesion: 0.14
-Nodes (7): EquipmentListSerializer, _full_name(), HazardReferenceSerializer, PermitReferenceSerializer, _request_user(), can_conduct_asset_work(), Create and execute maintenance work orders.
-
-### Community 98 - "Document"
-Cohesion: 0.21
-Nodes (11): DocumentAcknowledgmentAdmin, DocumentAdmin, DocumentLinkAdmin, DocumentReviewLogAdmin, DocumentReviewLogInline, DocumentVersionAdmin, DocumentVersionInline, register (+3 more)
+### Community 98 - "validate_and_normalize_ai_response"
+Cohesion: 0.29
+Nodes (10): calculate_risk_level(), generate_scenario_mock_analysis(), Any, Exception, Validates that the AI response matches the strict HSE Guard output schema.…, Computes server-side risk score according to HSE Guard 5x5 matrix. Scale: 1-25…, Generates a deterministic, realistic HSE analysis matching Section 15 of the…, repair_truncated_json() (+2 more)
 
 ### Community 99 - "HSE Guard — گزارش مهندسی فاز ۷: مدیریت حوادث، شبه‌حوادث و ریشه‌یابی"
 Cohesion: 0.11
@@ -850,9 +824,9 @@ Nodes (17): Accent, Applying Semantic Tokens, Background & Foreground, Border & 
 Cohesion: 0.17
 Nodes (17): generate_css_for_background(), get_background_image(), get_curated_images(), get_overlay_css(), get_pexels_search_url(), load_backgrounds_config(), load_brand_colors(), main() (+9 more)
 
-### Community 104 - "design_system.py"
-Cohesion: 0.18
-Nodes (16): _detect_page_type(), format_markdown(), format_master_md(), format_page_override_md(), generate_design_system(), _generate_intelligent_overrides(), persist_design_system(), Format a page-specific override file with intelligent AI-generated content. (+8 more)
+### Community 104 - "persist_design_system"
+Cohesion: 0.25
+Nodes (8): format_master_md(), persist_design_system(), Slugify a name into a single safe path segment. Only [a-z0-9_-] survives; every…, Persist design system to design-system/<project>/ folder using Master +…, Format design system as MASTER.md with hierarchical override logic., safe_slug(), format_output(), Format results for Claude consumption (token-optimized)
 
 ### Community 105 - "Notification"
 Cohesion: 0.25
@@ -883,12 +857,12 @@ Cohesion: 0.20
 Nodes (15): apply_color(), apply_viewbox_size(), extract_svgs(), generate_batch(), generate_icon(), generate_sizes(), load_env(), main() (+7 more)
 
 ### Community 112 - "fontSize"
-Cohesion: 0.12
-Nodes (16): $type, $value, $type, $value, $type, $value, $type, $value (+8 more)
+Cohesion: 0.10
+Nodes (21): $type, $value, $type, $value, $type, $value, $type, $value (+13 more)
 
-### Community 113 - "radius"
-Cohesion: 0.15
-Nodes (16): $type, $value, xl, $type, $value, $type, $value, radius (+8 more)
+### Community 113 - "معماری دستیار هوشمند HSE (Phase 19)"
+Cohesion: 0.22
+Nodes (8): معماری دستیار هوشمند HSE (Phase 19), یکپارچه‌سازی با AvalAI، استخراج مخاطرات و صدور چک‌لیست بازرسی, ۱. نمای کلی سیستم, ۲. مدل‌های داده (Data Models), ۲.۱. مدل `AIAssessment`, ۲.۲. مدل `AIGenerationLog`, ۳. امنیت و مدیریت کلید API, ۴. ارتباط با ماژول بازرسی و تولید تراکنشی چک‌لیست
 
 ### Community 114 - "TestShadcnInstaller"
 Cohesion: 0.12
@@ -906,9 +880,9 @@ Nodes (15): HSE Guard — گزارش مهندسی فاز ۱۰: مدیریت آم
 Cohesion: 0.12
 Nodes (15): راهنمای گام‌به‌گام ارزیابی و دمو فاز ۰۸: مدیریت پروانه‌های کار (PTW) و تحویل شیفت, سامانه مدیریت ایمنی، بهداشت و محیط زیست (HSE Guard), سناریوی ۱: ورود و مشاهده فهرست مجوزها, سناریوی ۲: ثبت درخواست و اجرای تفکیک وظایف (SoD), سناریوی ۳: بررسی، تأیید و فعال‌سازی با کنترل‌های میدانی, سناریوی ۴: تعلیق، ازسرگیری، اتمام و مختومه‌سازی, سناریوی ۵: تحویل شیفت و پذیرش توسط سرپرست ورودی, سناریوی ۶: مجوز منقضی و رفتار «فعال نبودن» (+7 more)
 
-### Community 118 - "FleetEnergyPage.tsx"
-Cohesion: 0.20
-Nodes (15): FleetEnergyPage(), Tab, createEnergyConsumptionLog(), createExcavationOperation(), createFleetFuelLog(), createFleetVehicle(), EnergyConsumptionLogItem, ExcavationOperationItem (+7 more)
+### Community 118 - "CorrectiveAction"
+Cohesion: 0.18
+Nodes (10): CorrectiveAction, Meta, Status, CorrectiveActionSerializer, Meta, can_edit_action(), CorrectiveActionDetailView, CorrectiveActionListCreateView (+2 more)
 
 ### Community 119 - "CIP Design Reference"
 Cohesion: 0.13
@@ -922,9 +896,9 @@ Nodes (14): Available Styles, CLI Options, Commands, Generate Batch Variations, 
 Cohesion: 0.13
 Nodes (14): AIDA (Attention-Interest-Desire-Action), Before-After-Bridge, Contrast Patterns, Copywriting Formulas, Core Formulas, Cost of Inaction, FAB (Features-Advantages-Benefits), Formula-to-Slide Mapping (+6 more)
 
-### Community 122 - "shadow"
-Cohesion: 0.18
-Nodes (15): lg, sm, $type, $value, $type, $value, shadow, lg (+7 more)
+### Community 122 - "radius"
+Cohesion: 0.13
+Nodes (22): $type, $value, lg, $type, $value, $type, $value, $type (+14 more)
 
 ### Community 123 - "Copywriting Formulas"
 Cohesion: 0.13
@@ -966,21 +940,21 @@ Nodes (13): Animation Tokens, Base Layer, Button Example, Component Classes, CSS
 Cohesion: 0.14
 Nodes (13): Card Styles, Component Variants, CSS Structures, Feature Grid (3 columns), Layout Decision Flow, Layout Patterns, Layout Selection by Use Case, Metric Styles (+5 more)
 
-### Community 133 - "ChecklistTests"
-Cohesion: 0.14
-Nodes (3): ChecklistApiBase, ChecklistTests, TestCase
+### Community 133 - "راهنمای راه‌اندازی و اتصال به AvalAI"
+Cohesion: 0.33
+Nodes (5): راهنمای راه‌اندازی و اتصال به AvalAI, پیکربندی ارائه‌دهنده هوش مصنوعی در سامانه HSE Guard, ۱. پیش‌نیازها و متغیرهای محیطی, ۲. بررسی وضعیت سلامت سرویس (Health Check), ۳. رفتار در زمان قطعی یا خطای شبکه (Fail-Safe Strategy)
 
-### Community 134 - "NotificationTests"
-Cohesion: 0.15
-Nodes (6): Command, BaseCommand, check_deadline_notifications(), Scans for corrective actions with upcoming (<= 3 days) or overdue deadlines and…, NotificationTests, TestCase
+### Community 134 - "راهنمای جامع ارزیابی محیط کار و تولید چک‌لیست"
+Cohesion: 0.33
+Nodes (5): راهنمای جامع ارزیابی محیط کار و تولید چک‌لیست, فرآیند گام‌به‌گام ارزیابی خطرات و تدوین چک‌لیست‌های بازرسی تخصصی, ۱. ساختار فرم ۹ مرحله‌ای مشخصات کارگاه, ۲. ماتریس محاسبه سطح ریسک (5×5 Risk Matrix), ۳. سناریوی آزمون بخش ۱۵ (کارگاه سازه‌های فولادی و آهنگری)
 
-### Community 135 - "create_assignment"
-Cohesion: 0.25
-Nodes (5): create_assignment(), _lock_active_stock(), return_assignment(), PPESafetyAndAuditTests, PPEStockAndAssignmentTests
+### Community 135 - "EquipmentDetailSerializer"
+Cohesion: 0.10
+Nodes (9): EquipmentDetailSerializer, MaintenanceWorkOrderSerializer, _request_user(), get_equipment_or_404(), _service_call(), can_conduct_asset_work(), can_manage_equipment(), Create/edit equipment and maintenance plans, change equipment status. (+1 more)
 
-### Community 136 - "ScaffoldsPage.tsx"
-Cohesion: 0.23
-Nodes (13): FilterTag, ScaffoldsPage(), changeScaffoldTag(), createScaffold(), fetchContractors(), fetchScaffolds(), fetchScaffoldSummary(), fetchScaffoldTagCard() (+5 more)
+### Community 136 - "fetchWorkplaces"
+Cohesion: 0.22
+Nodes (14): FilterTag, ScaffoldsPage(), changeScaffoldTag(), createScaffold(), fetchContractors(), fetchScaffolds(), fetchScaffoldSummary(), fetchScaffoldTagCard() (+6 more)
 
 ### Community 137 - "brand/references/update.md"
 Cohesion: 0.15
@@ -995,8 +969,8 @@ Cohesion: 0.15
 Nodes (12): Categories, Dark Mode, File Organization, Layer 1: Primitive Tokens, Layer 2: Semantic Tokens, Layer 3: Component Tokens, Layer Overview, Migration from Flat Tokens (+4 more)
 
 ### Community 140 - "design-tokens-starter.json"
-Cohesion: 0.15
-Nodes (12): component, $type, $value, dark, semantic, $schema, $type, $value (+4 more)
+Cohesion: 0.17
+Nodes (11): $type, $value, dark, semantic, $schema, $type, $value, semantic (+3 more)
 
 ### Community 141 - "3. Detailed Phase Work Breakdown"
 Cohesion: 0.15
@@ -1018,13 +992,13 @@ Nodes (11): Border Radius, Color Scales, Gray Scale, Motion / Duration, Primary 
 Cohesion: 0.24
 Nodes (11): extensions, formatReport(), fs, getFiles(), main(), parseArgs(), path, patterns (+3 more)
 
-### Community 146 - "card"
-Cohesion: 0.20
-Nodes (12): $type, $value, bg, bg, padding, shadow, card, bg (+4 more)
+### Community 146 - "input"
+Cohesion: 0.12
+Nodes (22): $type, $value, radius, border, padding, radius, shadow, border (+14 more)
 
 ### Community 147 - "ShadcnInstaller"
 Cohesion: 0.20
-Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test listing installed components when they exist., Test getting installed components without config., Test adding components with empty list.
+Nodes (7): main(), Handle shadcn/ui component installation., ShadcnInstaller, Tests for shadcn_add.py, Test adding components without shadcn config., Test listing installed components when they exist., Test getting installed components without config.
 
 ### Community 148 - ".check_shadcn_config"
 Cohesion: 0.21
@@ -1034,9 +1008,13 @@ Nodes (6): Add all available shadcn/ui components. Args: overwrite: If True, ove
 Cohesion: 0.20
 Nodes (6): Generate configuration file content. Returns: Configuration file as string, Generate TypeScript configuration., Generate JavaScript configuration., Format plugins array for config. Validates each plugin name against a strict…, Add indentation to JSON string., Write configuration to file. Returns: Tuple of (success, message)
 
+### Community 150 - "create_assignment"
+Cohesion: 0.25
+Nodes (5): create_assignment(), _lock_active_stock(), return_assignment(), PPESafetyAndAuditTests, PPEStockAndAssignmentTests
+
 ### Community 151 - "PermitManagementTests"
-Cohesion: 0.17
-Nodes (6): PermitManagementTests, Authorized user requests a new permit and gets auto-generated reference code., Enforces Separation of Duties: requester cannot approve their own permit., Permits past their valid_until cannot be activated., Workflow endpoints must not act on another organization's permit., Handover cannot attach another tenant's permit or incoming supervisor.
+Cohesion: 0.04
+Nodes (23): PermitManagementTests, User in Org A cannot view or access permits from Org B., Authorized user requests a new permit and gets auto-generated reference code., Enforces Separation of Duties: requester cannot approve their own permit., Activation requires gas testing and LOTO when flagged., Permits past their valid_until cannot be activated., Full state transition: request -> review -> approve -> activate -> suspend ->…, Test reject and cancel flows. (+15 more)
 
 ### Community 152 - "3. Migration Procedure: SQLite to PostgreSQL"
 Cohesion: 0.17
@@ -1082,13 +1060,21 @@ Nodes (8): Tests for tailwind_config_gen.py, Reduce a generated TS/JS config to 
 Cohesion: 0.25
 Nodes (10): detect_domain(), _load_csv(), Load CSV and return list of dicts, Core search function using BM25, Auto-detect the most relevant domain from query, Main search function with auto-domain detection, Search stack-specific guidelines, search() (+2 more)
 
-### Community 166 - "risk.py"
+### Community 163 - "CalculatorsPage.tsx"
 Cohesion: 0.31
-Nodes (5): calculate_risk_score(), evaluate_barrier_residual(), evaluate_risk(), risk_level_for_score(), RiskCalculationTests
+Nodes (10): CalcTab, CalculatorsPage(), calculateEnergyFleet(), calculateExcavation(), calculateHSERates(), calculateNoise(), calculateRigging(), calculateUnitConvert() (+2 more)
 
-### Community 167 - "WorkplaceSerializer"
-Cohesion: 0.31
-Nodes (5): Meta, WorkplaceSerializer, APIView, WorkplaceDetailView, WorkplaceListCreateView
+### Community 164 - "_generate_intelligent_overrides"
+Cohesion: 0.33
+Nodes (6): _detect_page_type(), format_page_override_md(), _generate_intelligent_overrides(), Format a page-specific override file with intelligent AI-generated content., Generate intelligent overrides based on page type using layered search. Uses…, Detect page type from context and search results.
+
+### Community 166 - "xl"
+Cohesion: 0.67
+Nodes (4): xl, xl, $type, $value
+
+### Community 167 - "action"
+Cohesion: 0.11
+Nodes (10): action, Upload a new revision file for the controlled document., Submit document for formal review and approval., Approve or reject document., Archive a document with reason., Restore an archived document., Employee records acknowledgment / read receipt., Secure file streaming for a specific version. Enforces tenant isolation,… (+2 more)
 
 ### Community 168 - "HSE Guard — برنامه بازیابی، ممیزی مستقل و تکمیل فاز ۸"
 Cohesion: 0.18
@@ -1135,8 +1121,8 @@ Cohesion: 0.36
 Nodes (9): flattenTokens(), fs, generateCSS(), generateTailwind(), main(), parseArgs(), path, resolveReference() (+1 more)
 
 ### Community 179 - "button"
-Cohesion: 0.20
-Nodes (10): fg, font-size, hover-bg, button, $type, $value, $type, $value (+2 more)
+Cohesion: 0.12
+Nodes (19): $type, $value, bg, fg, font-size, hover-bg, padding-x, bg (+11 more)
 
 ### Community 180 - "Slide Strategies"
 Cohesion: 0.20
@@ -1146,13 +1132,21 @@ Nodes (9): Common Structures, Duarte Sparkline Pattern, Matching Strategy to Con
 Cohesion: 0.22
 Nodes (6): Any, Path, Initialize generator. Args: typescript: If True, generate .ts config, else .js…, Determine default output path., Create base configuration structure., Get default content paths for framework.
 
-### Community 183 - "can_conduct_training"
-Cohesion: 0.20
-Nodes (5): can_conduct_training(), can_issue_competency(), Create delivery sessions and record attendance/assessment results., Issue, suspend or revoke employee competency records., workforce_stats()
+### Community 182 - "AiAssistantTests"
+Cohesion: 0.11
+Nodes (4): AiAssistantTests, Phase19AIAssistantTests, TestCase, Exhaustive tests for Phase 19 Intelligent AI HSE Assistant: - Multi-step…
+
+### Community 183 - "EndToEndScenarioTests"
+Cohesion: 0.40
+Nodes (3): EndToEndScenarioTests, TestCase, End-to-End scenario test covering: 1. Authentication & organization access 2.…
 
 ### Community 184 - "FleetEnergyTestCase"
 Cohesion: 0.20
 Nodes (3): FleetEnergyAPISecurityTestCase, FleetEnergyTestCase, TestCase
+
+### Community 185 - "auditlog/services.py"
+Cohesion: 0.09
+Nodes (11): AuditEvent, Meta, AuditEventSerializer, Meta, sanitize_details(), AuditLogTests, TestCase, AuditEventListView (+3 more)
 
 ### Community 186 - "گزارش مهندسی فاز ۱۱: مدیریت پیشرفته ریسک، نمودارهای پاپیونی (BowTie)، سلامت موانع و HCMS"
 Cohesion: 0.20
@@ -1210,13 +1204,13 @@ Nodes (8): بذر داده دمو (`Synthetic Demo Data`):, بک‌اند (`Djan
 Cohesion: 0.22
 Nodes (8): راهنمای دمو و سناریوهای آزمون فاز ۱۵: مدیریت برچسب داربست‌ها (Scaffold Tags)، بازرسی ۷ گانه و یکپارچگی کار در ارتفاع, ۱. راه‌اندازی و ورود به سیستم, ۲. سناریوی اول: مشاهده داشبورد و شاخص‌های ایمنی داربست‌بندی, ۳. سناریوی دوم: شبیه‌ساز برچسب فیزیکی و فیلترهای رنگی, ۴. سناریوی سوم: بازرسی تخصصی ۷ گانه و صدور خودکار تگ قرمز و CAPA, ۵. سناریوی چهارم: تغییر دستی وضعیت برچسب فیزیکی, ۶. سناریوی پنجم: صدور شناسنامه فیزیکی و بارکد QR, ۷. سناریوی ششم: اعتبارسنجی یکپارچه با مجوزهای کار در ارتفاع (PTW Gatekeeper)
 
-### Community 200 - "input"
-Cohesion: 0.29
-Nodes (8): padding-x, input, $type, $value, focus-ring, padding-x, $type, $value
+### Community 200 - "UserAdmin"
+Cohesion: 0.67
+Nodes (3): register, UserAdmin, BaseUserAdmin
 
-### Community 201 - "format_ascii_box"
-Cohesion: 0.25
-Nodes (8): ansi_ljust(), format_ascii_box(), hex_to_ansi(), Convert hex color to ANSI True Color swatch (██) with fallback., Like str.ljust but accounts for zero-width ANSI escape sequences., Create a Unicode section separator: ├─── NAME ───...┤, Format design system as Unicode box with ANSI color swatches., section_header()
+### Community 201 - "design_system.py"
+Cohesion: 0.18
+Nodes (14): ansi_ljust(), format_ascii_box(), format_markdown(), generate_design_system(), hex_to_ansi(), Convert hex color to ANSI True Color swatch (██) with fallback., Like str.ljust but accounts for zero-width ANSI escape sequences., Create a Unicode section separator: ├─── NAME ───...┤ (+6 more)
 
 ### Community 202 - "README.md"
 Cohesion: 0.25
@@ -1246,9 +1240,9 @@ Nodes (6): Design principles, Frontend Design, Ground your designs in the subjec
 Cohesion: 0.29
 Nodes (6): Animation Classes, Background Images, Base Structure, Chart.js Integration, CSS Variables Reference, HTML Slide Template
 
-### Community 211 - "DemoSeedSafetyTests"
-Cohesion: 0.29
-Nodes (3): DemoSeedSafetyTests, TestCase, Regression tests for the destructive side effects reported in the audit.
+### Community 211 - "Phase13AdvancedPTWAndSIMOPSTests"
+Cohesion: 0.14
+Nodes (4): DemoSeedSafetyTests, Phase13AdvancedPTWAndSIMOPSTests, TestCase, Regression tests for the destructive side effects reported in the audit.
 
 ### Community 214 - "HSE Guard — Controlled Staging Acceptance Criteria & Sign-Off Matrix"
 Cohesion: 0.29
@@ -1298,17 +1292,13 @@ Nodes (6): ۱. تنظیم متغیرهای محیطی (`backend/.env`), ۲. اع
 Cohesion: 0.40
 Nodes (4): Brand Guidelines Template, Document Structure, Extractable Fields, Usage
 
-### Community 227 - "$type"
-Cohesion: 0.60
-Nodes (5): $type, $value, 700, 700, 700
+### Community 227 - "dashboard/views.py"
+Cohesion: 0.16
+Nodes (11): compute_organization_indicators(), models_due_date_or_fallback(), Any, Computes reproducible proactive leading & lagging HSE indicators based on live…, HSEIndicatorConfig, IndicatorType, Meta, DashboardMetricsView (+3 more)
 
-### Community 228 - "$type"
-Cohesion: 0.60
-Nodes (5): $type, $value, border, border, border
-
-### Community 229 - "radius"
-Cohesion: 0.60
-Nodes (5): radius, radius, radius, $type, $value
+### Community 228 - "padding-y"
+Cohesion: 0.67
+Nodes (4): padding-y, padding-y, $type, $value
 
 ### Community 232 - "perform_backup"
 Cohesion: 0.80
@@ -1350,14 +1340,6 @@ Nodes (5): ۸. ثبت، تحقیق و تحلیل ریشه‌ای حوادث و �
 Cohesion: 0.40
 Nodes (5): ۹. محیط زیست (ISO 14001)، بهداشت حرفه‌ای و مدیریت پسماند, ۹.۱. پایش پساب و خروجی‌های هوا (Wastewater & Stack Emissions), ۹.۲. بهداشت حرفه‌ای و عوامل زیان‌آور محیط کار (Occupational Hygiene), ۹.۳. ردیابی پسماندهای صنعتی و ویژه (Hazardous Waste Tracking), ۹.۴. جنبه‌ها و پیامدهای زیست‌محیطی (ISO 14001 Aspects)
 
-### Community 242 - "50"
-Cohesion: 0.67
-Nodes (4): $type, $value, 50, 50
-
-### Community 243 - "padding-y"
-Cohesion: 0.67
-Nodes (4): padding-y, padding-y, $type, $value
-
 ### Community 244 - "graphify reference: add a URL and watch a folder"
 Cohesion: 0.50
 Nodes (3): For /graphify add, For --watch, graphify reference: add a URL and watch a folder
@@ -1369,6 +1351,10 @@ Nodes (3): For git commit hook, For native CLAUDE.md integration, graphify refer
 ### Community 246 - "graphify reference: incremental update and cluster-only"
 Cohesion: 0.50
 Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphify reference: incremental update and cluster-only
+
+### Community 247 - "Document"
+Cohesion: 0.21
+Nodes (11): DocumentAcknowledgmentAdmin, DocumentAdmin, DocumentLinkAdmin, DocumentReviewLogAdmin, DocumentReviewLogInline, DocumentVersionAdmin, DocumentVersionInline, register (+3 more)
 
 ### Community 248 - "AGENT.md — پروتکل دائمی توسعه مستقل و چندعاملی HSE Guard"
 Cohesion: 0.50
@@ -1398,50 +1384,42 @@ Nodes (4): ۳. داشبورد مدیریتی و پایش شاخص‌های کل�
 Cohesion: 0.50
 Nodes (4): ۶. شناسایی خطرات، ارزیابی ریسک، نمودار پاپیونی (BowTie) و HCMS, ۶.۱. شناسایی خطر و ماتریس کلاسیک ۵×۵, ۶.۲. تحلیل چندلایه نمودار پاپیونی (BowTie Analysis), ۶.۳. ماتریس کنترل سلسله‌مراتبی خطر (HCMS Control Matrix)
 
-### Community 258 - "destructive"
-Cohesion: 0.67
-Nodes (3): destructive, $type, $value
+### Community 280 - "WorkplaceSerializer"
+Cohesion: 0.23
+Nodes (5): Meta, WorkplaceSerializer, APIView, WorkplaceDetailView, WorkplaceListCreateView
 
-### Community 259 - "destructive-foreground"
-Cohesion: 0.67
-Nodes (3): destructive-foreground, $type, $value
+### Community 284 - "ChecklistTests"
+Cohesion: 0.14
+Nodes (3): ChecklistApiBase, ChecklistTests, TestCase
 
-### Community 260 - "muted"
-Cohesion: 0.67
-Nodes (3): muted, $type, $value
-
-### Community 261 - "primary-foreground"
-Cohesion: 0.67
-Nodes (3): primary-foreground, $type, $value
-
-### Community 262 - "ring"
-Cohesion: 0.67
-Nodes (3): ring, $type, $value
-
-### Community 263 - "secondary-foreground"
-Cohesion: 0.67
-Nodes (3): secondary-foreground, $type, $value
+### Community 301 - "AvalAIError"
+Cohesion: 0.20
+Nodes (16): AvalAIConfigurationError, AvalAIConnectionError, AvalAIError, AvalAIRateLimitError, AvalAIResponseError, _build_user_prompt(), call_avalai_chat_completions(), get_avalai_config() (+8 more)
 
 ### Community 305 - "۱۴. پایگاه دانش، مقررات ملی و استانداردهای صنعتی"
 Cohesion: 0.67
 Nodes (3): ۱۴. پایگاه دانش، مقررات ملی و استانداردهای صنعتی, ۱۴.۱. مرور و جستجوی قوانین, ۱۴.۲. ثبت مستندات قانونی سفارشی
 
+### Community 311 - "HSE GUARD — PHASE 18 VERIFICATION REPORT"
+Cohesion: 0.17
+Nodes (11): 1. Executive Summary, 2. Test Execution & Quality Gates Summary, 3.1 Observability, Health & Correlation Middleware, 3.2 Security Hardening & Input Sanitization, 3.3 Safety Workflow Gatekeepers, 3. Operational Hardening & Remediation Details, 4. PostgreSQL & Database Readiness, 5. Operations Runbooks Deliverables (+3 more)
+
 ## Knowledge Gaps
-- **1763 isolated node(s):** `fs`, `path`, `fs`, `path`, `fs` (+1758 more)
+- **1796 isolated node(s):** `fs`, `path`, `fs`, `path`, `fs` (+1791 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **146 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **124 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `User` to `workforce/views.py`, `Permit`, `environment/views.py`, `ChecklistTests`, `NotificationTests`, `seed_demo_data.py`, `create_assignment`, `scaffolds/tests.py`, `organizations/views.py`, `InspectionTests`, `PermitManagementTests`, `OrganizationAccessTests`, `IncidentAttachment`, `IncidentManagementTests`, `risk.py`, `log_event`, `MaintenanceWorkOrder`, `HazardApiTests`, `AiAssistantTests`, `WorkforceTestBase`, `KnowledgeBaseTests`, `.auth`, `Incident`, `StagingSecurityHardeningTests`, `AuditLogTests`, `DashboardTests`, `DemoSeedSafetyTests`, `Phase13AdvancedPTWAndSIMOPSTests`, `ReportTests`, `RegisterSerializer`, `AnomalyManagementTests`?**
-  _High betweenness centrality (0.052) - this node is a cross-community bridge._
+- **Why does `User` connect `User` to `workforce/views.py`, `Permit`, `Hazard`, `environment/views.py`, `seed_demo_data.py`, `scaffolds/tests.py`, `Organization`, `create_assignment`, `InspectionTests`, `PermitManagementTests`, `OrganizationAccessTests`, `ChecklistTests`, `IncidentManagementTests`, `log_event`, `AiAssistantTests`, `EndToEndScenarioTests`, `WorkforceTestBase`, `auditlog/services.py`, `assets/tests.py`, `NotificationTests`, `UserAdmin`, `StagingSecurityHardeningTests`, `DashboardTests`, `Phase13AdvancedPTWAndSIMOPSTests`, `SubscriptionEntitlementTests`, `ReportTests`, `RegisterSerializer`, `AnomalyManagementTests`?**
+  _High betweenness centrality (0.047) - this node is a cross-community bridge._
 - **Why does `TailwindConfigGenerator` connect `TailwindConfigGenerator` to `._format_plugins`, `test_tailwind_config_gen.py`, `TestTailwindConfigGenerator`, `._base_config`, `.test_add_fonts`, `.test_recommend_plugins`, `.test_generate_typescript_config`, `.test_generate_config_with_colors`, `.test_generate_config_with_plugins`, `.test_validate_config_no_content`, `.test_validate_config_empty_theme`, `.test_write_config`, `.test_init_javascript`, `.test_write_config_creates_content`, `.test_write_config_invalid_path`, `.test_full_configuration_javascript`, `.test_default_output_path_typescript`, `.test_base_config_structure`, `.test_default_content_paths_vue`, `.test_add_colors`?**
   _High betweenness centrality (0.020) - this node is a cross-community bridge._
-- **Why does `Notification` connect `Notification` to `documents/services.py`, `seed_demo_data.py`, `Inspection`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
-- **Are the 153 inferred relationships involving `User` (e.g. with `UserAdmin` and `LoginSerializer`) actually correct?**
-  _`User` has 153 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `accessible_organization_ids()` connect `accessible_organization_ids` to `workforce/views.py`, `Permit`, `Hazard`, `environment/views.py`, `can_manage_workforce`, `EquipmentDetailSerializer`, `Checklist`, `scaffolds/tests.py`, `can_view_organization`, `documents/services.py`, `Organization`, `WorkplaceSerializer`, `User`, `documents/views.py`, `assets/views.py`, `ai_assistant/views.py`, `access.py`, `auditlog/services.py`, `get_document_summary`, `AIAssessmentViewSet`, `dashboard/views.py`, `CorrectiveAction`?**
+  _High betweenness centrality (0.014) - this node is a cross-community bridge._
+- **Are the 154 inferred relationships involving `User` (e.g. with `UserAdmin` and `LoginSerializer`) actually correct?**
+  _`User` has 154 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 100 inferred relationships involving `EmployeeCompetency` (e.g. with `CompetencyAdmin` and `EmployeeAdmin`) actually correct?**
   _`EmployeeCompetency` has 100 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 100 inferred relationships involving `PPEAssignment` (e.g. with `CompetencyAdmin` and `EmployeeAdmin`) actually correct?**

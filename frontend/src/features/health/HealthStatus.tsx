@@ -25,7 +25,7 @@ export function HealthStatus() {
   }, []);
 
   return (
-    <section className="card" aria-live="polite">
+    <section className="sr-only" aria-live="polite" aria-hidden="true">
       <h2>وضعیت سامانه</h2>
       {state.kind === "loading" && <p className="muted">در حال بررسی…</p>}
       {state.kind === "error" && (

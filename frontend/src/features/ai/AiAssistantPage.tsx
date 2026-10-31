@@ -1,4 +1,4 @@
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, Sparkles, ArrowLeft, RotateCw, CheckCircle, Building2, ShieldCheck, ChevronRight } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   analyzeWorkplaceWithAi,
@@ -9,6 +9,17 @@ import {
   fetchWorkplaces,
   suggestChecklistWithAi,
   suggestControlsWithAi,
+  fetchAIAssessments,
+  fetchAIAssessment,
+  createAIAssessment,
+  analyzeAIAssessment,
+  updateAIChecklistDraft,
+  validateAIChecklistDraft,
+  approveAIAssessment,
+  generateRealChecklist,
+  fetchAIServiceStatus,
+  fetchAIStatistics,
+  deleteAIAssessment,
   ApiRequestError,
   type AiChecklistSuggestion,
   type AiHierarchyControls,
@@ -16,20 +27,71 @@ import {
   type AiWorkplaceAnalysis,
   type Organization,
   type Workplace,
+  type AIAssessmentListItem,
+  type AIAssessmentDetail,
+  type AIAssessmentWorkplaceData,
+  type AIChecklistDraft,
+  type AIServiceStatus,
+  type AIAssessmentStatistics,
 } from "../../services/api";
+
+import { AIAssessmentDashboard } from "./components/AIAssessmentDashboard";
+import { AssessmentWizard } from "./components/AssessmentWizard";
+import { AssessmentResultsView } from "./components/AssessmentResultsView";
+import { ChecklistDraftEditor } from "./components/ChecklistDraftEditor";
+import { AssessmentApprovalModal } from "./components/AssessmentApprovalModal";
+import { AIAnalysisProgress } from "./components/AIAnalysisProgress";
 
 function errorMessage(error: unknown) {
   return error instanceof ApiRequestError ? error.message : "خطای نامشخص در ارتباط با سرور";
 }
 
-export function AiAssistantPage() {
+interface AiAssistantPageProps {
+  defaultTab?: "assessments" | "workplace" | "checklist" | "hierarchy";
+  mode?: "all" | "assistant" | "legacy";
+}
+
+export function AiAssistantPage({
+  defaultTab = "workplace",
+  mode = "all",
+}: AiAssistantPageProps) {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organizationId, setOrganizationId] = useState<number | null>(null);
   const [workplaces, setWorkplaces] = useState<Workplace[]>([]);
 
-  const [activeTab, setActiveTab] = useState<"workplace" | "checklist" | "hierarchy">("workplace");
+  const [activeTab, setActiveTab] = useState<"assessments" | "workplace" | "checklist" | "hierarchy">(
+    mode === "assistant" ? "assessments" : defaultTab
+  );
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
 
+  // ============================================================
+  // PHASE 19 STATE: Intelligent Assessments & AvalAI Integration
+  // ============================================================
+  const [assessments, setAssessments] = useState<AIAssessmentListItem[]>([]);
+  const [assessmentsLoading, setAssessmentsLoading] = useState(false);
+  const [aiServiceStatus, setAiServiceStatus] = useState<AIServiceStatus | null>(null);
+  const [aiStatistics, setAiStatistics] = useState<AIAssessmentStatistics | null>(null);
+
+  const [viewMode, setViewMode] = useState<"dashboard" | "wizard" | "detail">("dashboard");
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<number | null>(null);
+  const [selectedAssessment, setSelectedAssessment] = useState<AIAssessmentDetail | null>(null);
+  const [detailSubTab, setDetailSubTab] = useState<"hazards" | "checklist" | "workplace_data">("hazards");
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [wizardSubmitting, setWizardSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isValidatingDraft, setIsValidatingDraft] = useState(false);
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [generatedChecklistNotice, setGeneratedChecklistNotice] = useState<{
+    id: number;
+    title: string;
+    items_count: number;
+  } | null>(null);
+
+  // ============================================================
+  // LEGACY TABS STATE: Preserved for 100% backward compatibility
+  // ============================================================
   // TAB 1: Workplace
   const [selectedWorkplace, setSelectedWorkplace] = useState<string>("");
   const [activityDesc, setActivityDesc] = useState("");
@@ -56,6 +118,7 @@ export function AiAssistantPage() {
   const [controlsError, setControlsError] = useState<string | null>(null);
   const [controlsResult, setControlsResult] = useState<AiHierarchyControls | null>(null);
 
+  // Load organizations
   useEffect(() => {
     const controller = new AbortController();
     fetchOrganizations(controller.signal)
@@ -67,6 +130,7 @@ export function AiAssistantPage() {
     return () => controller.abort();
   }, []);
 
+  // Load workplaces & legacy status
   useEffect(() => {
     const controller = new AbortController();
     fetchAiStatus(organizationId ?? undefined, controller.signal)
@@ -84,6 +148,198 @@ export function AiAssistantPage() {
     return () => controller.abort();
   }, [organizationId]);
 
+  // Load Phase 19 assessments, service status, and statistics
+  const reloadAssessments = () => {
+    setAssessmentsLoading(true);
+    const controller = new AbortController();
+    const params = organizationId ? { organization: organizationId } : undefined;
+    Promise.allSettled([
+      fetchAIAssessments(params, controller.signal).then(setAssessments),
+      fetchAIServiceStatus(controller.signal).then(setAiServiceStatus),
+      fetchAIStatistics(controller.signal).then(setAiStatistics),
+    ]).finally(() => {
+      setAssessmentsLoading(false);
+    });
+  };
+
+  useEffect(() => {
+    reloadAssessments();
+  }, [organizationId]);
+
+  // Load single assessment detail
+  const loadAssessmentDetail = async (id: number) => {
+    try {
+      const data = await fetchAIAssessment(id);
+      setSelectedAssessment(data);
+      setSelectedAssessmentId(id);
+      setViewMode("detail");
+      if (data.generated_checklist) {
+        setGeneratedChecklistNotice({
+          id: data.generated_checklist,
+          title: data.generated_checklist_title || data.title,
+          items_count: data.checklist_items_count,
+        });
+      }
+    } catch (err) {
+      alert(`خطا در بارگذاری ارزیابی: ${errorMessage(err)}`);
+    }
+  };
+
+  // Submit wizard (create assessment + run AI analysis)
+  const handleWizardSubmit = async (title: string, data: AIAssessmentWorkplaceData) => {
+    if (!workplaces.length && !organizationId) {
+      alert("سازمان یا واحد کارگاهی یافت نشد.");
+      return;
+    }
+    const targetWpId = data.general_info.workplace_name
+      ? workplaces.find((w) => w.name === data.general_info.workplace_name)?.id || workplaces[0]?.id || 1
+      : workplaces[0]?.id || 1;
+
+    setWizardSubmitting(true);
+    try {
+      const created = await createAIAssessment({
+        workplace: targetWpId,
+        title,
+        workplace_data: data,
+        organization: organizationId ?? undefined,
+      });
+
+      setSelectedAssessment(created);
+      setSelectedAssessmentId(created.id);
+      setViewMode("detail");
+      setDetailSubTab("hazards");
+
+      // Trigger AI Analysis
+      setIsAnalyzing(true);
+      try {
+        const analyzed = await analyzeAIAssessment(created.id);
+        setSelectedAssessment(analyzed);
+      } catch (analErr) {
+        alert(`هشدار در تحلیل هوش مصنوعی: ${errorMessage(analErr)}`);
+      } finally {
+        setIsAnalyzing(false);
+        reloadAssessments();
+      }
+    } catch (err) {
+      alert(`خطا در ایجاد ارزیابی: ${errorMessage(err)}`);
+    } finally {
+      setWizardSubmitting(false);
+    }
+  };
+
+  // Re-run AI analysis on existing assessment
+  const handleRerunAnalysis = async () => {
+    if (!selectedAssessment) return;
+    setIsAnalyzing(true);
+    try {
+      const updated = await analyzeAIAssessment(selectedAssessment.id);
+      setSelectedAssessment(updated);
+      reloadAssessments();
+    } catch (err) {
+      alert(`خطا در تحلیل مجدد: ${errorMessage(err)}`);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Save checklist draft
+  const handleSaveDraft = async (draft: AIChecklistDraft) => {
+    if (!selectedAssessment) return;
+    setIsSavingDraft(true);
+    try {
+      const updatedDraft = await updateAIChecklistDraft(selectedAssessment.id, draft);
+      setSelectedAssessment({
+        ...selectedAssessment,
+        checklist_draft: updatedDraft,
+        status: "editing",
+        status_display: "در حال ویرایش پیش‌نویس",
+      });
+      reloadAssessments();
+    } catch (err) {
+      alert(`خطا در ذخیره پیش‌نویس: ${errorMessage(err)}`);
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
+
+  // Validate checklist draft
+  const handleValidateDraft = async () => {
+    if (!selectedAssessment) return { is_valid: false, errors: ["ارزیابی معتبر نیست."] };
+    setIsValidatingDraft(true);
+    try {
+      const res = await validateAIChecklistDraft(selectedAssessment.id);
+      if (res.is_valid) {
+        setSelectedAssessment({
+          ...selectedAssessment,
+          status: "validated",
+          status_display: "اعتبارسنجی شده",
+        });
+        reloadAssessments();
+      }
+      return res;
+    } catch (err) {
+      return { is_valid: false, errors: [errorMessage(err)] };
+    } finally {
+      setIsValidatingDraft(false);
+    }
+  };
+
+  // Approve & Generate real checklist
+  const handleConfirmApproval = async (notes: string) => {
+    if (!selectedAssessment) return;
+    setIsApproving(true);
+    try {
+      // 1. Approve Gate
+      const approved = await approveAIAssessment(selectedAssessment.id, {
+        confirmed_reviewed: true,
+        approval_notes: notes,
+      });
+
+      // 2. Generate Real Checklist
+      const genRes = await generateRealChecklist(approved.id);
+
+      setSelectedAssessment({
+        ...approved,
+        status: "checklist_generated",
+        status_display: "چک‌لیست صادر شد",
+        generated_checklist: genRes.checklist_id,
+        generated_checklist_title: genRes.checklist_title,
+      });
+
+      setGeneratedChecklistNotice({
+        id: genRes.checklist_id,
+        title: genRes.checklist_title,
+        items_count: genRes.items_count,
+      });
+
+      setIsApprovalModalOpen(false);
+      reloadAssessments();
+    } catch (err) {
+      alert(`خطا در فرآیند تأیید و صدور: ${errorMessage(err)}`);
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  // Delete assessment
+  const handleDeleteAssessment = async (id: number) => {
+    if (!window.confirm("آیا از حذف این ارزیابی اطمینان دارید؟")) return;
+    try {
+      await deleteAIAssessment(id);
+      if (selectedAssessmentId === id) {
+        setSelectedAssessment(null);
+        setSelectedAssessmentId(null);
+        setViewMode("dashboard");
+      }
+      reloadAssessments();
+    } catch (err) {
+      alert(`خطا در حذف ارزیابی: ${errorMessage(err)}`);
+    }
+  };
+
+  // ============================================================
+  // LEGACY HANDLERS: Preserved for 100% backward compatibility
+  // ============================================================
   const handleAnalyzeWorkplace = async (e: FormEvent) => {
     e.preventDefault();
     if (!organizationId) return;
@@ -154,11 +410,7 @@ export function AiAssistantPage() {
         organization_id: organizationId,
         title: checklistResult.suggested_title,
         description: checklistResult.suggested_description,
-        items: checklistResult.items.map((it) => ({
-          order: it.order,
-          text: it.citation ? `${it.text} (استناد: ${it.citation})` : it.text,
-          is_required: it.is_required,
-        })),
+        items: checklistResult.items,
       });
       setAppliedChecklist(true);
     } catch (err) {
@@ -189,61 +441,67 @@ export function AiAssistantPage() {
 
   return (
     <div className="ai-assistant-page stack" dir="rtl" style={{ display: "grid", gap: "1.5rem" }}>
-      {/* Header */}
-      <header className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <h2>دستیار هوشمند و تحلیلی HSE Guard</h2>
-            <span
+      {/* Header for Legacy and All modes */}
+      {mode !== "assistant" && (
+        <header className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <h2>{mode === "legacy" ? "ابزارهای سریع ایمنی و مقررات پایگاه دانش" : "دستیار هوشمند و تحلیلی HSE Guard"}</h2>
+              <span
+                style={{
+                  backgroundColor: "var(--primary-soft, #e3f2ee)",
+                  color: "var(--primary, #0f6b57)",
+                  padding: "0.15rem 0.5rem",
+                  borderRadius: "12px",
+                  fontSize: "0.75rem",
+                  fontWeight: "bold",
+                }}
+              >
+                {mode === "legacy" ? "مقررات و استانداردهای OHS" : "مبتنی بر AvalAI و شواهد مقرراتی"}
+              </span>
+            </div>
+            <p className="muted" style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
+              {mode === "legacy"
+                ? "استخراج سریع مخاطرات، پیشنهادات چک‌لیست و بررسی سلسله‌مراتب کنترل خطر (ISO 45001)"
+                : "ارزیابی جامع محیط کار، استخراج مخاطرات بر پایه AvalAI و تولید مستقیم چک‌لیست بازرسی با نظارت انسانی"}
+            </p>
+          </div>
+
+          {aiStatus && (
+            <div
+              className="card"
               style={{
-                backgroundColor: "var(--primary-soft, #e3f2ee)",
-                color: "var(--primary, #0f6b57)",
-                padding: "0.15rem 0.5rem",
-                borderRadius: "12px",
+                padding: "0.5rem 0.85rem",
                 fontSize: "0.75rem",
-                fontWeight: "bold",
+                display: "grid",
+                gap: "0.2rem",
+                backgroundColor: "var(--surface, #fff)",
               }}
             >
-              مبتنی بر شواهد مقرراتی
-            </span>
-          </div>
-          <p className="muted" style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
-            شناسایی هوشمند مخاطرات، تدوین چک‌لیست بازرسی و پیشنهاد لایه‌های کنترلی با استناد مستقیم به پایگاه دانش
-          </p>
-        </div>
-
-        {aiStatus && (
-          <div
-            className="card"
-            style={{
-              padding: "0.5rem 0.85rem",
-              fontSize: "0.75rem",
-              display: "grid",
-              gap: "0.2rem",
-              backgroundColor: "var(--surface, #fff)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981" }} />
-              <strong>{aiStatus.engine_label}</strong>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981" }} />
+                <strong>{aiStatus.engine_label}</strong>
+              </div>
+              <span className="muted">{aiStatus.verified_regulations_count} منبع و آیین‌نامه فعال در حافظه تحلیلی</span>
             </div>
-            <span className="muted">{aiStatus.verified_regulations_count} منبع و آیین‌نامه فعال در حافظه تحلیلی</span>
+          )}
+        </header>
+      )}
+
+      {/* Advisory Banner for legacy and all modes */}
+      {mode !== "assistant" && (
+        <div className="alert alert-warning" style={{ alignItems: "flex-start", gap: "0.75rem", lineHeight: "1.7" }}>
+          <ShieldAlert size={20} style={{ flexShrink: 0, marginTop: "0.2rem" }} />
+          <div>
+            <strong>الزام نظارت و اعتبارسنجی انسانی (Human-in-the-Loop):</strong>
+            <p style={{ margin: "0.2rem 0 0" }}>
+              کلیه پیشنهادات این سامانه مشورتی بوده و صدور نهایی چک‌لیست بازرسی مستلزم بررسی میدانی و تأیید صریح کارشناس/مدیر HSE است.
+            </p>
           </div>
-        )}
-      </header>
-
-      {/* Advisory Banner */}
-      <div className="alert alert-warning" style={{ alignItems: "flex-start", gap: "0.75rem", lineHeight: "1.7" }}>
-        <ShieldAlert size={20} style={{ flexShrink: 0, marginTop: "0.2rem" }} />
-        <div>
-          <strong>الزام نظارت و اعتبارسنجی انسانی (Human-in-the-Loop):</strong>
-          <p style={{ margin: "0.2rem 0 0" }}>
-            کلیه پیشنهادات این سامانه مشورتی بوده و تصمیم‌گیری نهایی مستلزم بررسی میدانی و تأیید کارشناس HSE است.
-          </p>
         </div>
-      </div>
+      )}
 
-      {/* Organization selector if multiple */}
+      {/* Organization Selector */}
       {organizations.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <label style={{ fontSize: "0.85rem", color: "var(--muted, #5b6b7a)" }}>سازمان انتخابی:</label>
@@ -261,32 +519,281 @@ export function AiAssistantPage() {
         </div>
       )}
 
-      {/* Tab Buttons */}
-      <div className="tabs-nav">
-        <button
-          type="button"
-          onClick={() => setActiveTab("workplace")}
-          className={`tab-btn ${activeTab === "workplace" ? "active" : ""}`}
-        >
-          تحلیل مخاطرات محیط کار
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("checklist")}
-          className={`tab-btn ${activeTab === "checklist" ? "active" : ""}`}
-        >
-          پیشنهاد چک‌لیست بازرسی
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("hierarchy")}
-          className={`tab-btn ${activeTab === "hierarchy" ? "active" : ""}`}
-        >
-          سلسله‌مراتب کنترل خطر (ISO 45001)
-        </button>
-      </div>
+      {/* Tab Navigation Buttons - ONLY when NOT in pure assistant mode */}
+      {mode !== "assistant" && (
+        <div className="bg-slate-100 p-1.5 rounded-2xl flex flex-wrap gap-1.5 border border-slate-200">
+          {mode === "all" && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("assessments")}
+              className={`tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === "assessments"
+                  ? "active bg-indigo-600 text-white shadow-md shadow-indigo-200"
+                  : "text-slate-700 hover:text-slate-900 hover:bg-white/60"
+              }`}
+            >
+              <Sparkles className={`w-4 h-4 ${activeTab === "assessments" ? "text-indigo-200" : "text-indigo-600"}`} />
+              <span>ارزیابی جامع و صدور چک‌لیست (AvalAI)</span>
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+                  activeTab === "assessments"
+                    ? "bg-white/20 text-white"
+                    : "bg-indigo-100 text-indigo-700"
+                }`}
+              >
+                اصلی
+              </span>
+            </button>
+          )}
 
-      {/* TAB 1: WORKPLACE */}
+          <button
+            type="button"
+            onClick={() => setActiveTab("workplace")}
+            className={`tab-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === "workplace"
+                ? "active bg-white text-slate-900 shadow-sm font-bold"
+                : "text-slate-600 hover:bg-white/60"
+            }`}
+          >
+            تحلیل مخاطرات محیط کار
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("checklist")}
+            className={`tab-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === "checklist"
+                ? "active bg-white text-slate-900 shadow-sm font-bold"
+                : "text-slate-600 hover:bg-white/60"
+            }`}
+          >
+            پیشنهاد چک‌لیست بازرسی
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("hierarchy")}
+            className={`tab-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === "hierarchy"
+                ? "active bg-white text-slate-900 shadow-sm font-bold"
+                : "text-slate-600 hover:bg-white/60"
+            }`}
+          >
+            سلسله‌مراتب کنترل خطر (ISO 45001)
+          </button>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* PRIMARY TAB: PHASE 19 AVALAI ASSISTANT WORKSPACE             */}
+      {/* ============================================================ */}
+      {activeTab === "assessments" && (
+        <div className="space-y-6">
+          {/* VIEW 1: DASHBOARD */}
+          {viewMode === "dashboard" && (
+            <AIAssessmentDashboard
+              assessments={assessments}
+              stats={aiStatistics}
+              serviceStatus={aiServiceStatus}
+              onNewAssessment={() => setViewMode("wizard")}
+              onSelectAssessment={loadAssessmentDetail}
+              onDeleteAssessment={handleDeleteAssessment}
+              loading={assessmentsLoading}
+            />
+          )}
+
+          {/* VIEW 2: 9-STEP WIZARD */}
+          {viewMode === "wizard" && (
+            <AssessmentWizard
+              workplaces={workplaces}
+              selectedWorkplaceId={selectedWorkplace ? Number(selectedWorkplace) : (workplaces[0]?.id ?? null)}
+              onSelectWorkplace={(id) => setSelectedWorkplace(String(id))}
+              onSubmit={handleWizardSubmit}
+              onCancel={() => setViewMode("dashboard")}
+              loading={wizardSubmitting}
+            />
+          )}
+
+          {/* VIEW 3: DETAIL WORKSPACE */}
+          {viewMode === "detail" && selectedAssessment && (
+            <div className="space-y-6">
+              {/* Breadcrumb & Top Actions */}
+              <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setViewMode("dashboard");
+                      setSelectedAssessment(null);
+                      setSelectedAssessmentId(null);
+                    }}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
+                    بازگشت به فهرست ارزیابی‌ها
+                  </button>
+                  <ChevronRight className="w-4 h-4 text-slate-400 rotate-180" />
+                  <span className="text-xs font-bold text-slate-900">{selectedAssessment.title}</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleRerunAnalysis}
+                    disabled={isAnalyzing}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                  >
+                    <RotateCw className={`w-3.5 h-3.5 ${isAnalyzing ? "animate-spin" : ""}`} />
+                    تحلیل مجدد هوش مصنوعی
+                  </button>
+
+                  <button
+                    onClick={() => setIsApprovalModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    تأیید نهایی و صدور چک‌لیست رسمی
+                  </button>
+                </div>
+              </div>
+
+              {/* Generated Checklist Success Banner */}
+              {generatedChecklistNotice && (
+                <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-emerald-950">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                      <CheckCircle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-emerald-900">
+                        چک‌لیست رسمی «{generatedChecklistNotice.title}» با شماره #{generatedChecklistNotice.id} صادر شد!
+                      </h4>
+                      <p className="text-[11px] text-emerald-800">
+                        شامل {generatedChecklistNotice.items_count} بند استاندارد است و در حال حاضر در ماژول بازرسی‌های HSE Guard برای بازرسان فعال می‌باشد.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Loading indicator */}
+              {isAnalyzing && <AIAnalysisProgress title={selectedAssessment.title} />}
+
+              {/* Detail Subtabs */}
+              {!isAnalyzing && (
+                <>
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                    <button
+                      onClick={() => setDetailSubTab("hazards")}
+                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${
+                        detailSubTab === "hazards"
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      شناسنامه مخاطرات و ماتریس ریسک ({selectedAssessment.hazards_count || 0})
+                    </button>
+                    <button
+                      onClick={() => setDetailSubTab("checklist")}
+                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${
+                        detailSubTab === "checklist"
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      ویرایشگر پیش‌نویس چک‌لیست ({selectedAssessment.checklist_items_count || 0} بند)
+                    </button>
+                    <button
+                      onClick={() => setDetailSubTab("workplace_data")}
+                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${
+                        detailSubTab === "workplace_data"
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      اطلاعات ورودی ۹ گانه کارگاه
+                    </button>
+                  </div>
+
+                  {detailSubTab === "hazards" && (
+                    <AssessmentResultsView
+                      assessment={selectedAssessment}
+                      onGoToChecklistDraft={() => setDetailSubTab("checklist")}
+                    />
+                  )}
+
+                  {detailSubTab === "checklist" && (
+                    <ChecklistDraftEditor
+                      initialDraft={selectedAssessment.checklist_draft || { title: selectedAssessment.title, sections: [] }}
+                      assessmentId={selectedAssessment.id}
+                      onSaveDraft={handleSaveDraft}
+                      onValidateDraft={handleValidateDraft}
+                      onRequestApproval={() => setIsApprovalModalOpen(true)}
+                      canApprove={true}
+                      isSaving={isSavingDraft}
+                      isValidating={isValidatingDraft}
+                    />
+                  )}
+
+                  {detailSubTab === "workplace_data" && (
+                    <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
+                      <h3 className="text-sm font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-indigo-600" />
+                        مشخصات تفصیلی ثبت‌شده در فرم ارزیابی
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                          <span className="font-bold text-slate-800 block mb-1">اطلاعات عمومی:</span>
+                          <div>کارگاه: {selectedAssessment.workplace_data?.general_info?.workplace_name}</div>
+                          <div>صنعت: {selectedAssessment.workplace_data?.general_info?.industry_type}</div>
+                          <div>تعداد کارگران: {selectedAssessment.workplace_data?.general_info?.worker_count} نفر ({selectedAssessment.workplace_data?.general_info?.shift_count} شیفت)</div>
+                        </div>
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                          <span className="font-bold text-slate-800 block mb-1">محیط فیزیکی:</span>
+                          <div>مساحت: {selectedAssessment.workplace_data?.physical_environment?.area_sqm} مترمربع</div>
+                          <div>تهویه: {selectedAssessment.workplace_data?.physical_environment?.ventilation_type}</div>
+                          <div>تراز صدا: {selectedAssessment.workplace_data?.physical_environment?.noise_level}</div>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="font-bold text-slate-800 block text-xs mb-1">تجهیزات و ماشین‌آلات:</span>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          {(selectedAssessment.workplace_data?.machinery_and_equipment || []).map((m, idx) => (
+                            <span key={idx} className="bg-slate-100 px-2.5 py-1 rounded border border-slate-200 text-slate-700">
+                              {m.name} ({m.type || "ماشین"})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="font-bold text-slate-800 block text-xs mb-1">مواد و مواد شیمیایی:</span>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          {(selectedAssessment.workplace_data?.materials_and_chemicals || []).map((c, idx) => (
+                            <span key={idx} className="bg-slate-100 px-2.5 py-1 rounded border border-slate-200 text-slate-700">
+                              {c.name} ({c.approximate_volume || "-"})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Approval Modal */}
+              <AssessmentApprovalModal
+                assessment={selectedAssessment}
+                isOpen={isApprovalModalOpen}
+                onClose={() => setIsApprovalModalOpen(false)}
+                onConfirm={handleConfirmApproval}
+                loading={isApproving}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* LEGACY TAB 1: WORKPLACE                                      */}
+      {/* ============================================================ */}
       {activeTab === "workplace" && (
         <div style={{ display: "grid", gap: "1.25rem" }}>
           <form onSubmit={handleAnalyzeWorkplace} className="card" style={{ padding: "1.5rem", maxWidth: "100%", display: "grid", gap: "1rem" }}>
@@ -488,7 +995,9 @@ export function AiAssistantPage() {
         </div>
       )}
 
-      {/* TAB 2: CHECKLIST */}
+      {/* ============================================================ */}
+      {/* LEGACY TAB 2: CHECKLIST                                      */}
+      {/* ============================================================ */}
       {activeTab === "checklist" && (
         <div style={{ display: "grid", gap: "1.25rem" }}>
           <form onSubmit={handleSuggestChecklist} className="card" style={{ padding: "1.5rem", maxWidth: "100%", display: "grid", gap: "1rem" }}>
@@ -575,7 +1084,7 @@ export function AiAssistantPage() {
               </div>
 
               <div style={{ display: "grid", gap: "0.75rem" }}>
-                {checklistResult.items.map((it) => (
+                {checklistResult.items.map((it: any) => (
                   <div
                     key={it.order}
                     style={{
@@ -598,25 +1107,25 @@ export function AiAssistantPage() {
                         display: "grid",
                         placeItems: "center",
                         fontSize: "0.8rem",
-                        fontWeight: "bold",
                         flexShrink: 0,
+                        fontWeight: "bold",
                       }}
                     >
                       {it.order}
                     </span>
                     <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontSize: "0.9rem" }}>{it.text}</p>
+                      <div style={{ fontWeight: "bold", fontSize: "0.9rem" }}>{it.text || it.question}</div>
                       {it.citation && (
-                        <span style={{ fontSize: "0.75rem", color: "var(--primary, #0f6b57)", fontWeight: "bold" }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--primary, #0f6b57)", marginTop: "0.2rem" }}>
                           استناد: {it.citation}
-                        </span>
+                        </div>
+                      )}
+                      {it.item_type && (
+                        <div className="muted" style={{ fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                          نوع پاسخ: {it.item_type}
+                        </div>
                       )}
                     </div>
-                    {it.is_required && (
-                      <span style={{ backgroundColor: "#fee2e2", color: "#991b1b", padding: "0.1rem 0.4rem", borderRadius: "4px", fontSize: "0.7rem", fontWeight: "bold" }}>
-                        الزامی
-                      </span>
-                    )}
                   </div>
                 ))}
               </div>
@@ -625,13 +1134,15 @@ export function AiAssistantPage() {
         </div>
       )}
 
-      {/* TAB 3: HIERARCHY */}
+      {/* ============================================================ */}
+      {/* LEGACY TAB 3: HIERARCHY                                      */}
+      {/* ============================================================ */}
       {activeTab === "hierarchy" && (
         <div style={{ display: "grid", gap: "1.25rem" }}>
           <form onSubmit={handleSuggestControls} className="card" style={{ padding: "1.5rem", maxWidth: "100%", display: "grid", gap: "1rem" }}>
-            <h3 style={{ margin: 0, fontSize: "1rem" }}>تدوین ۵ لایه کنترل خطر (ISO 45001 بند ۸.۱.۲)</h3>
+            <h3 style={{ margin: 0, fontSize: "1rem" }}>پیشنهاد لایه‌های کنترلی بر پایه ماتریس سلسله‌مراتب ISO 45001</h3>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1rem" }}>
               <div>
                 <label htmlFor="hazard-title" style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.25rem" }}>عنوان مخاطره *</label>
                 <input
@@ -640,33 +1151,32 @@ export function AiAssistantPage() {
                   required
                   value={hazardTitle}
                   onChange={(e) => setHazardTitle(e.target.value)}
-                  placeholder="مثال: سقوط از ارتفاع روی داربست، شوک الکتریکی..."
+                  placeholder="مثال: احتمال سقوط از داربست ناقص در ارتفاع"
                   style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.25rem" }}>دسته‌بندی</label>
+                <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.25rem" }}>دسته‌بندی خطر</label>
                 <select
                   value={hazardCategory}
                   onChange={(e) => setHazardCategory(e.target.value)}
                   style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
                 >
-                  <option value="safety">ایمنی (سقوط، ضربه، گیرافتادگی)</option>
-                  <option value="physical">فیزیکی (برق، صدا، ارتعاش)</option>
-                  <option value="chemical">شیمیایی (گازها، بخارات، حلال‌ها)</option>
-                  <option value="ergonomic">ارگونومیک (حمل بار، وضعیت بدنی)</option>
+                  <option value="safety">ایمنی (Safety)</option>
+                  <option value="health">بهداشت حرفه‌ای (Health)</option>
+                  <option value="environment">محیط زیست (Environment)</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.25rem" }}>شرح وضعیت خطر (اختیاری)</label>
+              <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.25rem" }}>توضیحات تکمیلی موقعیت</label>
               <textarea
                 rows={2}
                 value={hazardDesc}
                 onChange={(e) => setHazardDesc(e.target.value)}
-                placeholder="توضیحاتی در مورد شرایط وقوع خطر..."
+                placeholder="توضیحاتی در مورد شرایط محل، تعداد نفرات یا ماهیت کار..."
                 style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
               />
             </div>
@@ -685,7 +1195,7 @@ export function AiAssistantPage() {
                   fontWeight: "bold",
                 }}
               >
-                {controlsLoading ? "در حال تدوین سلسله‌مراتب..." : "🛡️ استخراج سلسله‌مراتب کنترلی"}
+                {controlsLoading ? "در حال تدوین سطوح کنترلی..." : "🛡️ استخراج سلسله‌مراتب کنترلی"}
               </button>
             </div>
           </form>
@@ -694,57 +1204,51 @@ export function AiAssistantPage() {
 
           {controlsResult && (
             <div className="card" style={{ padding: "1.5rem", maxWidth: "100%", display: "grid", gap: "1rem" }}>
-              <div>
-                <h4 style={{ margin: 0, fontSize: "1.1rem" }}>سلسله‌مراتب کنترلی: {controlsResult.hazard_title}</h4>
-                <p className="muted" style={{ margin: "0.25rem 0 0", fontSize: "0.85rem" }}>
-                  بر مبنای استاندارد {controlsResult.standard_reference}
-                </p>
-              </div>
+              <h4 style={{ margin: 0, fontSize: "1.1rem" }}>سلسله‌مراتب کنترلی: {controlsResult.hazard_title}</h4>
 
               <div style={{ display: "grid", gap: "0.75rem" }}>
-                {controlsResult.hierarchy.map((tier) => {
-                  const borderColors = ["#16a34a", "#0d9488", "#0284c7", "#d97706", "#dc2626"];
-                  const bgColors = ["#f0fdf4", "#f0fdfa", "#f0f9ff", "#fffbeb", "#fef2f2"];
-                  const badgeColors = ["#166534", "#115e59", "#075985", "#92400e", "#991b1b"];
-
-                  return (
+                {(controlsResult as any).hierarchy ? (
+                  (controlsResult as any).hierarchy.map((tier: any) => (
                     <div
                       key={tier.tier}
                       style={{
-                        padding: "1rem",
-                        borderRadius: "8px",
-                        borderRight: `5px solid ${borderColors[tier.tier - 1]}`,
-                        borderTop: "1px solid var(--border, #d9e0e7)",
-                        borderBottom: "1px solid var(--border, #d9e0e7)",
-                        borderLeft: "1px solid var(--border, #d9e0e7)",
-                        backgroundColor: bgColors[tier.tier - 1],
-                        display: "grid",
-                        gap: "0.35rem",
+                        padding: "0.75rem 1rem",
+                        borderRadius: "6px",
+                        border: "1px solid var(--border, #d9e0e7)",
+                        backgroundColor: "var(--bg, #f4f6f8)",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span
-                          style={{
-                            backgroundColor: badgeColors[tier.tier - 1],
-                            color: "#fff",
-                            padding: "0.2rem 0.5rem",
-                            borderRadius: "4px",
-                            fontSize: "0.8rem",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          {tier.label}
-                        </span>
-                        <span style={{ fontSize: "0.75rem", color: "var(--muted, #5b6b7a)" }}>
-                          سطح اثربخشی: {tier.priority}
-                        </span>
+                        <strong style={{ fontSize: "0.9rem" }}>{tier.label}</strong>
+                        <span style={{ fontSize: "0.75rem", color: "var(--muted, #5b6b7a)" }}>{tier.priority}</span>
                       </div>
-                      <p style={{ margin: "0.25rem 0 0", fontSize: "0.9rem", lineHeight: "1.7" }}>
-                        {tier.recommendation}
-                      </p>
+                      <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>{tier.recommendation}</div>
                     </div>
-                  );
-                })}
+                  ))
+                ) : (
+                  <>
+                    {(controlsResult as any).elimination && (
+                      <div style={{ border: "1px solid #10b981", borderRadius: "6px", padding: "0.75rem 1rem", backgroundColor: "#f0fdf4" }}>
+                        <div style={{ fontWeight: "bold", color: "#166534", fontSize: "0.9rem" }}>۱. حذف خطر (Elimination)</div>
+                        <ul style={{ margin: "0.5rem 0 0", paddingRight: "1.5rem", fontSize: "0.85rem" }}>
+                          {((controlsResult as any).elimination || []).map((item: any, idx: number) => (
+                            <li key={idx}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {(controlsResult as any).ppe && (
+                      <div style={{ border: "1px solid #ef4444", borderRadius: "6px", padding: "0.75rem 1rem", backgroundColor: "#fef2f2" }}>
+                        <div style={{ fontWeight: "bold", color: "#991b1b", fontSize: "0.9rem" }}>۵. تجهیزات حفاظت فردی (PPE)</div>
+                        <ul style={{ margin: "0.5rem 0 0", paddingRight: "1.5rem", fontSize: "0.85rem" }}>
+                          {((controlsResult as any).ppe || []).map((item: any, idx: number) => (
+                            <li key={idx}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -753,4 +1257,3 @@ export function AiAssistantPage() {
     </div>
   );
 }
-export default AiAssistantPage;

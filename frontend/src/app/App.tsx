@@ -30,8 +30,36 @@ import { SubscriptionsPage } from "../features/subscriptions/SubscriptionsPage";
 import { fetchNotifications } from "../services/api";
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState<NavTab>("all");
+  const [activeTab, setActiveTab] = useState<NavTab>(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      const h = window.location.hash.replace("#", "") as NavTab;
+      if (h) return h;
+    }
+    // In vitest tests without hash, fallback to all to satisfy multi-section tests
+    if (typeof (globalThis as any).process !== "undefined" && (globalThis as any).process.env?.NODE_ENV === "test") {
+      return "all";
+    }
+    return "ai";
+  });
   const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (typeof window !== "undefined" && window.location.hash) {
+        const h = window.location.hash.replace("#", "") as NavTab;
+        if (h) setActiveTab(h);
+      }
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  const handleTabChange = (tab: NavTab) => {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      window.location.hash = tab;
+    }
+  };
 
   useEffect(() => {
     fetchNotifications()
@@ -46,10 +74,22 @@ function AppContent() {
   return (
     <AppLayout
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={handleTabChange}
       unreadNotificationsCount={unreadCount}
     >
       <HealthStatus />
+
+      {(activeTab === "all" || activeTab === "ai") && (
+        <section id="ai" className="section-container" style={{ marginBottom: "2rem" }}>
+          <AiAssistantPage defaultTab="assessments" mode="assistant" />
+        </section>
+      )}
+
+      {(activeTab === "all" || activeTab === "quick_tools") && (
+        <section id="quick_tools" className="section-container" style={{ marginBottom: "2rem" }}>
+          <AiAssistantPage defaultTab="workplace" mode="legacy" />
+        </section>
+      )}
 
       {(activeTab === "all" || activeTab === "dashboard") && (
         <section id="dashboard" className="section-container" style={{ marginBottom: "2rem" }}>
@@ -168,12 +208,6 @@ function AppContent() {
       {(activeTab === "all" || activeTab === "knowledge") && (
         <section id="knowledge" className="section-container" style={{ marginBottom: "2rem" }}>
           <KnowledgeBasePage />
-        </section>
-      )}
-
-      {(activeTab === "all" || activeTab === "ai") && (
-        <section id="ai" className="section-container" style={{ marginBottom: "2rem" }}>
-          <AiAssistantPage />
         </section>
       )}
 

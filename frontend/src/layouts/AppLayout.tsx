@@ -29,6 +29,7 @@ export type NavTab =
   | "environment"
   | "documents"
   | "ai"
+  | "quick_tools"
   | "audit";
 
 interface AppLayoutProps {
