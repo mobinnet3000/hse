@@ -32,13 +32,26 @@ CALIBRATION_STATUS_LABELS = {
 }
 
 
+def sanitize_csv_cell(cell):
+    """
+    Guards against CSV/Formula Injection by prepending a single quote
+    to strings that start with formula trigger characters (=, +, -, @, \t, \r).
+    """
+    if cell is None:
+        return ""
+    if isinstance(cell, str):
+        if cell and cell[0] in ("=", "+", "-", "@", "\t", "\r"):
+            return f"'{cell}"
+    return cell
+
+
 def export_csv(filename, headers, row_generator):
     response = HttpResponse(content_type="text/csv; charset=utf-8-sig")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     writer = csv.writer(response)
-    writer.writerow(headers)
+    writer.writerow([sanitize_csv_cell(h) for h in headers])
     for row in row_generator:
-        writer.writerow(row)
+        writer.writerow([sanitize_csv_cell(cell) for cell in row])
     return response
 
 

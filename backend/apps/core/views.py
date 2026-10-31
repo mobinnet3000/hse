@@ -1,3 +1,7 @@
+import os
+import uuid
+
+from django.conf import settings
 from django.db import connection
 from django.http import JsonResponse
 from rest_framework import status
@@ -10,16 +14,59 @@ from .integrations import get_all_integrations_status, test_integration
 
 @api_view(["GET"])
 def health(request):
+    """Liveness probe: verifies that the web application process is responsive."""
+    return Response({"status": "ok", "service": "hse-guard"})
+
+
+@api_view(["GET"])
+def readiness(request):
+    """
+    Readiness probe: verifies critical dependencies before routing traffic:
+    1. Database connectivity
+    2. Media storage filesystem writability
+    """
+    db_ok = True
+    storage_ok = True
+    errors = {}
+
+    # 1. Database connectivity probe
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             cursor.fetchone()
-    except Exception:
+    except Exception as e:
+        db_ok = False
+        errors["database"] = str(e)
+
+    # 2. Media storage writability probe
+    try:
+        media_path = settings.MEDIA_ROOT
+        os.makedirs(media_path, exist_ok=True)
+        probe_file = os.path.join(media_path, f".readiness_probe_{uuid.uuid4().hex}")
+        with open(probe_file, "w") as f:
+            f.write("probe")
+        if os.path.exists(probe_file):
+            os.remove(probe_file)
+    except Exception as e:
+        storage_ok = False
+        errors["storage"] = str(e)
+
+    if not db_ok or not storage_ok:
         return Response(
-            {"status": "error", "database": "unavailable"},
+            {
+                "status": "not_ready",
+                "database": "connected" if db_ok else "disconnected",
+                "storage": "writable" if storage_ok else "unwritable",
+                "errors": errors,
+            },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
-    return Response({"status": "ok", "database": "ok"})
+
+    return Response({
+        "status": "ready",
+        "database": "connected",
+        "storage": "writable",
+    })
 
 
 @api_view(["GET"])

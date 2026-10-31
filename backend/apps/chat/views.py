@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.permissions import TenantRequiredPermission
+from apps.core.file_security import validate_file_upload
 from apps.organizations.models import Membership
 from .models import ChatAttachment, ChatConversation, ChatMessage, ChatParticipant
 from .serializers import (
@@ -113,8 +114,13 @@ class ChatConversationViewSet(viewsets.ModelViewSet):
 
         # POST: Send a message
         content = request.data.get("content", "").strip()
-        if not content and not request.FILES.getlist("attachments"):
+        attachments = request.FILES.getlist("attachments")
+        if not content and not attachments:
             return Response({"error": "متن پیام یا فایل پیوست الزامی است."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate all file attachments upfront
+        for f in attachments:
+            validate_file_upload(f)
 
         msg = ChatMessage.objects.create(
             conversation=conv,
@@ -123,7 +129,7 @@ class ChatConversationViewSet(viewsets.ModelViewSet):
         )
 
         # Handle file attachments
-        for f in request.FILES.getlist("attachments"):
+        for f in attachments:
             ChatAttachment.objects.create(
                 message=msg,
                 file=f,

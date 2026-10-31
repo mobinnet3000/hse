@@ -12,6 +12,7 @@ from apps.core.access import (
     can_view_organization,
     is_active_member,
 )
+from apps.core.file_security import validate_file_upload
 from apps.core.views_utils import resolve_organization
 from apps.inspections.models import Inspection, InspectionResponse
 from apps.organizations.models import Organization
@@ -458,6 +459,7 @@ class NonConformityEvidenceUploadView(APIView):
                 {"error": {"code": "no_file", "message": "فایل مدرک پیوست نشده است."}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        validate_file_upload(file_obj)
         caption = request.data.get("caption", "")
         evidence = AnomalyEvidence.objects.create(
             non_conformity=nc,
