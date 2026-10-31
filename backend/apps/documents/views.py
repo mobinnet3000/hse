@@ -438,7 +438,10 @@ class DocumentViewSet(viewsets.ModelViewSet):
             raise Http404("فایل پیوست در سیستم موجود نیست.")
 
         file_path = version.file.path
-        if not os.path.exists(file_path):
+        from django.conf import settings
+        media_root = os.path.abspath(str(settings.MEDIA_ROOT))
+        resolved_path = os.path.abspath(file_path)
+        if not resolved_path.startswith(media_root) or not os.path.exists(resolved_path):
             raise Http404("فایل فیزیکی در مخزن امن یافت نشد.")
 
         # Log audit event for document download

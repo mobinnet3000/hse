@@ -4,6 +4,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -28,6 +29,7 @@ def _get_user_organization(user):
 
 class ChatConversationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, TenantRequiredPermission]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
         if self.action == "create":

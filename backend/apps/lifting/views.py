@@ -83,7 +83,8 @@ class LiftingPlanViewSet(viewsets.ModelViewSet):
             updated = submit_lifting_plan(plan, request.user)
             return Response(LiftingPlanSerializer(updated).data)
         except LiftingSafetyError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            msg = e.messages[0] if hasattr(e, "messages") and e.messages else str(e)
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
@@ -95,7 +96,8 @@ class LiftingPlanViewSet(viewsets.ModelViewSet):
             updated = approve_lifting_plan(plan, request.user, notes)
             return Response(LiftingPlanSerializer(updated).data)
         except LiftingSafetyError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            msg = e.messages[0] if hasattr(e, "messages") and e.messages else str(e)
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
@@ -107,7 +109,8 @@ class LiftingPlanViewSet(viewsets.ModelViewSet):
             updated = reject_lifting_plan(plan, request.user, reason)
             return Response(LiftingPlanSerializer(updated).data)
         except LiftingSafetyError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            msg = e.messages[0] if hasattr(e, "messages") and e.messages else str(e)
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["post"])
     def supersede(self, request, pk=None):

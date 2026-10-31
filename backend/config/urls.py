@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/v1/checklists/", include("apps.checklists.urls")),
     path("api/v1/inspections/", include("apps.inspections.urls")),
     path("api/v1/non-conformities/", include("apps.findings.urls")),
+    path("api/v1/findings/non-conformities/", include("apps.findings.urls")),
     path("api/v1/corrective-actions/", include("apps.capa.urls")),
     path("api/v1/notifications/", include("apps.notifications.urls")),
     path("api/v1/dashboard/", include("apps.dashboard.urls")),

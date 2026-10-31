@@ -58,7 +58,13 @@ def export_csv(filename, headers, row_generator):
 class ReportExportView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, report_type):
+    def get(self, request, report_type=None):
+        report_type = report_type or request.query_params.get("type") or request.query_params.get("report_type")
+        if not report_type:
+            return Response(
+                {"error": {"code": "invalid_parameter", "message": "نوع گزارش مشخص نشده است."}},
+                status=400,
+            )
         org_ids = list(accessible_organization_ids(request.user))
         organization_id = request.query_params.get("organization")
         if organization_id:

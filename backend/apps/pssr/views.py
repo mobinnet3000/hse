@@ -74,7 +74,8 @@ class PSSRReviewViewSet(viewsets.ModelViewSet):
             approved = approve_pssr_review(pssr, request.user, notes)
             return Response(PSSRReviewDetailSerializer(approved).data)
         except PSSRSafetyError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            msg = e.messages[0] if hasattr(e, "messages") and e.messages else str(e)
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
@@ -86,7 +87,8 @@ class PSSRReviewViewSet(viewsets.ModelViewSet):
             rejected = reject_pssr_review(pssr, request.user, reason)
             return Response(PSSRReviewDetailSerializer(rejected).data)
         except PSSRSafetyError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            msg = e.messages[0] if hasattr(e, "messages") and e.messages else str(e)
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["get"])
     def summary(self, request):
