@@ -169,10 +169,10 @@ export function FleetEnergyPage() {
     <div className="card" dir="rtl">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <Zap size={28} color="#2563eb" />
+          <Zap size={28} color="var(--info)" />
           <div>
             <h2 style={{ margin: 0, fontSize: "1.5rem" }}>ناوگان ترابری، مدیریت انرژی و عملیات گودبرداری</h2>
-            <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.875rem" }}>
+            <p style={{ margin: "0.25rem 0 0", color: "var(--text-tertiary)", fontSize: "0.875rem" }}>
               رهگیری سوخت ماشین‌آلات، قبوض مصرف برق و گاز صنعتی، و ایمنی فنی ترانشه‌ها و سازه‌های نگهبان
             </p>
           </div>
@@ -180,13 +180,13 @@ export function FleetEnergyPage() {
       </div>
 
       {error && (
-        <div style={{ padding: "0.75rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px", marginBottom: "1rem" }}>
+        <div style={{ padding: "0.75rem", background: "var(--danger-subtle)", color: "var(--danger-fg)", borderRadius: "6px", marginBottom: "1rem" }}>
           {error}
         </div>
       )}
 
       {loading && (
-        <div style={{ padding: "1rem", textAlign: "center", color: "#64748b" }}>
+        <div style={{ padding: "1rem", textAlign: "center", color: "var(--text-tertiary)" }}>
           در حال بارگذاری اطلاعات ناوگان و مصارف انرژی...
         </div>
       )}
@@ -194,23 +194,23 @@ export function FleetEnergyPage() {
       {/* Summary KPI Cards */}
       {summary && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-          <div style={{ padding: "1rem", background: "#eff6ff", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
-            <span style={{ fontSize: "0.85rem", color: "#1e40af" }}>مصرف کل برق (kWh)</span>
-            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#2563eb" }}>{summary.total_kwh ? summary.total_kwh.toLocaleString() : "۰"}</div>
+          <div style={{ padding: "1rem", background: "var(--info-subtle)", borderRadius: "8px", border: "1px solid var(--info-border)" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--info-fg)" }}>مصرف کل برق (kWh)</span>
+            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--info)" }}>{summary.total_kwh ? summary.total_kwh.toLocaleString() : "۰"}</div>
           </div>
-          <div style={{ padding: "1rem", background: "#f0fdf4", borderRadius: "8px", border: "1px solid #86efac" }}>
-            <span style={{ fontSize: "0.85rem", color: "#166534" }}>ناوگان و ماشین‌آلات فعال</span>
-            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#16a34a" }}>{summary.active_vehicles || 0} دستگاه</div>
+          <div style={{ padding: "1rem", background: "var(--success-subtle)", borderRadius: "8px", border: "1px solid var(--success-border)" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--success-fg)" }}>ناوگان و ماشین‌آلات فعال</span>
+            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--success)" }}>{summary.active_vehicles || 0} دستگاه</div>
           </div>
-          <div style={{ padding: "1rem", background: "#fef3c7", borderRadius: "8px", border: "1px solid #fde68a" }}>
-            <span style={{ fontSize: "0.85rem", color: "#92400e" }}>ترانشه‌ها و گودهای فعال</span>
-            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#d97706" }}>{summary.active_excavations || 0} پروژه</div>
+          <div style={{ padding: "1rem", background: "var(--warning-subtle)", borderRadius: "8px", border: "1px solid var(--warning-border)" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--warning-fg)" }}>ترانشه‌ها و گودهای فعال</span>
+            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--warning)" }}>{summary.active_excavations || 0} پروژه</div>
           </div>
         </div>
       )}
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.5rem", marginBottom: "1.5rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1px solid var(--border-default)", paddingBottom: "0.5rem", marginBottom: "1.5rem" }}>
         <button
           className={`btn ${activeTab === "fleet" ? "btn-primary" : "btn-secondary"}`}
           onClick={() => setActiveTab("fleet")}
@@ -252,7 +252,7 @@ export function FleetEnergyPage() {
           <div style={{ overflowX: "auto", marginBottom: "2rem" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
               <thead>
-                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
+                <tr style={{ background: "var(--bg-subtle)", borderBottom: "2px solid var(--border-strong)" }}>
                   <th style={{ padding: "0.6rem" }}>کد شناسایی</th>
                   <th style={{ padding: "0.6rem" }}>مدل خودرو</th>
                   <th style={{ padding: "0.6rem" }}>پلاک</th>
@@ -263,14 +263,14 @@ export function FleetEnergyPage() {
               </thead>
               <tbody>
                 {vehicles.map((v) => (
-                  <tr key={v.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <tr key={v.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                     <td style={{ padding: "0.6rem", fontWeight: "bold" }}>{v.vehicle_code}</td>
                     <td style={{ padding: "0.6rem" }}>{v.model_name}</td>
                     <td style={{ padding: "0.6rem" }}>{v.plate_number}</td>
                     <td style={{ padding: "0.6rem" }}>{v.fuel_type}</td>
                     <td style={{ padding: "0.6rem" }}>{v.current_odometer_km.toLocaleString()} km</td>
                     <td style={{ padding: "0.6rem" }}>
-                      <span style={{ padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.8rem", background: v.is_active ? "#dcfce7" : "#fee2e2", color: v.is_active ? "#166534" : "#991b1b" }}>
+                      <span style={{ padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.8rem", background: v.is_active ? "var(--success-subtle)" : "var(--danger-subtle)", color: v.is_active ? "var(--success-fg)" : "var(--danger-fg)" }}>
                         {v.is_active ? "فعال در سایت" : "متوقف / تعمیرات"}
                       </span>
                     </td>
@@ -284,7 +284,7 @@ export function FleetEnergyPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
               <thead>
-                <tr style={{ background: "#f8fafc" }}>
+                <tr style={{ background: "var(--bg-subtle)" }}>
                   <th style={{ padding: "0.5rem" }}>خودرو</th>
                   <th style={{ padding: "0.5rem" }}>مقدار سوخت (لیتر)</th>
                   <th style={{ padding: "0.5rem" }}>کیلومتر ثبت‌شده</th>
@@ -294,7 +294,7 @@ export function FleetEnergyPage() {
               </thead>
               <tbody>
                 {fuelLogs.map((f) => (
-                  <tr key={f.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <tr key={f.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                     <td style={{ padding: "0.5rem", fontWeight: "bold" }}>{f.vehicle_code || f.vehicle}</td>
                     <td style={{ padding: "0.5rem" }}>{f.fuel_amount_liters} L</td>
                     <td style={{ padding: "0.5rem" }}>{f.odometer_at_fueling_km.toLocaleString()} km</td>
@@ -321,7 +321,7 @@ export function FleetEnergyPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
               <thead>
-                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
+                <tr style={{ background: "var(--bg-subtle)", borderBottom: "2px solid var(--border-strong)" }}>
                   <th style={{ padding: "0.6rem" }}>کد کنتور / منبع</th>
                   <th style={{ padding: "0.6rem" }}>نوع حامل انرژی</th>
                   <th style={{ padding: "0.6rem" }}>میزان مصرف</th>
@@ -331,10 +331,10 @@ export function FleetEnergyPage() {
               </thead>
               <tbody>
                 {energyLogs.map((e) => (
-                  <tr key={e.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <tr key={e.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                     <td style={{ padding: "0.6rem", fontWeight: "bold" }}>{e.meter_code}</td>
                     <td style={{ padding: "0.6rem" }}>{e.utility_type_display || e.utility_type}</td>
-                    <td style={{ padding: "0.6rem", fontWeight: "bold", color: "#2563eb" }}>
+                    <td style={{ padding: "0.6rem", fontWeight: "bold", color: "var(--info)" }}>
                       {e.consumption_value.toLocaleString()} {e.unit}
                     </td>
                     <td style={{ padding: "0.6rem" }}>{e.cost_irr.toLocaleString()} ریال</td>
@@ -360,7 +360,7 @@ export function FleetEnergyPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
               <thead>
-                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
+                <tr style={{ background: "var(--bg-subtle)", borderBottom: "2px solid var(--border-strong)" }}>
                   <th style={{ padding: "0.6rem" }}>کد گود</th>
                   <th style={{ padding: "0.6rem" }}>محل گودبرداری</th>
                   <th style={{ padding: "0.6rem" }}>ابعاد (عمق × طول)</th>
@@ -372,23 +372,23 @@ export function FleetEnergyPage() {
               </thead>
               <tbody>
                 {excavations.map((x) => (
-                  <tr key={x.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <tr key={x.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                     <td style={{ padding: "0.6rem", fontWeight: "bold" }}>{x.excavation_code}</td>
                     <td style={{ padding: "0.6rem" }}>{x.location_description}</td>
                     <td style={{ padding: "0.6rem" }}>{x.depth_m}m عمق × {x.length_m}m طول</td>
                     <td style={{ padding: "0.6rem" }}>{x.soil_type}</td>
                     <td style={{ padding: "0.6rem" }}>
-                      <span style={{ color: x.shoring_system_installed ? "#16a34a" : "#dc2626", fontWeight: "bold" }}>
+                      <span style={{ color: x.shoring_system_installed ? "var(--success)" : "var(--danger)", fontWeight: "bold" }}>
                         {x.shoring_system_installed ? "نصب و تاییدشده" : "فاقد سازه نگهبان"}
                       </span>
                     </td>
                     <td style={{ padding: "0.6rem" }}>
-                      <span style={{ color: x.gas_testing_passed ? "#16a34a" : "#dc2626" }}>
+                      <span style={{ color: x.gas_testing_passed ? "var(--success)" : "var(--danger)" }}>
                         {x.gas_testing_passed ? "انجام و ایمن" : "نیازمند گازسنجی"}
                       </span>
                     </td>
                     <td style={{ padding: "0.6rem" }}>
-                      <span style={{ padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.8rem", background: "#fef3c7", color: "#92400e" }}>
+                      <span style={{ padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.8rem", background: "var(--warning-subtle)", color: "var(--warning-fg)" }}>
                         {x.status_display || x.status}
                       </span>
                     </td>

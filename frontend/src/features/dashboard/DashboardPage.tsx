@@ -245,7 +245,7 @@ export function DashboardPage() {
                   <div
                     style={{
                       width: `${(metrics.risks.medium / metrics.risks.total) * 100}%`,
-                      backgroundColor: "#eab308",
+                      backgroundColor: "var(--warning)",
                     }}
                   />
                   <div
@@ -479,14 +479,14 @@ export function DashboardPage() {
             <section className="card" style={{ marginBottom: "1.5rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                  <Activity size={22} color="#2563eb" aria-hidden="true" />
+                  <Activity size={22} className="text-info" aria-hidden="true" />
                   <h3 style={{ margin: 0 }}>ماتریس شاخص‌های پیشگیرانه و گذشته‌نگر HSE (دوره ۹۰ روزه)</h3>
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <span style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", borderRadius: "12px", background: "#eff6ff", color: "#1d4ed8" }}>
+                  <span className="badge badge-info">
                     پیشگیرانه: {indicatorsData.summary.leading_count}
                   </span>
-                  <span style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", borderRadius: "12px", background: "#fef2f2", color: "#b91c1c" }}>
+                  <span className="badge badge-danger">
                     گذشته‌نگر: {indicatorsData.summary.lagging_count}
                   </span>
                 </div>
@@ -496,36 +496,37 @@ export function DashboardPage() {
                 {indicatorsData.indicators.map((ind) => (
                   <div
                     key={ind.code}
+                    className="card"
                     style={{
                       padding: "1rem",
-                      borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
-                      background: ind.status === "critical" ? "#fff5f5" : ind.status === "warning" ? "#fffdf0" : "#ffffff",
+                      borderRadius: "var(--radius-md)",
+                      border: "1px solid var(--border-default)",
+                      background: ind.status === "critical" ? "var(--danger-subtle)" : ind.status === "warning" ? "var(--warning-subtle)" : "var(--bg-surface)",
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
-                      <span style={{ fontSize: "0.75rem", padding: "0.15rem 0.4rem", borderRadius: "4px", background: ind.type === "leading" ? "#e0f2fe" : "#f1f5f9", color: ind.type === "leading" ? "#0369a1" : "#475569", fontWeight: "bold" }}>
+                      <span className="badge" style={{
+                        background: ind.type === "leading" ? "var(--info-subtle)" : "var(--bg-subtle)",
+                        color: ind.type === "leading" ? "var(--info-fg)" : "var(--text-secondary)",
+                      }}>
                         {ind.type === "leading" ? "Leading (پیشگیرانه)" : "Lagging (پیامد)"}
                       </span>
-                      <span style={{
-                        fontSize: "0.75rem",
-                        padding: "0.15rem 0.4rem",
-                        borderRadius: "4px",
-                        background: ind.status === "on_target" ? "#dcfce7" : ind.status === "warning" ? "#fef08a" : "#fee2e2",
-                        color: ind.status === "on_target" ? "#166534" : ind.status === "warning" ? "#854d0e" : "#991b1b",
-                        fontWeight: "bold",
-                      }}>
+                      <span className={`badge ${ind.status === "on_target" ? "badge-success" : ind.status === "warning" ? "badge-warning" : "badge-danger"}`}>
                         {ind.status === "on_target" ? "در هدف" : ind.status === "warning" ? "هشدار" : "بحرانی"}
                       </span>
                     </div>
 
-                    <div style={{ fontWeight: "bold", fontSize: "0.95rem", marginBottom: "0.25rem" }}>{ind.name}</div>
-                    <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "0 0 0.75rem", lineHeight: "1.3" }}>{ind.description}</p>
+                    <div style={{ fontWeight: "bold", fontSize: "0.95rem", marginBottom: "0.25rem", color: "var(--text-primary)" }}>{ind.name}</div>
+                    <p className="muted" style={{ fontSize: "0.8rem", margin: "0 0 0.75rem", lineHeight: "1.4" }}>{ind.description}</p>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid #f1f5f9", paddingTop: "0.5rem" }}>
-                      <span style={{ fontSize: "0.8rem", color: "#64748b" }}>هدف: {ind.target} {ind.unit}</span>
-                      <span style={{ fontSize: "1.25rem", fontWeight: "bold", color: ind.status === "critical" ? "#dc2626" : ind.status === "warning" ? "#d97706" : "#16a34a" }}>
-                        {ind.value} <span style={{ fontSize: "0.85rem", fontWeight: "normal" }}>{ind.unit}</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid var(--border-subtle)", paddingTop: "0.5rem" }}>
+                      <span className="muted" style={{ fontSize: "0.8rem" }}>هدف: {ind.target} {ind.unit}</span>
+                      <span style={{
+                        fontSize: "1.25rem",
+                        fontWeight: "bold",
+                        color: ind.status === "critical" ? "var(--danger)" : ind.status === "warning" ? "var(--warning)" : "var(--success)"
+                      }}>
+                        {ind.value} <span style={{ fontSize: "0.85rem", fontWeight: "normal", color: "var(--text-secondary)" }}>{ind.unit}</span>
                       </span>
                     </div>
                   </div>

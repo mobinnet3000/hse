@@ -198,7 +198,7 @@ export function ScaffoldsPage() {
       </div>
 
       {error && (
-        <div style={{ padding: "1rem", backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444", borderRadius: "8px", marginBottom: "1.5rem" }}>
+        <div style={{ padding: "1rem", backgroundColor: "rgba(239, 68, 68, 0.1)", color: "var(--danger)", borderRadius: "8px", marginBottom: "1.5rem" }}>
           ⚠️ {error}
         </div>
       )}
@@ -206,27 +206,27 @@ export function ScaffoldsPage() {
       {/* KPI Cards */}
       {summary && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-          <div className="card" style={{ padding: "1rem", borderRight: "4px solid #16a34a" }}>
+          <div className="card" style={{ padding: "1rem", borderRight: "4px solid var(--success)" }}>
             <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>تگ سبز (ایمن و فعال)</div>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#16a34a", marginTop: "0.4rem" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--success)", marginTop: "0.4rem" }}>
               {summary.green_count} <span style={{ fontSize: "0.85rem", fontWeight: 400, color: "var(--color-text-muted)" }}>داربست تاییدشده</span>
             </div>
           </div>
-          <div className="card" style={{ padding: "1rem", borderRight: "4px solid #ca8a04" }}>
+          <div className="card" style={{ padding: "1rem", borderRight: "4px solid var(--warning-fg)" }}>
             <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>تگ زرد (مشروط و محدود)</div>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#ca8a04", marginTop: "0.4rem" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--warning-fg)", marginTop: "0.4rem" }}>
               {summary.yellow_count} <span style={{ fontSize: "0.85rem", fontWeight: 400, color: "var(--color-text-muted)" }}>دسترسی محدود</span>
             </div>
           </div>
-          <div className="card" style={{ padding: "1rem", borderRight: "4px solid #dc2626" }}>
+          <div className="card" style={{ padding: "1rem", borderRight: "4px solid var(--danger)" }}>
             <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>تگ قرمز (مسدود و خطرناک)</div>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#dc2626", marginTop: "0.4rem" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--danger)", marginTop: "0.4rem" }}>
               {summary.red_count} <span style={{ fontSize: "0.85rem", fontWeight: 400, color: "var(--color-text-muted)" }}>اکیداً ممنوع</span>
             </div>
           </div>
-          <div className="card" style={{ padding: "1rem", borderRight: "4px solid #8b5cf6" }}>
+          <div className="card" style={{ padding: "1rem", borderRight: "4px solid var(--ai-primary)" }}>
             <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>بازرسی‌های معوقه ادواری</div>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: summary.overdue_inspections_count > 0 ? "#dc2626" : "var(--color-text)", marginTop: "0.4rem" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: summary.overdue_inspections_count > 0 ? "var(--danger)" : "var(--color-text)", marginTop: "0.4rem" }}>
               {summary.overdue_inspections_count} <span style={{ fontSize: "0.85rem", fontWeight: 400, color: "var(--color-text-muted)" }}>نیازمند بازرسی فوری</span>
             </div>
           </div>
@@ -252,7 +252,7 @@ export function ScaffoldsPage() {
               cursor: "pointer",
               fontWeight: activeFilter === tab.id ? 700 : 500,
               backgroundColor: activeFilter === tab.id ? "var(--color-primary)" : "var(--color-bg-secondary)",
-              color: activeFilter === tab.id ? "#fff" : "var(--color-text)",
+              color: activeFilter === tab.id ? "var(--primary-fg)" : "var(--color-text)",
             }}
           >
             {tab.label}
@@ -268,16 +268,16 @@ export function ScaffoldsPage() {
           </div>
         ) : (
           filteredScaffolds.map((scf) => {
-            let tagBadgeBg = "#dc2626";
+            let tagBadgeBg = "var(--danger)";
             let tagBadgeText = "⛔ تگ قرمز - خطرناک و ممنوع";
             if (scf.tag_status === "green_safe") {
-              tagBadgeBg = "#16a34a";
+              tagBadgeBg = "var(--success)";
               tagBadgeText = "✅ تگ سبز - ایمن و تاییدشده";
             } else if (scf.tag_status === "yellow_restricted") {
-              tagBadgeBg = "#ca8a04";
+              tagBadgeBg = "var(--warning-fg)";
               tagBadgeText = "⚠️ تگ زرد - دسترسی مشروط";
             } else if (scf.tag_status === "dismantled") {
-              tagBadgeBg = "#6b7280";
+              tagBadgeBg = "var(--text-secondary)";
               tagBadgeText = "✖ برچیده‌شده";
             }
 
@@ -290,7 +290,7 @@ export function ScaffoldsPage() {
                   flexDirection: "column",
                   justifyContent: "space-between",
                   padding: "1.2rem",
-                  border: scf.is_inspection_overdue ? "2px solid #ef4444" : "1px solid var(--color-border)",
+                  border: scf.is_inspection_overdue ? "2px solid var(--danger)" : "1px solid var(--color-border)",
                   position: "relative",
                 }}
               >
@@ -299,7 +299,7 @@ export function ScaffoldsPage() {
                   <div
                     style={{
                       backgroundColor: tagBadgeBg,
-                      color: "#fff",
+                      color: "var(--text-inverse)",
                       padding: "0.4rem 0.8rem",
                       borderRadius: "6px",
                       fontWeight: 700,
@@ -337,14 +337,14 @@ export function ScaffoldsPage() {
                   </div>
 
                   {scf.tag_status === "yellow_restricted" && scf.yellow_restrictions && (
-                    <div style={{ padding: "0.5rem", backgroundColor: "#fef3c7", color: "#92400e", borderRadius: "4px", fontSize: "0.78rem", marginBottom: "0.8rem" }}>
+                    <div style={{ padding: "0.5rem", backgroundColor: "var(--warning-subtle)", color: "var(--warning-fg)", borderRadius: "4px", fontSize: "0.78rem", marginBottom: "0.8rem" }}>
                       <strong>محدودیت دسترسی:</strong> {scf.yellow_restrictions}
                     </div>
                   )}
 
                   <div style={{ fontSize: "0.8rem", marginBottom: "0.8rem" }}>
                     {scf.is_inspection_overdue ? (
-                      <span style={{ color: "#dc2626", fontWeight: 700 }}>
+                      <span style={{ color: "var(--danger)", fontWeight: 700 }}>
                         🚨 موعد بازرسی منقضی شده ({scf.next_inspection_due || "نامشخص"})
                       </span>
                     ) : (
@@ -648,7 +648,7 @@ export function ScaffoldsPage() {
               <div>موعد بازرسی بعدی: <strong>{tagCardData.next_inspection_due || "-"}</strong></div>
               <div>برپاکننده: <strong>{tagCardData.erected_by}</strong></div>
               {tagCardData.restrictions && (
-                <div style={{ color: "#ca8a04" }}>شروط تگ زرد: <strong>{tagCardData.restrictions}</strong></div>
+                <div style={{ color: "var(--warning-fg)" }}>شروط تگ زرد: <strong>{tagCardData.restrictions}</strong></div>
               )}
             </div>
 

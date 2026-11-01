@@ -126,10 +126,10 @@ export function PSSRPage() {
     <div className="card" dir="rtl">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <CheckSquare size={28} color="#2563eb" />
+          <CheckSquare size={28} color="var(--info)" />
           <div>
             <h2 style={{ margin: 0, fontSize: "1.5rem" }}>بررسی ایمنی قبل از راه‌اندازی (PSSR)</h2>
-            <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.875rem" }}>
+            <p style={{ margin: "0.25rem 0 0", color: "var(--text-tertiary)", fontSize: "0.875rem" }}>
               مدیریت بازرسی‌های چندتخصصی مکانیک، برق، ابزاردقیق، فرآیند و HSE قبل از استارت خطوط و تجهیزات
             </p>
           </div>
@@ -140,7 +140,7 @@ export function PSSRPage() {
       </div>
 
       {error && (
-        <div style={{ padding: "0.75rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px", marginBottom: "1rem" }}>
+        <div style={{ padding: "0.75rem", background: "var(--danger-subtle)", color: "var(--danger-fg)", borderRadius: "6px", marginBottom: "1rem" }}>
           {error}
         </div>
       )}
@@ -148,17 +148,17 @@ export function PSSRPage() {
       {/* KPI Cards */}
       {summary && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-          <div style={{ padding: "1rem", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-            <span style={{ fontSize: "0.85rem", color: "#64748b" }}>کل پرونده‌های PSSR</span>
+          <div style={{ padding: "1rem", background: "var(--bg-subtle)", borderRadius: "8px", border: "1px solid var(--border-default)" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>کل پرونده‌های PSSR</span>
             <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>{summary.total}</div>
           </div>
-          <div style={{ padding: "1rem", background: "#f0fdf4", borderRadius: "8px", border: "1px solid #86efac" }}>
-            <span style={{ fontSize: "0.85rem", color: "#166534" }}>مجوز راه‌اندازی صادرشده</span>
-            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#16a34a" }}>{summary.approved}</div>
+          <div style={{ padding: "1rem", background: "var(--success-subtle)", borderRadius: "8px", border: "1px solid var(--success-border)" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--success-fg)" }}>مجوز راه‌اندازی صادرشده</span>
+            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--success)" }}>{summary.approved}</div>
           </div>
-          <div style={{ padding: "1rem", background: "#fef3c7", borderRadius: "8px", border: "1px solid #fde68a" }}>
-            <span style={{ fontSize: "0.85rem", color: "#92400e" }}>در حال بازرسی و تکمیل</span>
-            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#d97706" }}>{summary.in_progress}</div>
+          <div style={{ padding: "1rem", background: "var(--warning-subtle)", borderRadius: "8px", border: "1px solid var(--warning-border)" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--warning-fg)" }}>در حال بازرسی و تکمیل</span>
+            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--warning)" }}>{summary.in_progress}</div>
           </div>
         </div>
       )}
@@ -167,12 +167,12 @@ export function PSSRPage() {
       {loading ? (
         <div style={{ textAlign: "center", padding: "3rem" }}>در حال بارگذاری پرونده‌ها...</div>
       ) : reviews.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "3rem", color: "#64748b" }}>هیچ پرونده PSSR ثبت نشده است.</div>
+        <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-tertiary)" }}>هیچ پرونده PSSR ثبت نشده است.</div>
       ) : (
         <div style={{ overflowX: "auto", marginBottom: "2rem" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
             <thead>
-              <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
+              <tr style={{ background: "var(--bg-subtle)", borderBottom: "2px solid var(--border-strong)" }}>
                 <th style={{ padding: "0.75rem" }}>شماره پرونده</th>
                 <th style={{ padding: "0.75rem" }}>پروژه / سیستم</th>
                 <th style={{ padding: "0.75rem" }}>نوع بازنگری</th>
@@ -183,7 +183,7 @@ export function PSSRPage() {
             </thead>
             <tbody>
               {reviews.map((r) => (
-                <tr key={r.id} style={{ borderBottom: "1px solid #e2e8f0", background: selectedReview?.id === r.id ? "#eff6ff" : "transparent" }}>
+                <tr key={r.id} style={{ borderBottom: "1px solid var(--border-default)", background: selectedReview?.id === r.id ? "var(--info-subtle)" : "transparent" }}>
                   <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{r.pssr_number}</td>
                   <td style={{ padding: "0.75rem" }}>{r.project_or_system_name}</td>
                   <td style={{ padding: "0.75rem" }}>{r.review_type_display || r.review_type}</td>
@@ -193,8 +193,8 @@ export function PSSRPage() {
                       padding: "0.25rem 0.5rem",
                       borderRadius: "4px",
                       fontSize: "0.8rem",
-                      background: r.status === "approved" ? "#dcfce7" : r.status === "rejected" ? "#fee2e2" : "#fef3c7",
-                      color: r.status === "approved" ? "#166534" : r.status === "rejected" ? "#991b1b" : "#92400e",
+                      background: r.status === "approved" ? "var(--success-subtle)" : r.status === "rejected" ? "var(--danger-subtle)" : "var(--warning-subtle)",
+                      color: r.status === "approved" ? "var(--success-fg)" : r.status === "rejected" ? "var(--danger-fg)" : "var(--warning-fg)",
                     }}>
                       {r.status_display || r.status}
                     </span>
@@ -213,13 +213,13 @@ export function PSSRPage() {
 
       {/* Selected PSSR Detail & Checklist Review */}
       {selectedReview && (
-        <div style={{ marginTop: "2rem", borderTop: "2px solid #e2e8f0", paddingTop: "1.5rem" }}>
+        <div style={{ marginTop: "2rem", borderTop: "2px solid var(--border-default)", paddingTop: "1.5rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
             <div>
               <h3 style={{ margin: "0 0 0.25rem" }}>
                 چک‌لیست تخصصی راه‌اندازی: {selectedReview.pssr_number} ({selectedReview.project_or_system_name})
               </h3>
-              <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+              <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>
                 وضعیت: <strong>{selectedReview.status_display || selectedReview.status}</strong>
               </span>
             </div>
@@ -231,10 +231,10 @@ export function PSSRPage() {
               )}
               {selectedReview.status !== "approved" && (
                 <>
-                  <button className="btn btn-primary" style={{ background: "#16a34a" }} onClick={() => handleApprove(selectedReview.id)}>
+                  <button className="btn btn-primary" style={{ background: "var(--success)" }} onClick={() => handleApprove(selectedReview.id)}>
                     تایید نهایی و صدور مجوز راه‌اندازی
                   </button>
-                  <button className="btn btn-secondary" style={{ color: "#dc2626" }} onClick={() => handleReject(selectedReview.id)}>
+                  <button className="btn btn-secondary" style={{ color: "var(--danger)" }} onClick={() => handleReject(selectedReview.id)}>
                     رد درخواست راه‌اندازی
                   </button>
                 </>
@@ -247,7 +247,7 @@ export function PSSRPage() {
             <div style={{ overflowX: "auto", marginBottom: "1.5rem" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
                 <thead>
-                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid #cbd5e1" }}>
+                  <tr style={{ background: "var(--bg-subtle)", borderBottom: "1px solid var(--border-strong)" }}>
                     <th style={{ padding: "0.6rem" }}>دیسیپلین</th>
                     <th style={{ padding: "0.6rem" }}>موضوع و بند کنترلی</th>
                     <th style={{ padding: "0.6rem" }}>درجه اهمیت</th>
@@ -257,16 +257,16 @@ export function PSSRPage() {
                 </thead>
                 <tbody>
                   {selectedReview.checklist_items.map((item) => (
-                    <tr key={item.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                    <tr key={item.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                       <td style={{ padding: "0.6rem", fontWeight: "bold" }}>{item.discipline}</td>
                       <td style={{ padding: "0.6rem" }}>{item.item_text}</td>
                       <td style={{ padding: "0.6rem" }}>
                         {item.is_critical ? (
-                          <span style={{ color: "#dc2626", fontWeight: "bold", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                          <span style={{ color: "var(--danger)", fontWeight: "bold", display: "flex", alignItems: "center", gap: "0.25rem" }}>
                             <AlertOctagon size={14} /> بحرانی (مانع استارت)
                           </span>
                         ) : (
-                          <span style={{ color: "#64748b" }}>عادی</span>
+                          <span style={{ color: "var(--text-tertiary)" }}>عادی</span>
                         )}
                       </td>
                       <td style={{ padding: "0.6rem" }}>
@@ -274,8 +274,8 @@ export function PSSRPage() {
                           padding: "0.2rem 0.5rem",
                           borderRadius: "4px",
                           fontSize: "0.8rem",
-                          background: item.status === "compliant" ? "#dcfce7" : item.status === "non_compliant" ? "#fee2e2" : "#f1f5f9",
-                          color: item.status === "compliant" ? "#166534" : item.status === "non_compliant" ? "#991b1b" : "#475569",
+                          background: item.status === "compliant" ? "var(--success-subtle)" : item.status === "non_compliant" ? "var(--danger-subtle)" : "var(--bg-subtle)",
+                          color: item.status === "compliant" ? "var(--success-fg)" : item.status === "non_compliant" ? "var(--danger-fg)" : "var(--text-secondary)",
                         }}>
                           {item.status === "compliant" ? "منطبق و ایمن" : item.status === "non_compliant" ? "عدم انطباق" : "در انتظار بررسی"}
                         </span>
@@ -285,14 +285,14 @@ export function PSSRPage() {
                           <div style={{ display: "flex", gap: "0.3rem" }}>
                             <button
                               className="btn btn-secondary"
-                              style={{ padding: "0.2rem 0.5rem", color: "#16a34a" }}
+                              style={{ padding: "0.2rem 0.5rem", color: "var(--success)" }}
                               onClick={() => handleUpdateItem(item.id, "compliant")}
                             >
                               تایید
                             </button>
                             <button
                               className="btn btn-secondary"
-                              style={{ padding: "0.2rem 0.5rem", color: "#dc2626" }}
+                              style={{ padding: "0.2rem 0.5rem", color: "var(--danger)" }}
                               onClick={() => handleUpdateItem(item.id, "non_compliant")}
                             >
                               نقص
@@ -306,7 +306,7 @@ export function PSSRPage() {
               </table>
             </div>
           ) : (
-            <div style={{ padding: "1.5rem", background: "#f8fafc", borderRadius: "6px", textAlign: "center", color: "#64748b" }}>
+            <div style={{ padding: "1.5rem", background: "var(--bg-subtle)", borderRadius: "6px", textAlign: "center", color: "var(--text-tertiary)" }}>
               چک‌لیستی برای این پرونده ایجاد نشده است. روی دکمه «تولید چک‌لیست پیش‌فرض چندتخصصی» کلیک کنید.
             </div>
           )}
@@ -314,11 +314,11 @@ export function PSSRPage() {
           {/* Outstanding Actions */}
           {selectedReview.outstanding_actions && selectedReview.outstanding_actions.length > 0 && (
             <div style={{ marginTop: "1.5rem" }}>
-              <h4 style={{ margin: "0 0 0.5rem", color: "#dc2626" }}>اقدامات معوق و نواقص باز قبل از راه‌اندازی (Outstanding Actions)</h4>
+              <h4 style={{ margin: "0 0 0.5rem", color: "var(--danger)" }}>اقدامات معوق و نواقص باز قبل از راه‌اندازی (Outstanding Actions)</h4>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
                   <thead>
-                    <tr style={{ background: "#fef2f2" }}>
+                    <tr style={{ background: "var(--danger-subtle)" }}>
                       <th style={{ padding: "0.5rem" }}>شرح نقص</th>
                       <th style={{ padding: "0.5rem" }}>مسئول رفع</th>
                       <th style={{ padding: "0.5rem" }}>مهلت</th>
@@ -328,7 +328,7 @@ export function PSSRPage() {
                   </thead>
                   <tbody>
                     {selectedReview.outstanding_actions.map((act) => (
-                      <tr key={act.id} style={{ borderBottom: "1px solid #fee2e2" }}>
+                      <tr key={act.id} style={{ borderBottom: "1px solid var(--danger-subtle)" }}>
                         <td style={{ padding: "0.5rem" }}>{act.description}</td>
                         <td style={{ padding: "0.5rem" }}>{act.responsible_party}</td>
                         <td style={{ padding: "0.5rem" }}>{act.target_date}</td>

@@ -197,23 +197,23 @@ export function CalculatorsPage() {
   return (
     <div className="card" dir="rtl">
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem" }}>
-        <Calculator size={28} color="#2563eb" />
+        <Calculator size={28} color="var(--info)" />
         <div>
           <h2 style={{ margin: 0, fontSize: "1.5rem" }}>مرکز محاسبات مهندسی و ابزارهای سریع HSE</h2>
-          <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.875rem" }}>
+          <p style={{ margin: "0.25rem 0 0", color: "var(--text-tertiary)", fontSize: "0.875rem" }}>
             محاسبه استاندارد نرخ‌های آماری، تراز صدا، ریگینگ و باربرداری، انرژی، و شیب ایمن گودبرداری
           </p>
         </div>
       </div>
 
       {error && (
-        <div style={{ padding: "0.75rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px", marginBottom: "1rem" }}>
+        <div style={{ padding: "0.75rem", background: "var(--danger-subtle)", color: "var(--danger-fg)", borderRadius: "6px", marginBottom: "1rem" }}>
           {error}
         </div>
       )}
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.5rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1px solid var(--border-default)", paddingBottom: "0.5rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
         <button
           className={`btn ${activeTab === "unit" ? "btn-primary" : "btn-secondary"}`}
           onClick={() => setActiveTab("unit")}
@@ -322,12 +322,12 @@ export function CalculatorsPage() {
           </button>
 
           {unitResult && (
-            <div style={{ marginTop: "1.5rem", padding: "1rem", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "8px" }}>
-              <h4 style={{ margin: "0 0 0.5rem", color: "#166534" }}>نتیجه تبدیل واحد</h4>
+            <div style={{ marginTop: "1.5rem", padding: "1rem", background: "var(--success-subtle)", border: "1px solid var(--success-border)", borderRadius: "8px" }}>
+              <h4 style={{ margin: "0 0 0.5rem", color: "var(--success-fg)" }}>نتیجه تبدیل واحد</h4>
               <div style={{ fontSize: "1.25rem", fontWeight: "bold" }}>
-                {unitResult.value} {unitResult.from_unit} = <span style={{ color: "#2563eb" }}>{unitResult.result}</span> {unitResult.to_unit}
+                {unitResult.value} {unitResult.from_unit} = <span style={{ color: "var(--info)" }}>{unitResult.result}</span> {unitResult.to_unit}
               </div>
-              <small style={{ color: "#64748b", display: "block", marginTop: "0.5rem" }}>فرمول مرجع: {unitResult.formula}</small>
+              <small style={{ color: "var(--text-tertiary)", display: "block", marginTop: "0.5rem" }}>فرمول مرجع: {unitResult.formula}</small>
             </div>
           )}
         </form>
@@ -387,23 +387,23 @@ export function CalculatorsPage() {
           </button>
 
           {hseResult && (
-            <div style={{ marginTop: "1.5rem", padding: "1.25rem", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "8px" }}>
-              <h4 style={{ margin: "0 0 1rem", color: "#1e293b" }}>نتایج شاخص‌های عملکرد ایمنی (بر مبنای ۱,۰۰۰,۰۰۰ ساعت کارکرد)</h4>
+            <div style={{ marginTop: "1.5rem", padding: "1.25rem", background: "var(--bg-subtle)", border: "1px solid var(--border-strong)", borderRadius: "8px" }}>
+              <h4 style={{ margin: "0 0 1rem", color: "var(--text-primary)" }}>نتایج شاخص‌های عملکرد ایمنی (بر مبنای ۱,۰۰۰,۰۰۰ ساعت کارکرد)</h4>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem" }}>
-                <div style={{ padding: "0.75rem", background: "#ffffff", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>نرخ تکرار حوادث (LTIFR)</span>
-                  <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#dc2626" }}>{hseResult.ltifr}</div>
+                <div style={{ padding: "0.75rem", background: "var(--bg-surface)", borderRadius: "6px", border: "1px solid var(--border-default)" }}>
+                  <span style={{ fontSize: "0.8rem", color: "var(--text-tertiary)" }}>نرخ تکرار حوادث (LTIFR)</span>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--danger)" }}>{hseResult.ltifr}</div>
                 </div>
-                <div style={{ padding: "0.75rem", background: "#ffffff", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>نرخ کل حوادث (TRIR)</span>
-                  <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#d97706" }}>{hseResult.trir}</div>
+                <div style={{ padding: "0.75rem", background: "var(--bg-surface)", borderRadius: "6px", border: "1px solid var(--border-default)" }}>
+                  <span style={{ fontSize: "0.8rem", color: "var(--text-tertiary)" }}>نرخ کل حوادث (TRIR)</span>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--warning)" }}>{hseResult.trir}</div>
                 </div>
-                <div style={{ padding: "0.75rem", background: "#ffffff", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>نرخ شدت حوادث (Severity Rate)</span>
-                  <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#4f46e5" }}>{hseResult.severity_rate}</div>
+                <div style={{ padding: "0.75rem", background: "var(--bg-surface)", borderRadius: "6px", border: "1px solid var(--border-default)" }}>
+                  <span style={{ fontSize: "0.8rem", color: "var(--text-tertiary)" }}>نرخ شدت حوادث (Severity Rate)</span>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--ai-primary)" }}>{hseResult.severity_rate}</div>
                 </div>
               </div>
-              <small style={{ color: "#64748b", display: "block", marginTop: "1rem" }}>{hseResult.formula_notes}</small>
+              <small style={{ color: "var(--text-tertiary)", display: "block", marginTop: "1rem" }}>{hseResult.formula_notes}</small>
             </div>
           )}
         </form>
@@ -422,7 +422,7 @@ export function CalculatorsPage() {
               placeholder="مثال: 82, 85, 88"
               required
             />
-            <small style={{ color: "#64748b" }}>محاسبه بر مبنای جمع لگاریتمی ترازهای فشار صوتی (SPL)</small>
+            <small style={{ color: "var(--text-tertiary)" }}>محاسبه بر مبنای جمع لگاریتمی ترازهای فشار صوتی (SPL)</small>
           </div>
           <div style={{ marginBottom: "1.5rem" }}>
             <label className="form-label">مدت زمان مواجهه (ساعت در شیفت)</label>
@@ -441,21 +441,21 @@ export function CalculatorsPage() {
           </button>
 
           {noiseResult && (
-            <div style={{ marginTop: "1.5rem", padding: "1.25rem", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "8px" }}>
+            <div style={{ marginTop: "1.5rem", padding: "1.25rem", background: "var(--bg-subtle)", border: "1px solid var(--border-strong)", borderRadius: "8px" }}>
               <h4 style={{ margin: "0 0 1rem" }}>نتیجه ارزیابی صدا</h4>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "0.75rem" }}>
-                <div style={{ padding: "0.75rem", background: "#ffffff", borderRadius: "6px" }}>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>تراز فشار صوتی معادل (SPL)</span>
-                  <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#2563eb" }}>{noiseResult.total_spl_db} dBA</div>
+                <div style={{ padding: "0.75rem", background: "var(--bg-surface)", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>تراز فشار صوتی معادل (SPL)</span>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--info)" }}>{noiseResult.total_spl_db} dBA</div>
                 </div>
-                <div style={{ padding: "0.75rem", background: "#ffffff", borderRadius: "6px" }}>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>درصد دوز صوتی شیفت (Noise Dose)</span>
-                  <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: noiseResult.noise_dose_percentage > 100 ? "#dc2626" : "#16a34a" }}>
+                <div style={{ padding: "0.75rem", background: "var(--bg-surface)", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>درصد دوز صوتی شیفت (Noise Dose)</span>
+                  <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: noiseResult.noise_dose_percentage > 100 ? "var(--danger)" : "var(--success)" }}>
                     {noiseResult.noise_dose_percentage}%
                   </div>
                 </div>
               </div>
-              <div style={{ padding: "0.5rem", background: noiseResult.tsv_status.includes("مجاز") ? "#dcfce7" : "#fee2e2", borderRadius: "6px", fontWeight: "bold" }}>
+              <div style={{ padding: "0.5rem", background: noiseResult.tsv_status.includes("مجاز") ? "var(--success-subtle)" : "var(--danger-subtle)", borderRadius: "6px", fontWeight: "bold" }}>
                 وضعیت حدود تماس شغلی: {noiseResult.tsv_status}
               </div>
             </div>
@@ -498,7 +498,7 @@ export function CalculatorsPage() {
                 onChange={(e) => setSlingAngle(parseFloat(e.target.value) || 0)}
                 required
               />
-              <small style={{ color: "#dc2626" }}>زاویه کمتر از ۳۰ درجه به شدت خطرناک و غیرمجاز است.</small>
+              <small style={{ color: "var(--danger)" }}>زاویه کمتر از ۳۰ درجه به شدت خطرناک و غیرمجاز است.</small>
             </div>
             <div>
               <label className="form-label">ظرفیت نامی جرثقیل در شعاع کار (kg)</label>
@@ -526,21 +526,21 @@ export function CalculatorsPage() {
           </button>
 
           {riggingResult && (
-            <div style={{ marginTop: "1.5rem", padding: "1.25rem", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "8px" }}>
+            <div style={{ marginTop: "1.5rem", padding: "1.25rem", background: "var(--bg-subtle)", border: "1px solid var(--border-strong)", borderRadius: "8px" }}>
               <h4 style={{ margin: "0 0 1rem" }}>نتایج تحلیل مهندسی ریگینگ</h4>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
-                <div style={{ padding: "0.75rem", background: "#ffffff", borderRadius: "6px" }}>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>کشش در هر ساق اسلینگ</span>
-                  <div style={{ fontSize: "1.4rem", fontWeight: "bold", color: "#2563eb" }}>{riggingResult.tension_per_leg_kg} kg</div>
+                <div style={{ padding: "0.75rem", background: "var(--bg-surface)", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>کشش در هر ساق اسلینگ</span>
+                  <div style={{ fontSize: "1.4rem", fontWeight: "bold", color: "var(--info)" }}>{riggingResult.tension_per_leg_kg} kg</div>
                 </div>
-                <div style={{ padding: "0.75rem", background: "#ffffff", borderRadius: "6px" }}>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>درصد باربری جرثقیل (Utilization)</span>
-                  <div style={{ fontSize: "1.4rem", fontWeight: "bold", color: riggingResult.crane_utilization_pct > 85 ? "#dc2626" : "#16a34a" }}>
+                <div style={{ padding: "0.75rem", background: "var(--bg-surface)", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>درصد باربری جرثقیل (Utilization)</span>
+                  <div style={{ fontSize: "1.4rem", fontWeight: "bold", color: riggingResult.crane_utilization_pct > 85 ? "var(--danger)" : "var(--success)" }}>
                     {riggingResult.crane_utilization_pct}%
                   </div>
                 </div>
               </div>
-              <div style={{ padding: "0.75rem", background: riggingResult.is_safe ? "#dcfce7" : "#fee2e2", borderRadius: "6px", fontWeight: "bold" }}>
+              <div style={{ padding: "0.75rem", background: riggingResult.is_safe ? "var(--success-subtle)" : "var(--danger-subtle)", borderRadius: "6px", fontWeight: "bold" }}>
                 وضعیت ایمنی محاسباتی: {riggingResult.is_safe ? "مجاز و ایمن" : "اخطار: بار فراتر از حد مجاز است!"}
               </div>
             </div>
@@ -598,18 +598,18 @@ export function CalculatorsPage() {
           </button>
 
           {energyResult && (
-            <div style={{ marginTop: "1.5rem", padding: "1.25rem", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "8px" }}>
+            <div style={{ marginTop: "1.5rem", padding: "1.25rem", background: "var(--bg-subtle)", border: "1px solid var(--border-strong)", borderRadius: "8px" }}>
               <h4 style={{ margin: "0 0 1rem" }}>شاخص‌های مصرف انرژی و راندمان سوخت</h4>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <div style={{ padding: "0.75rem", background: "#ffffff", borderRadius: "6px" }}>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>هزینه برآورد برق</span>
-                  <div style={{ fontSize: "1.25rem", fontWeight: "bold", color: "#2563eb" }}>
+                <div style={{ padding: "0.75rem", background: "var(--bg-surface)", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>هزینه برآورد برق</span>
+                  <div style={{ fontSize: "1.25rem", fontWeight: "bold", color: "var(--info)" }}>
                     {energyResult.total_electricity_cost_irr.toLocaleString()} ریال
                   </div>
                 </div>
-                <div style={{ padding: "0.75rem", background: "#ffffff", borderRadius: "6px" }}>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>راندمان مصرف سوخت (L/100km)</span>
-                  <div style={{ fontSize: "1.25rem", fontWeight: "bold", color: "#16a34a" }}>
+                <div style={{ padding: "0.75rem", background: "var(--bg-surface)", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>راندمان مصرف سوخت (L/100km)</span>
+                  <div style={{ fontSize: "1.25rem", fontWeight: "bold", color: "var(--success)" }}>
                     {energyResult.fuel_consumption_l_per_100km} لیتر
                   </div>
                 </div>
@@ -673,19 +673,19 @@ export function CalculatorsPage() {
           </button>
 
           {excavationResult && (
-            <div style={{ marginTop: "1.5rem", padding: "1.25rem", background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "8px" }}>
+            <div style={{ marginTop: "1.5rem", padding: "1.25rem", background: "var(--bg-subtle)", border: "1px solid var(--border-strong)", borderRadius: "8px" }}>
               <h4 style={{ margin: "0 0 1rem" }}>الزامات هندسی گودبرداری</h4>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
-                <div style={{ padding: "0.75rem", background: "#ffffff", borderRadius: "6px" }}>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>نسبت شیب مجاز ترانشه</span>
-                  <div style={{ fontSize: "1.4rem", fontWeight: "bold", color: "#2563eb" }}>{excavationResult.safe_slope_ratio}</div>
+                <div style={{ padding: "0.75rem", background: "var(--bg-surface)", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>نسبت شیب مجاز ترانشه</span>
+                  <div style={{ fontSize: "1.4rem", fontWeight: "bold", color: "var(--info)" }}>{excavationResult.safe_slope_ratio}</div>
                 </div>
-                <div style={{ padding: "0.75rem", background: "#ffffff", borderRadius: "6px" }}>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>عرض دهانه بالای گود</span>
-                  <div style={{ fontSize: "1.4rem", fontWeight: "bold", color: "#4f46e5" }}>{excavationResult.top_width_m} متر</div>
+                <div style={{ padding: "0.75rem", background: "var(--bg-surface)", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>عرض دهانه بالای گود</span>
+                  <div style={{ fontSize: "1.4rem", fontWeight: "bold", color: "var(--ai-primary)" }}>{excavationResult.top_width_m} متر</div>
                 </div>
               </div>
-              <div style={{ padding: "0.75rem", background: excavationResult.shoring_mandatory ? "#fee2e2" : "#dcfce7", borderRadius: "6px" }}>
+              <div style={{ padding: "0.75rem", background: excavationResult.shoring_mandatory ? "var(--danger-subtle)" : "var(--success-subtle)", borderRadius: "6px" }}>
                 <strong>{excavationResult.shoring_mandatory ? "هشدار مهاربندی:" : "وضعیت شیب:"}</strong> {excavationResult.warning_notes}
               </div>
             </div>
@@ -699,12 +699,12 @@ export function CalculatorsPage() {
           {loading ? (
             <div style={{ textAlign: "center", padding: "2rem" }}>در حال بارگذاری سوابق...</div>
           ) : records.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "2rem", color: "#64748b" }}>هیچ سابقه محاسباتی ثبت نشده است.</div>
+            <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-tertiary)" }}>هیچ سابقه محاسباتی ثبت نشده است.</div>
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
                 <thead>
-                  <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
+                  <tr style={{ background: "var(--bg-subtle)", borderBottom: "2px solid var(--border-strong)" }}>
                     <th style={{ padding: "0.75rem" }}>ردیف</th>
                     <th style={{ padding: "0.75rem" }}>نوع محاسبه</th>
                     <th style={{ padding: "0.75rem" }}>ورودی‌ها</th>
@@ -714,13 +714,13 @@ export function CalculatorsPage() {
                 </thead>
                 <tbody>
                   {records.map((r, i) => (
-                    <tr key={r.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                    <tr key={r.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                       <td style={{ padding: "0.75rem" }}>{i + 1}</td>
                       <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{r.calculator_type_display || r.calculator_type}</td>
-                      <td style={{ padding: "0.75rem", fontSize: "0.85rem", color: "#475569" }}>
+                      <td style={{ padding: "0.75rem", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
                         <code>{JSON.stringify(r.inputs)}</code>
                       </td>
-                      <td style={{ padding: "0.75rem", fontSize: "0.85rem", color: "#2563eb" }}>
+                      <td style={{ padding: "0.75rem", fontSize: "0.85rem", color: "var(--info)" }}>
                         <code>{JSON.stringify(r.outputs)}</code>
                       </td>
                       <td style={{ padding: "0.75rem", fontSize: "0.85rem" }}>{new Date(r.created_at).toLocaleDateString("fa-IR")}</td>

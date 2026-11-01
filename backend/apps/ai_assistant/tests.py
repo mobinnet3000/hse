@@ -13,6 +13,9 @@ from apps.workplaces.models import Workplace
 
 class AiAssistantTests(TestCase):
     def setUp(self):
+        import os
+        self._orig_avalai_key = os.environ.get("AVALAI_API_KEY")
+        os.environ["AVALAI_API_KEY"] = "<TEST_KEY_PLACEHOLDER>"
         self.client = APIClient()
 
         # Users
@@ -67,6 +70,13 @@ class AiAssistantTests(TestCase):
             is_verified=True,
             status=KnowledgeSource.Status.ACTIVE,
         )
+
+    def tearDown(self):
+        import os
+        if getattr(self, "_orig_avalai_key", None) is not None:
+            os.environ["AVALAI_API_KEY"] = self._orig_avalai_key
+        else:
+            os.environ.pop("AVALAI_API_KEY", None)
 
     def test_get_ai_status(self):
         self.client.force_authenticate(user=self.org_admin)
@@ -211,6 +221,9 @@ class Phase19AIAssistantTests(TestCase):
     """
 
     def setUp(self):
+        import os
+        self._orig_avalai_key = os.environ.get("AVALAI_API_KEY")
+        os.environ["AVALAI_API_KEY"] = "<TEST_KEY_PLACEHOLDER>"
         self.client = APIClient()
 
         # Users
@@ -329,6 +342,13 @@ class Phase19AIAssistantTests(TestCase):
             },
             "additional_description": "کارگاه نیازمند بازنگری فوری در خصوص تهویه گازهای جوشکاری و تست میکروسوئیچ‌های پرس است.",
         }
+
+    def tearDown(self):
+        import os
+        if getattr(self, "_orig_avalai_key", None) is not None:
+            os.environ["AVALAI_API_KEY"] = self._orig_avalai_key
+        else:
+            os.environ.pop("AVALAI_API_KEY", None)
 
     def test_service_status_endpoint(self):
         self.client.force_authenticate(user=self.hse_manager)

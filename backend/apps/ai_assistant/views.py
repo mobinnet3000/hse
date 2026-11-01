@@ -1,4 +1,5 @@
 import logging
+import os
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -372,14 +373,20 @@ class AIAssessmentViewSet(viewsets.ModelViewSet):
         cfg = get_avalai_config()
         user_prompt = _build_user_prompt(assessment.input_data or {})
 
+        force_offline = False
+        if isinstance(request.data, dict) and request.data.get("force_offline"):
+            force_offline = True
+        elif os.getenv("AVALAI_OFFLINE_MODE", "").lower() in ("true", "1", "yes"):
+            force_offline = True
+
         try:
-            # If no API key configured or test placeholder, provide deterministic realistic analysis
-            if not cfg["api_key"] or cfg["api_key"] == "<TEST_KEY_PLACEHOLDER>":
+            # If no API key configured, test placeholder, or offline requested, provide deterministic analysis
+            if force_offline or not cfg["api_key"] or cfg["api_key"] == "<TEST_KEY_PLACEHOLDER>":
                 wp_name = assessment.workplace.name if assessment.workplace else assessment.title
                 normalized_result = generate_scenario_mock_analysis(workplace_name=wp_name)
                 metadata = {
                     "provider": "avalai-offline-engine",
-                    "model": cfg["model"] or "gpt-4o-mini",
+                    "model": cfg["model"] or "deepseek-v4.1-flash",
                     "request_id": f"sim-{assessment.id}",
                     "status_code": 200,
                     "duration_ms": 120.0,
@@ -400,7 +407,7 @@ class AIAssessmentViewSet(viewsets.ModelViewSet):
                 normalized_result = validate_and_normalize_ai_response(raw_text)
 
             metadata["prompt_sent"] = user_prompt
-            if not cfg["api_key"] or cfg["api_key"] == "<TEST_KEY_PLACEHOLDER>":
+            if force_offline or not cfg["api_key"] or cfg["api_key"] == "<TEST_KEY_PLACEHOLDER>":
                 metadata["mode"] = "offline_fallback"
             else:
                 metadata["mode"] = "live_avalai_api"
@@ -435,7 +442,9 @@ class AIAssessmentViewSet(viewsets.ModelViewSet):
                 entity_id=assessment.id,
                 details={
                     "hazards_identified": len(normalized_result.get("hazards", [])),
+                    "checklist_sections": len(normalized_result.get("checklist", {}).get("sections", [])),
                     "model": assessment.ai_model,
+                    "architecture": "single_stage_generation",
                 },
             )
 

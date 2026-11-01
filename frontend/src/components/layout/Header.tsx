@@ -91,6 +91,12 @@ export function Header({
       </div>
 
       <div className="header-right">
+        {/* System Status Pill */}
+        <div className="header-status-pill" title="سامانه متصل و پایگاه داده فعال است">
+          <span className="header-status-dot" aria-hidden="true" />
+          <span>شبکه فعال HSE</span>
+        </div>
+
         {/* Theme Toggle */}
         <ThemeToggle />
 

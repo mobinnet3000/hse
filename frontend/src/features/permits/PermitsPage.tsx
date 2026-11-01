@@ -409,19 +409,19 @@ export function PermitsPage() {
           )}
 
           {/* Action & Filter Bar */}
-          <div className="filter-bar" style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center", marginBottom: "1.5rem", background: "var(--card-bg, #f8fafc)", padding: "1rem", borderRadius: "8px", border: "1px solid var(--border-color, #e2e8f0)" }}>
+          <div className="filter-bar" style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center", marginBottom: "1.5rem", background: "var(--bg-surface)", padding: "1rem", borderRadius: "8px", border: "1px solid var(--border-default)" }}>
             <input
               type="text"
               placeholder="جستجو در عنوان، کد رهگیری، تجهیزات..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") reloadPermits(); }}
-              style={{ flex: "1 1 220px", padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-color, #cbd5e1)" }}
+              style={{ flex: "1 1 220px", padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-strong)" }}
             />
             <select
               value={filterWorkplace}
               onChange={(e) => setFilterWorkplace(e.target.value)}
-              style={{ padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-color, #cbd5e1)" }}
+              style={{ padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-strong)" }}
             >
               <option value="">همه کارگاه‌ها</option>
               {workplaces.map((wp) => (
@@ -433,7 +433,7 @@ export function PermitsPage() {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              style={{ padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-color, #cbd5e1)" }}
+              style={{ padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-strong)" }}
             >
               <option value="">همه انواع مجوز</option>
               {Object.entries(PERMIT_TYPE_LABELS).map(([k, label]) => (
@@ -445,7 +445,7 @@ export function PermitsPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-color, #cbd5e1)" }}
+              style={{ padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-strong)" }}
             >
               <option value="">همه وضعیت‌ها</option>
               {Object.entries(PERMIT_STATUS_LABELS).map(([k, label]) => (
@@ -479,11 +479,11 @@ export function PermitsPage() {
           {permitsLoading ? (
             <p className="centered muted">در حال بارگذاری اطلاعات مجوزهای کار…</p>
           ) : permitsError ? (
-            <div className="error-box" style={{ padding: "1rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px" }}>
+            <div className="error-box" style={{ padding: "1rem", background: "var(--danger-subtle)", color: "var(--danger-fg)", borderRadius: "6px" }}>
               {permitsError}
             </div>
           ) : !Array.isArray(permits) || permits.length === 0 ? (
-            <div className="empty-box" style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
+            <div className="empty-box" style={{ textAlign: "center", padding: "3rem", background: "var(--bg-subtle)", borderRadius: "8px", border: "1px dashed var(--border-strong)" }}>
               <p className="muted" style={{ fontSize: "1.1rem", margin: "0 0 1rem" }}>هیچ مجوزی مطابق با فیلترهای جاری یافت نشد.</p>
               <button
                 type="button"
@@ -497,7 +497,7 @@ export function PermitsPage() {
             <div className="table-responsive" style={{ overflowX: "auto" }}>
               <table className="data-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ background: "var(--table-header, #f1f5f9)", borderBottom: "2px solid #e2e8f0" }}>
+                  <tr style={{ background: "var(--bg-subtle)", borderBottom: "2px solid var(--border-default)" }}>
                     <th style={{ padding: "0.75rem", textAlign: "right" }}>کد رهگیری</th>
                     <th style={{ padding: "0.75rem", textAlign: "right" }}>عنوان و شرح</th>
                     <th style={{ padding: "0.75rem", textAlign: "right" }}>محل کار</th>
@@ -510,7 +510,7 @@ export function PermitsPage() {
                 </thead>
                 <tbody>
                   {(Array.isArray(permits) ? permits : []).map((p) => (
-                    <tr key={p.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                    <tr key={p.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                       <td style={{ padding: "0.75rem", fontFamily: "monospace", fontWeight: "bold" }}>
                         {p.reference_code}
                       </td>
@@ -520,18 +520,18 @@ export function PermitsPage() {
                       </td>
                       <td style={{ padding: "0.75rem" }}>{p.workplace_name || "—"}</td>
                       <td style={{ padding: "0.75rem" }}>
-                        <span style={{ fontSize: "0.85rem", background: "#e0f2fe", color: "#0369a1", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>
+                        <span style={{ fontSize: "0.85rem", background: "var(--info-subtle)", color: "var(--info-fg)", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>
                           {PERMIT_TYPE_LABELS[p.permit_type] || p.permit_type_display}
                         </span>
                       </td>
                       <td style={{ padding: "0.75rem", textAlign: "center", fontSize: "0.85rem" }}>
                         {p.gas_testing_required && (
-                          <span title="نیاز به گازسنجی" style={{ display: "inline-block", margin: "0 0.2rem", color: "#d97706" }}>
+                          <span title="نیاز به گازسنجی" style={{ display: "inline-block", margin: "0 0.2rem", color: "var(--warning)" }}>
                             💨 گازسنجی
                           </span>
                         )}
                         {p.isolation_loto_required && (
-                          <span title="نیاز به قفل و برچسب‌گذاری (LOTO)" style={{ display: "inline-block", margin: "0 0.2rem", color: "#dc2626" }}>
+                          <span title="نیاز به قفل و برچسب‌گذاری (LOTO)" style={{ display: "inline-block", margin: "0 0.2rem", color: "var(--danger)" }}>
                             🔒 LOTO
                           </span>
                         )}
@@ -599,11 +599,11 @@ export function PermitsPage() {
           {simopsRadarLoading ? (
             <p className="centered muted">در حال پایش و محاسبه تعارضات فضایی-زمانی کارگاه‌ها…</p>
           ) : simopsRadarError ? (
-            <div className="error-box" style={{ padding: "1rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px" }}>
+            <div className="error-box" style={{ padding: "1rem", background: "var(--danger-subtle)", color: "var(--danger-fg)", borderRadius: "6px" }}>
               {simopsRadarError}
             </div>
           ) : !simopsRadar || simopsRadar.workplaces.length === 0 ? (
-            <div className="empty-box" style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
+            <div className="empty-box" style={{ textAlign: "center", padding: "3rem", background: "var(--bg-subtle)", borderRadius: "8px", border: "1px dashed var(--border-strong)" }}>
               <p className="muted" style={{ fontSize: "1.1rem", margin: 0 }}>هیچ کارگاه فعالی برای مانیتورینگ همزمانی یافت نشد.</p>
             </div>
           ) : (
@@ -613,10 +613,10 @@ export function PermitsPage() {
                   key={wp.workplace_id}
                   className="card"
                   style={{
-                    background: "white",
+                    background: "var(--bg-surface)",
                     borderRadius: "8px",
                     border: "1px solid",
-                    borderColor: wp.has_critical_block ? "#f87171" : wp.conflicts_count > 0 ? "#fde68a" : "#e2e8f0",
+                    borderColor: wp.has_critical_block ? "var(--danger)" : wp.conflicts_count > 0 ? "var(--warning-border)" : "var(--border-default)",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
                     overflow: "hidden",
                     margin: 0,
@@ -624,10 +624,10 @@ export function PermitsPage() {
                 >
                   <div
                     style={{
-                      background: wp.has_critical_block ? "#fef2f2" : wp.conflicts_count > 0 ? "#fffbeb" : "#f8fafc",
+                      background: wp.has_critical_block ? "var(--danger-subtle)" : wp.conflicts_count > 0 ? "var(--warning-subtle)" : "var(--bg-subtle)",
                       padding: "1rem 1.25rem",
                       borderBottom: "1px solid",
-                      borderColor: wp.has_critical_block ? "#fecaca" : wp.conflicts_count > 0 ? "#fef08a" : "#e2e8f0",
+                      borderColor: wp.has_critical_block ? "var(--danger-border)" : wp.conflicts_count > 0 ? "var(--warning-subtle)" : "var(--border-default)",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
@@ -668,8 +668,8 @@ export function PermitsPage() {
                             <div
                               key={p.id}
                               style={{
-                                background: "#f8fafc",
-                                border: "1px solid #e2e8f0",
+                                background: "var(--bg-subtle)",
+                                border: "1px solid var(--border-default)",
                                 borderRadius: "6px",
                                 padding: "0.75rem",
                                 fontSize: "0.85rem",
@@ -702,7 +702,7 @@ export function PermitsPage() {
 
                     {/* Detected Conflicts */}
                     <div>
-                      <strong style={{ fontSize: "0.9rem", color: wp.has_critical_block ? "#b91c1c" : "var(--text-primary)" }}>
+                      <strong style={{ fontSize: "0.9rem", color: wp.has_critical_block ? "var(--danger-fg)" : "var(--text-primary)" }}>
                         ماتریس تعارضات و ریسک‌های همزمانی (SIMOPS Matrix):
                       </strong>
                       {wp.conflicts.length === 0 ? (
@@ -715,9 +715,9 @@ export function PermitsPage() {
                             <div
                               key={c.id}
                               style={{
-                                background: c.severity === "critical_block" ? "#fef2f2" : "#fffbeb",
+                                background: c.severity === "critical_block" ? "var(--danger-subtle)" : "var(--warning-subtle)",
                                 border: "1px solid",
-                                borderColor: c.severity === "critical_block" ? "#f87171" : "#fde68a",
+                                borderColor: c.severity === "critical_block" ? "var(--danger)" : "var(--warning-border)",
                                 borderRadius: "6px",
                                 padding: "0.75rem",
                                 display: "flex",
@@ -738,11 +738,11 @@ export function PermitsPage() {
                                     (تداخل [{c.permit_a_code}] با [{c.permit_b_code}])
                                   </span>
                                 </div>
-                                <div style={{ fontSize: "0.85rem", color: "#334155" }}>{c.description}</div>
+                                <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>{c.description}</div>
                               </div>
                               <div style={{ flexShrink: 0 }}>
                                 {c.is_resolved ? (
-                                  <span style={{ color: "#15803d", fontWeight: "bold", fontSize: "0.85rem" }}>
+                                  <span style={{ color: "var(--success-fg)", fontWeight: "bold", fontSize: "0.85rem" }}>
                                     ✓ استثنا تایید و برطرف شده
                                   </span>
                                 ) : canOverrideSIMOPS ? (
@@ -758,7 +758,7 @@ export function PermitsPage() {
                                     تأیید استثنا (Override)
                                   </button>
                                 ) : (
-                                  <span style={{ color: "#b91c1c", fontSize: "0.8rem" }}>
+                                  <span style={{ color: "var(--danger-fg)", fontSize: "0.8rem" }}>
                                     نیازمند مجوز مدیر HSE
                                   </span>
                                 )}
@@ -783,9 +783,9 @@ export function PermitsPage() {
         <div className="handover-content">
           {/* Outstanding Safety Alert Banner */}
           {safetySummary && (
-            <div className="safety-summary-banner" style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: "1.2rem", borderRadius: "8px", marginBottom: "1.5rem" }}>
+            <div className="safety-summary-banner" style={{ background: "var(--warning-subtle)", border: "1px solid var(--warning-border)", padding: "1.2rem", borderRadius: "8px", marginBottom: "1.5rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.8rem" }}>
-                <h4 style={{ margin: 0, color: "#92400e", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <h4 style={{ margin: 0, color: "var(--warning-fg)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   ⚠️ خلاصه وضعیت ایمنی شیفت در کارگاه جاری (Safety Handover Snapshot)
                 </h4>
                 {canConductHandover && (
@@ -800,35 +800,35 @@ export function PermitsPage() {
                 )}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
-                <div style={{ background: "white", padding: "0.75rem", borderRadius: "6px", border: "1px solid #fef08a" }}>
-                  <div style={{ fontSize: "0.85rem", color: "#854d0e" }}>مجوزهای فعال / معلق در کارگاه:</div>
-                  <strong style={{ fontSize: "1.2rem", color: "#b45309" }}>{safetySummary.active_permits_count}</strong>
+                <div style={{ background: "var(--bg-surface)", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--warning-border)" }}>
+                  <div style={{ fontSize: "0.85rem", color: "var(--warning-fg)" }}>مجوزهای فعال / معلق در کارگاه:</div>
+                  <strong style={{ fontSize: "1.2rem", color: "var(--warning-fg)" }}>{safetySummary.active_permits_count}</strong>
                   {safetySummary.active_permits.length > 0 && (
-                    <ul style={{ margin: "0.5rem 0 0", paddingRight: "1rem", fontSize: "0.8rem", color: "#78350f" }}>
+                    <ul style={{ margin: "0.5rem 0 0", paddingRight: "1rem", fontSize: "0.8rem", color: "var(--warning-fg)" }}>
                       {safetySummary.active_permits.map((ap) => (
                         <li key={ap.id}>[{ap.code}] {ap.title}</li>
                       ))}
                     </ul>
                   )}
                 </div>
-                <div style={{ background: "white", padding: "0.75rem", borderRadius: "6px", border: "1px solid #fef08a" }}>
-                  <div style={{ fontSize: "0.85rem", color: "#854d0e" }}>خطرات فعال حل‌نشده:</div>
-                  <strong style={{ fontSize: "1.2rem", color: "#b45309" }}>{safetySummary.unresolved_hazards_count}</strong>
+                <div style={{ background: "var(--bg-surface)", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--warning-border)" }}>
+                  <div style={{ fontSize: "0.85rem", color: "var(--warning-fg)" }}>خطرات فعال حل‌نشده:</div>
+                  <strong style={{ fontSize: "1.2rem", color: "var(--warning-fg)" }}>{safetySummary.unresolved_hazards_count}</strong>
                   {safetySummary.unresolved_hazards.length > 0 && (
-                    <ul style={{ margin: "0.5rem 0 0", paddingRight: "1rem", fontSize: "0.8rem", color: "#78350f" }}>
+                    <ul style={{ margin: "0.5rem 0 0", paddingRight: "1rem", fontSize: "0.8rem", color: "var(--warning-fg)" }}>
                       {safetySummary.unresolved_hazards.map((hz) => (
                         <li key={hz.id}>{hz.title}</li>
                       ))}
                     </ul>
                   )}
                 </div>
-                <div style={{ background: "white", padding: "0.75rem", borderRadius: "6px", border: "1px solid #fef08a" }}>
-                  <div style={{ fontSize: "0.85rem", color: "#854d0e" }}>اقدامات اصلاحی باز / در جریان:</div>
-                  <strong style={{ fontSize: "1.2rem", color: "#b45309" }}>{safetySummary.open_capas_count}</strong>
+                <div style={{ background: "var(--bg-surface)", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--warning-border)" }}>
+                  <div style={{ fontSize: "0.85rem", color: "var(--warning-fg)" }}>اقدامات اصلاحی باز / در جریان:</div>
+                  <strong style={{ fontSize: "1.2rem", color: "var(--warning-fg)" }}>{safetySummary.open_capas_count}</strong>
                 </div>
-                <div style={{ background: "white", padding: "0.75rem", borderRadius: "6px", border: "1px solid #fef08a" }}>
-                  <div style={{ fontSize: "0.85rem", color: "#854d0e" }}>حوادث ثبت‌شده اخیر (۷ روز گذشته):</div>
-                  <strong style={{ fontSize: "1.2rem", color: "#b45309" }}>{safetySummary.recent_incidents_count}</strong>
+                <div style={{ background: "var(--bg-surface)", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--warning-border)" }}>
+                  <div style={{ fontSize: "0.85rem", color: "var(--warning-fg)" }}>حوادث ثبت‌شده اخیر (۷ روز گذشته):</div>
+                  <strong style={{ fontSize: "1.2rem", color: "var(--warning-fg)" }}>{safetySummary.recent_incidents_count}</strong>
                 </div>
               </div>
             </div>
@@ -838,11 +838,11 @@ export function PermitsPage() {
           {handoversLoading ? (
             <p className="centered muted">در حال بارگذاری گزارش‌های تحویل شیفت…</p>
           ) : handoversError ? (
-            <div className="error-box" style={{ padding: "1rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px" }}>
+            <div className="error-box" style={{ padding: "1rem", background: "var(--danger-subtle)", color: "var(--danger-fg)", borderRadius: "6px" }}>
               {handoversError}
             </div>
           ) : handovers.length === 0 ? (
-            <div className="empty-box" style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1" }}>
+            <div className="empty-box" style={{ textAlign: "center", padding: "3rem", background: "var(--bg-subtle)", borderRadius: "8px", border: "1px dashed var(--border-strong)" }}>
               <p className="muted" style={{ fontSize: "1.1rem", margin: "0 0 1rem" }}>هیچ گزارش تحویل شیفتی در این سازمان ثبت نشده است.</p>
               {canConductHandover ? (
                 <button
@@ -863,8 +863,8 @@ export function PermitsPage() {
                   key={sh.id}
                   className="handover-card"
                   style={{
-                    background: "white",
-                    border: "1px solid #e2e8f0",
+                    background: "var(--bg-surface)",
+                    border: "1px solid var(--border-default)",
                     borderRadius: "8px",
                     padding: "1.2rem",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
@@ -875,7 +875,7 @@ export function PermitsPage() {
                       <span style={{ fontWeight: "bold", fontSize: "1.05rem" }}>
                         تاریخ: {new Date(sh.shift_date).toLocaleDateString("fa-IR")}
                       </span>
-                      <span style={{ marginRight: "0.75rem", background: "#e0e7ff", color: "#3730a3", padding: "0.2rem 0.6rem", borderRadius: "4px", fontSize: "0.85rem" }}>
+                      <span style={{ marginRight: "0.75rem", background: "var(--ai-subtle)", color: "var(--ai-fg)", padding: "0.2rem 0.6rem", borderRadius: "4px", fontSize: "0.85rem" }}>
                         {SHIFT_TYPE_LABELS[sh.shift_type] || sh.shift_type_display}
                       </span>
                       <span className="muted" style={{ marginRight: "0.75rem", fontSize: "0.9rem" }}>
@@ -898,9 +898,9 @@ export function PermitsPage() {
                     </div>
                   </div>
 
-                  <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.9rem" }}>
+                  <div style={{ background: "var(--bg-subtle)", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.9rem" }}>
                     <div><strong>شرح شیفت و رویدادها:</strong> {sh.handover_notes}</div>
-                    {sh.safety_concerns && <div style={{ color: "#b91c1c", marginTop: "0.4rem" }}><strong>ملاحظات و خطرات فوری:</strong> {sh.safety_concerns}</div>}
+                    {sh.safety_concerns && <div style={{ color: "var(--danger-fg)", marginTop: "0.4rem" }}><strong>ملاحظات و خطرات فوری:</strong> {sh.safety_concerns}</div>}
                     {sh.equipment_status && <div style={{ marginTop: "0.4rem" }}><strong>وضعیت تجهیزات و خطوط:</strong> {sh.equipment_status}</div>}
                   </div>
 
@@ -909,7 +909,7 @@ export function PermitsPage() {
                       <span className="muted">مجوزهای کار متصل به این شیفت:</span>
                       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.3rem" }}>
                         {sh.active_permits.map((ap) => (
-                          <span key={ap.id} style={{ background: "#f1f5f9", padding: "0.2rem 0.5rem", borderRadius: "4px", border: "1px solid #cbd5e1" }}>
+                          <span key={ap.id} style={{ background: "var(--bg-subtle)", padding: "0.2rem 0.5rem", borderRadius: "4px", border: "1px solid var(--border-strong)" }}>
                             {ap.reference_code}: {ap.title}
                           </span>
                         ))}
@@ -918,12 +918,12 @@ export function PermitsPage() {
                   )}
 
                   {sh.status === "acknowledged" ? (
-                    <div style={{ fontSize: "0.85rem", color: "#15803d", borderTop: "1px dashed #cbd5e1", paddingTop: "0.5rem" }}>
+                    <div style={{ fontSize: "0.85rem", color: "var(--success-fg)", borderTop: "1px dashed var(--border-strong)", paddingTop: "0.5rem" }}>
                       ✓ در تاریخ {new Date(sh.acknowledged_at!).toLocaleString("fa-IR")} توسط <strong>{sh.acknowledged_by_name}</strong> تحویل گرفته شد.
                       {sh.acknowledgement_notes && <span style={{ marginRight: "0.5rem" }}>ملاحظات: {sh.acknowledgement_notes}</span>}
                     </div>
                   ) : sh.can_acknowledge ? (
-                    <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: "0.5rem", display: "flex", justifyContent: "flex-end" }}>
+                    <div style={{ borderTop: "1px dashed var(--border-strong)", paddingTop: "0.5rem", display: "flex", justifyContent: "flex-end" }}>
                       <button
                         type="button"
                         className="btn btn-success"
@@ -934,7 +934,7 @@ export function PermitsPage() {
                       </button>
                     </div>
                   ) : (
-                    <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: "0.5rem", fontSize: "0.85rem", color: "#92400e" }}>
+                    <div style={{ borderTop: "1px dashed var(--border-strong)", paddingTop: "0.5rem", fontSize: "0.85rem", color: "var(--warning-fg)" }}>
                       ⏳ در انتظار تأیید {sh.incoming_supervisor_name || "سرپرست تحویل‌گیرنده"}؛ فقط تحویل‌گیرنده تعیین‌شده می‌تواند این گزارش را تأیید کند.
                     </div>
                   )}
@@ -947,11 +947,11 @@ export function PermitsPage() {
 
       {detailLoading && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "white", padding: "1.5rem", borderRadius: "8px" }}>در حال بارگذاری جزئیات مجوز...</div>
+          <div style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px" }}>در حال بارگذاری جزئیات مجوز...</div>
         </div>
       )}
       {detailError && (
-        <div className="error-box" style={{ padding: "1rem", background: "#fee2e2", color: "#b91c1c", margin: "1rem 0" }}>
+        <div className="error-box" style={{ padding: "1rem", background: "var(--danger-subtle)", color: "var(--danger-fg)", margin: "1rem 0" }}>
           {detailError}
         </div>
       )}
@@ -961,8 +961,8 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {selectedPermit && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "white", borderRadius: "8px", maxWidth: "800px", width: "90%", maxHeight: "90vh", overflowY: "auto", padding: "1.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.75rem", marginBottom: "1rem" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", borderRadius: "8px", maxWidth: "800px", width: "90%", maxHeight: "90vh", overflowY: "auto", padding: "1.5rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-default)", paddingBottom: "0.75rem", marginBottom: "1rem" }}>
               <div>
                 <h3 style={{ margin: 0 }}>
                   [{selectedPermit.reference_code}] {selectedPermit.title}
@@ -987,7 +987,7 @@ export function PermitsPage() {
               <div><span className="muted">پیمانکار مجری:</span> <strong>{selectedPermit.contractor_name || "پرسنل داخلی"}</strong></div>
               <div>
                 <span className="muted">وضعیت جوی:</span>{" "}
-                <strong style={{ color: selectedPermit.weather_condition_ok !== false ? "#16a34a" : "#dc2626" }}>
+                <strong style={{ color: selectedPermit.weather_condition_ok !== false ? "var(--success)" : "var(--danger)" }}>
                   {selectedPermit.weather_condition_ok !== false ? "✓ مساعد و پایدار" : `⚠️ نامساعد (${selectedPermit.weather_notes || "هشدار"})`}
                 </strong>
               </div>
@@ -1002,13 +1002,13 @@ export function PermitsPage() {
             </div>
 
             {/* Description */}
-            <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem", fontSize: "0.9rem" }}>
+            <div style={{ background: "var(--bg-subtle)", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem", fontSize: "0.9rem" }}>
               <strong>شرح فعالیت:</strong>
               <p style={{ margin: "0.3rem 0 0" }}>{selectedPermit.description}</p>
             </div>
 
             {/* Pre-Job Gatekeeper Safety Panel (Phase 13) */}
-            <div style={{ border: "2px solid", borderColor: gatekeeperResult ? (gatekeeperResult.is_ready_for_activation ? "#bbf7d0" : "#fecaca") : "#e2e8f0", borderRadius: "8px", padding: "1rem", marginBottom: "1rem", background: gatekeeperResult ? (gatekeeperResult.is_ready_for_activation ? "#f0fdf4" : "#fff5f5") : "#f8fafc" }}>
+            <div style={{ border: "2px solid", borderColor: gatekeeperResult ? (gatekeeperResult.is_ready_for_activation ? "var(--success-border)" : "var(--danger-border)") : "var(--border-default)", borderRadius: "8px", padding: "1rem", marginBottom: "1rem", background: gatekeeperResult ? (gatekeeperResult.is_ready_for_activation ? "var(--success-subtle)" : "var(--danger-subtle)") : "var(--bg-subtle)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                 <strong style={{ fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
                   🛡️ چک‌لیست ایمنی گیت‌کیپر پیش از شروع کار (Safety Gatekeeper)
@@ -1022,8 +1022,8 @@ export function PermitsPage() {
                       borderRadius: "4px",
                       fontSize: "0.8rem",
                       fontWeight: "bold",
-                      backgroundColor: gatekeeperResult.is_ready_for_activation ? "#dcfce7" : "#fee2e2",
-                      color: gatekeeperResult.is_ready_for_activation ? "#15803d" : "#b91c1c",
+                      backgroundColor: gatekeeperResult.is_ready_for_activation ? "var(--success-subtle)" : "var(--danger-subtle)",
+                      color: gatekeeperResult.is_ready_for_activation ? "var(--success-fg)" : "var(--danger-fg)",
                     }}
                   >
                     {gatekeeperResult.is_ready_for_activation ? "✓ آماده فعال‌سازی و شروع کار" : "⛔ عدم احراز شرایط ایمنی گیت‌کیپر"}
@@ -1033,29 +1033,29 @@ export function PermitsPage() {
 
               {gatekeeperResult && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem", fontSize: "0.85rem", marginTop: "0.5rem" }}>
-                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ background: "var(--bg-surface)", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border-default)" }}>
                     <span className="muted">صلاحیت پیمانکار:</span>{" "}
                     <strong>{gatekeeperResult.contractor.message}</strong>
                   </div>
-                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ background: "var(--bg-surface)", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border-default)" }}>
                     <span className="muted">صلاحیت کارکنان:</span>{" "}
                     <strong>{gatekeeperResult.competency.message}</strong>
                   </div>
-                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ background: "var(--bg-surface)", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border-default)" }}>
                     <span className="muted">گازسنجی:</span>{" "}
                     <strong>{gatekeeperResult.gas_testing.message}</strong>
                   </div>
-                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ background: "var(--bg-surface)", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border-default)" }}>
                     <span className="muted">ایزولاسیون LOTO:</span>{" "}
                     <strong>{gatekeeperResult.loto.message}</strong>
                   </div>
-                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ background: "var(--bg-surface)", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border-default)" }}>
                     <span className="muted">وضعیت جوی:</span>{" "}
                     <strong>{gatekeeperResult.weather.message}</strong>
                   </div>
-                  <div style={{ background: "white", padding: "0.5rem", borderRadius: "4px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ background: "var(--bg-surface)", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border-default)" }}>
                     <span className="muted">تعارض همزمانی (SIMOPS):</span>{" "}
-                    <strong style={{ color: gatekeeperResult.simops.blocking_count > 0 ? "#b91c1c" : (gatekeeperResult.simops.conflicts_count > 0 ? "#d97706" : "#15803d") }}>
+                    <strong style={{ color: gatekeeperResult.simops.blocking_count > 0 ? "var(--danger-fg)" : (gatekeeperResult.simops.conflicts_count > 0 ? "var(--warning)" : "var(--success-fg)") }}>
                       {gatekeeperResult.simops.blocking_count > 0
                         ? `⛔ ${gatekeeperResult.simops.blocking_count} تعارض بحرانی و بلاک‌کننده`
                         : (gatekeeperResult.simops.conflicts_count > 0 ? `⚠️ ${gatekeeperResult.simops.conflicts_count} هشدار تداخل` : "✓ بدون تعارض")}
@@ -1066,17 +1066,17 @@ export function PermitsPage() {
 
               {/* Blocking conflicts list */}
               {gatekeeperResult && gatekeeperResult.simops.conflicts && gatekeeperResult.simops.conflicts.length > 0 && (
-                <div style={{ marginTop: "0.75rem", borderTop: "1px dashed #cbd5e1", paddingTop: "0.5rem" }}>
-                  <div style={{ fontSize: "0.85rem", fontWeight: "bold", marginBottom: "0.4rem", color: "#991b1b" }}>
+                <div style={{ marginTop: "0.75rem", borderTop: "1px dashed var(--border-strong)", paddingTop: "0.5rem" }}>
+                  <div style={{ fontSize: "0.85rem", fontWeight: "bold", marginBottom: "0.4rem", color: "var(--danger-fg)" }}>
                     تعارضات همزمانی کشف‌شده برای این مجوز:
                   </div>
                   {gatekeeperResult.simops.conflicts.map((c) => (
                     <div
                       key={c.id}
                       style={{
-                        background: c.severity === "critical_block" ? "#fef2f2" : "#fffbeb",
+                        background: c.severity === "critical_block" ? "var(--danger-subtle)" : "var(--warning-subtle)",
                         border: "1px solid",
-                        borderColor: c.severity === "critical_block" ? "#f87171" : "#fde68a",
+                        borderColor: c.severity === "critical_block" ? "var(--danger)" : "var(--warning-border)",
                         borderRadius: "4px",
                         padding: "0.5rem",
                         marginBottom: "0.4rem",
@@ -1087,14 +1087,14 @@ export function PermitsPage() {
                       }}
                     >
                       <div>
-                        <span style={{ fontWeight: "bold", color: c.severity === "critical_block" ? "#b91c1c" : "#92400e" }}>
+                        <span style={{ fontWeight: "bold", color: c.severity === "critical_block" ? "var(--danger-fg)" : "var(--warning-fg)" }}>
                           [{c.other_permit_code}] {c.other_permit_title}:
                         </span>{" "}
                         <span>{c.description}</span>
                       </div>
                       <div>
                         {c.is_resolved ? (
-                          <span style={{ color: "#15803d", fontSize: "0.8rem", fontWeight: "bold" }}>✓ رفع تعارض شده</span>
+                          <span style={{ color: "var(--success-fg)", fontSize: "0.8rem", fontWeight: "bold" }}>✓ رفع تعارض شده</span>
                         ) : canOverrideSIMOPS ? (
                           <button
                             type="button"
@@ -1108,7 +1108,7 @@ export function PermitsPage() {
                             تأیید استثنا (Override)
                           </button>
                         ) : (
-                          <span style={{ color: "#b91c1c", fontSize: "0.8rem" }}>⛔ مسدودکننده شروع کار</span>
+                          <span style={{ color: "var(--danger-fg)", fontSize: "0.8rem" }}>⛔ مسدودکننده شروع کار</span>
                         )}
                       </div>
                     </div>
@@ -1118,14 +1118,14 @@ export function PermitsPage() {
 
               {/* Override Banner */}
               {selectedPermit.simops_override_approved && (
-                <div style={{ marginTop: "0.5rem", background: "#f0fdf4", border: "1px solid #86efac", color: "#166534", padding: "0.5rem", borderRadius: "4px", fontSize: "0.85rem" }}>
+                <div style={{ marginTop: "0.5rem", background: "var(--success-subtle)", border: "1px solid var(--success-border)", color: "var(--success-fg)", padding: "0.5rem", borderRadius: "4px", fontSize: "0.85rem" }}>
                   ✓ تأیید استثنای همزمانی عملیات (SIMOPS Override) توسط <strong>{selectedPermit.simops_override_by_name}</strong> در تاریخ {new Date(selectedPermit.simops_override_at!).toLocaleString("fa-IR")} با علت «{selectedPermit.simops_override_reason}» ثبت شده است.
                 </div>
               )}
             </div>
 
             {/* Personnel & Competency Verification (Phase 10) */}
-            <div style={{ border: "1px solid #e2e8f0", borderRadius: "6px", padding: "0.75rem", marginBottom: "1rem", fontSize: "0.9rem", background: selectedPermit.competency_validation?.is_compliant === false ? "#fff5f5" : "#f8fafc" }}>
+            <div style={{ border: "1px solid var(--border-default)", borderRadius: "6px", padding: "0.75rem", marginBottom: "1rem", fontSize: "0.9rem", background: selectedPermit.competency_validation?.is_compliant === false ? "var(--danger-subtle)" : "var(--bg-subtle)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <strong>ارزیابی صلاحیت نفرات اجرایی (Competency Check):</strong>
                 {selectedPermit.competency_validation && (
@@ -1135,8 +1135,8 @@ export function PermitsPage() {
                       borderRadius: "4px",
                       fontSize: "0.8rem",
                       fontWeight: "bold",
-                      backgroundColor: selectedPermit.competency_validation.is_compliant ? "#e8f5e9" : "#ffebee",
-                      color: selectedPermit.competency_validation.is_compliant ? "#2e7d32" : "#c62828",
+                      backgroundColor: selectedPermit.competency_validation.is_compliant ? "var(--success-subtle)" : "var(--danger-subtle)",
+                      color: selectedPermit.competency_validation.is_compliant ? "var(--success-fg)" : "var(--danger-fg)",
                     }}
                   >
                     {selectedPermit.competency_validation.is_unknown
@@ -1155,7 +1155,7 @@ export function PermitsPage() {
                   <span className="muted">کارکنان معرفی‌شده ساختاریافته:</span>
                   <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
                     {selectedPermit.assigned_employee_details.map((emp) => (
-                      <span key={emp.id} style={{ background: "#e2e8f0", padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.8rem" }}>
+                      <span key={emp.id} style={{ background: "var(--border-default)", padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.8rem" }}>
                         {emp.full_name} ({emp.employee_no}) - {emp.job_title}
                       </span>
                     ))}
@@ -1164,7 +1164,7 @@ export function PermitsPage() {
               )}
 
               {selectedPermit.competency_validation?.reason && (
-                <div style={{ marginTop: "0.5rem", color: "#c62828", fontSize: "0.85rem" }}>
+                <div style={{ marginTop: "0.5rem", color: "var(--danger-fg)", fontSize: "0.85rem" }}>
                   {selectedPermit.competency_validation.reason}
                 </div>
               )}
@@ -1174,7 +1174,7 @@ export function PermitsPage() {
                   <span className="muted">صلاحیت هر نفر:</span>
                   <div style={{ display: "grid", gap: "0.35rem", marginTop: "0.25rem" }}>
                     {selectedPermit.competency_validation.people.map((person) => (
-                      <div key={person.employee_id} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "4px", padding: "0.4rem 0.55rem" }}>
+                      <div key={person.employee_id} style={{ background: "var(--bg-surface)", border: "1px solid var(--border-default)", borderRadius: "4px", padding: "0.4rem 0.55rem" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap" }}>
                           <strong>{person.full_name} ({person.employee_no})</strong>
                           <span className="muted" style={{ fontSize: "0.75rem" }}>{person.source_display ?? person.source}</span>
@@ -1191,8 +1191,8 @@ export function PermitsPage() {
                                   padding: "0.15rem 0.45rem",
                                   borderRadius: "4px",
                                   fontSize: "0.75rem",
-                                  background: check.is_valid ? "#e8f5e9" : "#ffebee",
-                                  color: check.is_valid ? "#2e7d32" : "#c62828",
+                                  background: check.is_valid ? "var(--success-subtle)" : "var(--danger-subtle)",
+                                  color: check.is_valid ? "var(--success-fg)" : "var(--danger-fg)",
                                 }}
                               >
                                 {check.competency_name}: {check.status_display}
@@ -1202,7 +1202,7 @@ export function PermitsPage() {
                           </div>
                         )}
                         {person.checks.some((check) => check.blocking_reason) && (
-                          <div style={{ color: "#c62828", fontSize: "0.75rem", marginTop: "0.2rem" }}>
+                          <div style={{ color: "var(--danger-fg)", fontSize: "0.75rem", marginTop: "0.2rem" }}>
                             {person.checks.filter((check) => check.blocking_reason).map((check) => check.blocking_reason).join(" | ")}
                           </div>
                         )}
@@ -1213,7 +1213,7 @@ export function PermitsPage() {
               )}
 
               {selectedPermit.competency_validation?.blocking_reasons && selectedPermit.competency_validation.blocking_reasons.length > 0 && (
-                <div style={{ marginTop: "0.5rem", color: "#c62828", fontSize: "0.85rem" }}>
+                <div style={{ marginTop: "0.5rem", color: "var(--danger-fg)", fontSize: "0.85rem" }}>
                   <strong>موانع تأیید/فعال‌سازی مجوز:</strong>
                   <ul style={{ margin: "0.25rem 0 0", paddingRight: "1.2rem" }}>
                     {selectedPermit.competency_validation.blocking_reasons.map((r, idx) => (
@@ -1226,18 +1226,18 @@ export function PermitsPage() {
 
             {/* Precautions & PPE */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem", fontSize: "0.9rem" }}>
-              <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px" }}>
+              <div style={{ background: "var(--bg-subtle)", padding: "0.75rem", borderRadius: "6px" }}>
                 <strong>تمهیدات ایمنی الزامی:</strong>
                 <p style={{ margin: "0.3rem 0 0" }}>{selectedPermit.precautions_taken || "تمهیدات خاصی درج نشده است."}</p>
               </div>
-              <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px" }}>
+              <div style={{ background: "var(--bg-subtle)", padding: "0.75rem", borderRadius: "6px" }}>
                 <strong>تجهیزات حفاظت فردی (PPE):</strong>
                 <p style={{ margin: "0.3rem 0 0" }}>{selectedPermit.required_ppe || "تجهیزات عمومی"}</p>
               </div>
             </div>
 
             {/* Control Verifications */}
-            <div style={{ border: "1px solid #e2e8f0", borderRadius: "6px", padding: "0.75rem", marginBottom: "1rem", fontSize: "0.9rem" }}>
+            <div style={{ border: "1px solid var(--border-default)", borderRadius: "6px", padding: "0.75rem", marginBottom: "1rem", fontSize: "0.9rem" }}>
               <strong>اعتبارسنجی کنترل‌های میدانی (پیش از فعال‌سازی):</strong>
               <div style={{ marginTop: "0.5rem" }}>
                 <div>
@@ -1247,7 +1247,7 @@ export function PermitsPage() {
                   <strong>ایزولاسیون و LOTO:</strong> {selectedPermit.isolation_loto_required ? (selectedPermit.isolation_loto_details ? `✓ ${selectedPermit.isolation_loto_details}` : "⚠️ الزامی (هنوز ثبت نشده است)") : "عدم نیاز"}
                 </div>
                 {selectedPermit.controls_verified && (
-                  <div style={{ marginTop: "0.5rem", color: "#15803d", fontWeight: "bold" }}>
+                  <div style={{ marginTop: "0.5rem", color: "var(--success-fg)", fontWeight: "bold" }}>
                     ✓ کنترل‌ها توسط {selectedPermit.controls_verified_by_name} در تاریخ {new Date(selectedPermit.controls_verified_at!).toLocaleString("fa-IR")} تایید شد.
                   </div>
                 )}
@@ -1256,35 +1256,35 @@ export function PermitsPage() {
 
             {/* Workflow notes & Reasons */}
             {selectedPermit.review_notes && (
-              <div style={{ background: "#eff6ff", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.85rem", color: "#1e40af" }}>
+              <div style={{ background: "var(--info-subtle)", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.85rem", color: "var(--info-fg)" }}>
                 <strong>یادداشت‌های بررسی و تأیید:</strong> {selectedPermit.review_notes}
               </div>
             )}
             {selectedPermit.suspension_reason && (
-              <div style={{ background: "#fef2f2", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.85rem", color: "#991b1b" }}>
+              <div style={{ background: "var(--danger-subtle)", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.85rem", color: "var(--danger-fg)" }}>
                 <strong>علت تعلیق کار:</strong> {selectedPermit.suspension_reason}
               </div>
             )}
             {selectedPermit.rejection_reason && (
-              <div style={{ background: "#fef2f2", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.85rem", color: "#991b1b" }}>
+              <div style={{ background: "var(--danger-subtle)", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.85rem", color: "var(--danger-fg)" }}>
                 <strong>علت رد مجوز:</strong> {selectedPermit.rejection_reason}
               </div>
             )}
             {selectedPermit.closure_summary && (
-              <div style={{ background: "#f0fdf4", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.85rem", color: "#166534" }}>
+              <div style={{ background: "var(--success-subtle)", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.85rem", color: "var(--success-fg)" }}>
                 <strong>خلاصه ترخیص و مختومه‌سازی:</strong> {selectedPermit.closure_summary}
               </div>
             )}
             {selectedPermit.resumption_notes && (
-              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.85rem", color: "#166534" }}>
+              <div style={{ background: "var(--success-subtle)", border: "1px solid var(--success-border)", padding: "0.75rem", borderRadius: "6px", marginBottom: "0.75rem", fontSize: "0.85rem", color: "var(--success-fg)" }}>
                 <strong>شرح اقدامات رفع نقص و ازسرگیری کار:</strong> {selectedPermit.resumption_notes}
               </div>
             )}
 
             {/* Action Buttons */}
-            <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem", justifyContent: "flex-end" }}>
+            <div style={{ borderTop: "1px solid var(--border-default)", paddingTop: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem", justifyContent: "flex-end" }}>
               {selectedPermit.status === "expired" && (
-                <div style={{ width: "100%", background: "#fef2f2", color: "#991b1b", padding: "0.65rem", borderRadius: "6px", fontSize: "0.85rem", marginBottom: "0.25rem" }}>
+                <div style={{ width: "100%", background: "var(--danger-subtle)", color: "var(--danger-fg)", padding: "0.65rem", borderRadius: "6px", fontSize: "0.85rem", marginBottom: "0.25rem" }}>
                   ⚠️ اعتبار زمانی این مجوز پایان یافته است. فعال‌سازی، تعلیق یا ازسرگیری مجاز نیست؛ فقط مختومه‌سازی نهایی یا لغو پرونده امکان‌پذیر است.
                 </div>
               )}
@@ -1393,7 +1393,7 @@ export function PermitsPage() {
                   type="button"
                   className="btn btn-outline"
                   onClick={() => setIsCancelModalOpen(true)}
-                  style={{ color: "#b91c1c" }}
+                  style={{ color: "var(--danger-fg)" }}
                 >
                   لغو مجوز
                 </button>
@@ -1443,7 +1443,7 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {isReviewModalOpen && selectedPermit && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h4>بررسی اولیه مجوز کار</h4>
             {actionError && <div style={{ color: "red", marginBottom: "0.5rem" }}>{actionError}</div>}
             <form
@@ -1487,9 +1487,9 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {isApproveModalOpen && selectedPermit && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h4>تأیید پروانه کار</h4>
-            <div style={{ background: "#fef3c7", padding: "0.75rem", borderRadius: "6px", fontSize: "0.85rem", color: "#92400e", marginBottom: "1rem" }}>
+            <div style={{ background: "var(--warning-subtle)", padding: "0.75rem", borderRadius: "6px", fontSize: "0.85rem", color: "var(--warning-fg)", marginBottom: "1rem" }}>
               ⚠️ طبق اصل تفکیک وظایف (Separation of Duties)، درخواست‌دهنده مجوز نمی‌تواند خودش اقدام به تأیید مجوز کند.
             </div>
             {actionError && <div style={{ color: "red", marginBottom: "0.5rem" }}>{actionError}</div>}
@@ -1533,7 +1533,7 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {isActivateModalOpen && selectedPermit && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "550px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "550px", width: "90%" }}>
             <h4>اعتبارسنجی کنترل‌های میدانی و فعال‌سازی</h4>
             <p className="muted" style={{ fontSize: "0.9rem" }}>
               قبل از فعال‌سازی، نتایج گازسنجی و مشخصات ایزولاسیون مکانیکی/برقی باید احراز شوند.
@@ -1602,7 +1602,7 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {isSuspendModalOpen && selectedPermit && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h4>تعلیق موقت مجوز کار</h4>
             {actionError && <div style={{ color: "red", marginBottom: "0.5rem" }}>{actionError}</div>}
             <form
@@ -1645,7 +1645,7 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {isResumeModalOpen && selectedPermit && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "520px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "520px", width: "90%" }}>
             <h4>ازسرگیری مجدد مجوز کار معلق‌شده</h4>
             <p className="muted" style={{ fontSize: "0.85rem" }}>
               پیش از بازگشت به کار، کلیه اقدامات رفع خطر، بررسی مجدد شرایط جوی و تایید پیش‌نیازهای گیت‌کیپر باید ثبت شوند.
@@ -1698,7 +1698,7 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {isCloseModalOpen && selectedPermit && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h4>مختومه‌سازی و ترخیص نهایی پروانه</h4>
             {actionError && <div style={{ color: "red", marginBottom: "0.5rem" }}>{actionError}</div>}
             <form
@@ -1747,7 +1747,7 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {isRejectModalOpen && selectedPermit && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h4>رد درخواست مجوز کار</h4>
             {actionError && <div style={{ color: "red", marginBottom: "0.5rem" }}>{actionError}</div>}
             <form
@@ -1790,7 +1790,7 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {isCancelModalOpen && selectedPermit && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h4>لغو مجوز کار</h4>
             {actionError && <div style={{ color: "red", marginBottom: "0.5rem" }}>{actionError}</div>}
             <form
@@ -1819,7 +1819,7 @@ export function PermitsPage() {
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsCancelModalOpen(false)}>انصراف</button>
-                <button type="submit" className="btn btn-outline" style={{ color: "#b91c1c" }} disabled={actionSubmitting}>
+                <button type="submit" className="btn btn-outline" style={{ color: "var(--danger-fg)" }} disabled={actionSubmitting}>
                   {actionSubmitting ? "در حال لغو…" : "لغو مجوز"}
                 </button>
               </div>
@@ -1833,9 +1833,9 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {isOverrideModalOpen && selectedConflictForOverride && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200 }}>
-          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "560px", width: "90%" }}>
-            <h4 style={{ color: "#b91c1c" }}>تأیید استثنا و مجوز ویژه همزمانی عملیات (SIMOPS Override)</h4>
-            <div style={{ background: "#fef2f2", padding: "0.75rem", borderRadius: "6px", fontSize: "0.85rem", color: "#991b1b", marginBottom: "1rem" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "560px", width: "90%" }}>
+            <h4 style={{ color: "var(--danger-fg)" }}>تأیید استثنا و مجوز ویژه همزمانی عملیات (SIMOPS Override)</h4>
+            <div style={{ background: "var(--danger-subtle)", padding: "0.75rem", borderRadius: "6px", fontSize: "0.85rem", color: "var(--danger-fg)", marginBottom: "1rem" }}>
               <strong>شرح تعارض:</strong> {selectedConflictForOverride.description}
             </div>
             {actionError && <div style={{ color: "red", marginBottom: "0.5rem" }}>{actionError}</div>}
@@ -1917,7 +1917,7 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {selectedHandoverForAck && (
         <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-          <div className="modal-content" style={{ background: "white", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h4>تأیید و پذیرش تحویل شیفت</h4>
             <p className="muted" style={{ fontSize: "0.9rem" }}>
               سرپرست ورودی با تأیید این فرم، مسئولیت پایش مجوزهای کار و وضعیت ایمنی کارگاه را بر عهده می‌گیرد.
@@ -2024,7 +2024,7 @@ function CreatePermitModal({ organizationId, workplaces, contractors, onClose, o
           <button type="button" className="modal-close-btn" onClick={onClose} aria-label="بستن"><X size={18} /></button>
         </div>
 
-        {error && <div style={{ color: "red", background: "#fee2e2", padding: "0.75rem", borderRadius: "4px", marginBottom: "1rem" }}>{error}</div>}
+        {error && <div style={{ color: "red", background: "var(--danger-subtle)", padding: "0.75rem", borderRadius: "4px", marginBottom: "1rem" }}>{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
@@ -2108,7 +2108,7 @@ function CreatePermitModal({ organizationId, workplaces, contractors, onClose, o
           </div>
 
           {/* Weather status */}
-          <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem", border: "1px solid #e2e8f0" }}>
+          <div style={{ background: "var(--bg-subtle)", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem", border: "1px solid var(--border-default)" }}>
             <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", marginBottom: "0.4rem" }}>
               <input type="checkbox" name="weather_condition_ok" defaultChecked />
               <span><strong>شرایط جوی و هواشناسی برای اجرای کار مساعد و ایمن است</strong></span>
@@ -2121,7 +2121,7 @@ function CreatePermitModal({ organizationId, workplaces, contractors, onClose, o
             />
           </div>
 
-          <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem", display: "flex", gap: "2rem" }}>
+          <div style={{ background: "var(--bg-subtle)", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem", display: "flex", gap: "2rem" }}>
             <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
               <input type="checkbox" name="gas_testing_required" />
               <span>نیاز به گازسنجی اتمسفر دارد</span>
@@ -2132,7 +2132,7 @@ function CreatePermitModal({ organizationId, workplaces, contractors, onClose, o
             </label>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", borderTop: "1px solid #e2e8f0", paddingTop: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", borderTop: "1px solid var(--border-default)", paddingTop: "1rem" }}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>انصراف</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? "در حال ثبت…" : "ثبت و ارسال درخواست"}
@@ -2211,13 +2211,13 @@ function CreateShiftHandoverModal({
 
   return (
     <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-      <div className="modal-content" style={{ background: "white", borderRadius: "8px", maxWidth: "600px", width: "90%", maxHeight: "90vh", overflowY: "auto", padding: "1.5rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.5rem", marginBottom: "1rem" }}>
+      <div className="modal-content" style={{ background: "var(--bg-surface)", borderRadius: "8px", maxWidth: "600px", width: "90%", maxHeight: "90vh", overflowY: "auto", padding: "1.5rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-default)", paddingBottom: "0.5rem", marginBottom: "1rem" }}>
           <h3 style={{ margin: 0 }}>ثبت تحویل شیفت جدید</h3>
           <button type="button" onClick={onClose} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer" }}>✕</button>
         </div>
 
-        {error && <div style={{ color: "red", background: "#fee2e2", padding: "0.75rem", borderRadius: "4px", marginBottom: "1rem" }}>{error}</div>}
+        {error && <div style={{ color: "red", background: "var(--danger-subtle)", padding: "0.75rem", borderRadius: "4px", marginBottom: "1rem" }}>{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
@@ -2280,7 +2280,7 @@ function CreateShiftHandoverModal({
           </div>
 
           {activePermits.length > 0 && (
-            <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>
+            <div style={{ background: "var(--bg-subtle)", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>
               <label style={{ fontWeight: "bold" }}>مجوزهای کار فعال جهت الصاق به این تحویل شیفت:</label>
               <div style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
                 {activePermits.map((p) => (
@@ -2300,7 +2300,7 @@ function CreateShiftHandoverModal({
             </div>
           )}
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", borderTop: "1px solid #e2e8f0", paddingTop: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", borderTop: "1px solid var(--border-default)", paddingTop: "1rem" }}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>انصراف</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? "در حال ثبت…" : "ثبت گزارش شیفت"}

@@ -826,10 +826,10 @@ export function WorkforcePage() {
           <h1 style={{ fontSize: "1.75rem", margin: 0 }}>
             مدیریت آموزش، صلاحیت کارکنان و تجهیزات حفاظت فردی (PPE)
           </h1>
-          <p style={{ color: "#666", margin: "0.25rem 0 0" }}>
+          <p style={{ color: "var(--text-tertiary)", margin: "0.25rem 0 0" }}>
             ساماندهی شایستگی‌های حرفه‌ای، سوابق آموزشی و کنترل ایمنی تجهیزات کارگاه
             {organizations.length > 0 && (
-              <span style={{ marginRight: "0.5rem", fontSize: "0.85rem", color: "#0056b3" }}>
+              <span style={{ marginRight: "0.5rem", fontSize: "0.85rem", color: "var(--primary)" }}>
                 ({organizations.map((o) => o.name).join("، ")})
               </span>
             )}
@@ -922,7 +922,7 @@ export function WorkforcePage() {
             padding: "0.6rem 1.2rem",
             border: "none",
             background: "none",
-            borderBottom: activeTab === "training" ? "3px solid #0056b3" : "none",
+            borderBottom: activeTab === "training" ? "3px solid var(--primary)" : "none",
             fontWeight: activeTab === "training" ? "bold" : "normal",
             cursor: "pointer",
           }}
@@ -967,11 +967,11 @@ export function WorkforcePage() {
       {!loading && activeTab === "overview" && (
         <div className="overview-tab">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
-            <div className="card" style={{ padding: "1.25rem", border: "1px solid #dee2e6", borderRadius: "8px" }}>
-              <h3 style={{ marginTop: 0, borderBottom: "1px solid #eee", paddingBottom: "0.5rem" }}>
+            <div className="card" style={{ padding: "1.25rem", border: "1px solid var(--border-default)", borderRadius: "8px" }}>
+              <h3 style={{ marginTop: 0, borderBottom: "1px solid var(--border-default)", paddingBottom: "0.5rem" }}>
                 وضعیت سریع الزامات صلاحیت مجوز کار (PTW)
               </h3>
-              <p style={{ fontSize: "0.9rem", color: "#555" }}>
+              <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>
                 سیستم به‌صورت خودکار هنگام بررسی و فعال‌سازی مجوزهای پرخطر، احراز صلاحیت پرسنل را بررسی می‌کند:
               </p>
               <ul style={{ paddingRight: "1.2rem", lineHeight: "1.8" }}>
@@ -980,7 +980,7 @@ export function WorkforcePage() {
                     <strong>{req.permit_type_display}:</strong> نیازمند «{req.competency_detail?.name}»
                   </li>
                 ))}
-                {permitRequirements.length === 0 && <li style={{ color: "#888" }}>هیچ الزامی تنظیم نشده است.</li>}
+                {permitRequirements.length === 0 && <li style={{ color: "var(--text-tertiary)" }}>هیچ الزامی تنظیم نشده است.</li>}
               </ul>
               <button
                 className="button button-sm button-primary"
@@ -993,31 +993,31 @@ export function WorkforcePage() {
               </button>
             </div>
 
-            <div className="card" style={{ padding: "1.25rem", border: "1px solid #dee2e6", borderRadius: "8px" }}>
-              <h3 style={{ marginTop: 0, borderBottom: "1px solid #eee", paddingBottom: "0.5rem" }}>
+            <div className="card" style={{ padding: "1.25rem", border: "1px solid var(--border-default)", borderRadius: "8px" }}>
+              <h3 style={{ marginTop: 0, borderBottom: "1px solid var(--border-default)", paddingBottom: "0.5rem" }}>
                 هشدارهای تجهیزات حفاظت فردی (PPE)
               </h3>
-              <p style={{ fontSize: "0.9rem", color: "#555" }}>
+              <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>
                 اقلام نیازمند توجه فوری بر اساس موعد تعویض و حداقل موجودی:
               </p>
               <ul style={{ paddingRight: "1.2rem", lineHeight: "1.8" }}>
                 {ppeStocks
                   .filter((s) => s.is_below_minimum)
                   .map((stock) => (
-                    <li key={stock.id} style={{ color: "#d9534f" }}>
+                    <li key={stock.id} style={{ color: "var(--danger-fg)" }}>
                       کسری موجودی: {stock.item_detail?.name || stock.item_name || "تجهیز"} در {stock.location_name} (موجودی {stock.quantity_on_hand}، حداقل {stock.quantity_minimum})
                     </li>
                   ))}
                 {ppeAssignments
                   .filter((a) => a.is_overdue)
                   .map((assign) => (
-                    <li key={assign.id} style={{ color: "#d9534f" }}>
+                    <li key={assign.id} style={{ color: "var(--danger-fg)" }}>
                       موعد تعویض گذشته: {assign.item_name} تحویل به {assign.employee_detail?.full_name}
                     </li>
                   ))}
                 {ppeStocks.filter((s) => s.is_below_minimum).length === 0 &&
                   ppeAssignments.filter((a) => a.is_overdue).length === 0 && (
-                    <li style={{ color: "#28a745" }}>تمامی اقلام PPE در وضعیت پایدار قرار دارند.</li>
+                    <li style={{ color: "var(--success)" }}>تمامی اقلام PPE در وضعیت پایدار قرار دارند.</li>
                   )}
               </ul>
             </div>
@@ -1043,12 +1043,12 @@ export function WorkforcePage() {
                 placeholder="جستجو با شماره پرسنلی، نام یا سمت..."
                 value={employeeSearch}
                 onChange={(e) => setEmployeeSearch(e.target.value)}
-                style={{ padding: "0.5rem", width: "300px", borderRadius: "4px", border: "1px solid #ccc" }}
+                style={{ padding: "0.5rem", width: "300px", borderRadius: "4px", border: "1px solid var(--border-default)" }}
               />
               <select
                 value={selectedWorkplaceId}
                 onChange={(e) => setSelectedWorkplaceId(e.target.value)}
-                style={{ padding: "0.5rem", borderRadius: "4px", border: "1px solid #ccc" }}
+                style={{ padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--border-default)" }}
               >
                 <option value="">همه کارگاه‌ها</option>
                 {workplaces.map((wp) => (
@@ -1065,7 +1065,7 @@ export function WorkforcePage() {
 
           <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "#f1f3f5", textAlign: "right" }}>
+              <tr style={{ background: "var(--bg-subtle)", textAlign: "right" }}>
                 <th style={{ padding: "0.75rem" }}>شماره پرسنلی</th>
                 <th style={{ padding: "0.75rem" }}>نام و نام خانوادگی</th>
                 <th style={{ padding: "0.75rem" }}>سمت شغلی</th>
@@ -1077,13 +1077,13 @@ export function WorkforcePage() {
             </thead>
             <tbody>
               {filteredEmployees.map((emp) => (
-                <tr key={emp.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                <tr key={emp.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                   <td style={{ padding: "0.75rem" }}>{emp.employee_no}</td>
                   <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{emp.full_name}</td>
                   <td style={{ padding: "0.75rem" }}>{emp.job_title || "—"}</td>
                   <td style={{ padding: "0.75rem" }}>{emp.workplace_name || "—"}</td>
                   <td style={{ padding: "0.75rem" }}>
-                    {emp.user_detail ? emp.user_detail.username : <span style={{ color: "#888" }}>بدون ورود</span>}
+                    {emp.user_detail ? emp.user_detail.username : <span style={{ color: "var(--text-tertiary)" }}>بدون ورود</span>}
                   </td>
                   <td style={{ padding: "0.75rem" }}>
                     <span
@@ -1091,8 +1091,8 @@ export function WorkforcePage() {
                         padding: "0.2rem 0.5rem",
                         borderRadius: "4px",
                         fontSize: "0.8rem",
-                        backgroundColor: emp.is_active ? "#e8f5e9" : "#ffebee",
-                        color: emp.is_active ? "#2e7d32" : "#c62828",
+                        backgroundColor: emp.is_active ? "var(--success-subtle)" : "var(--danger-subtle)",
+                        color: emp.is_active ? "var(--success-fg)" : "var(--danger-fg)",
                       }}
                     >
                       {emp.is_active ? "فعال" : "غیرفعال"}
@@ -1110,7 +1110,7 @@ export function WorkforcePage() {
               ))}
               {filteredEmployees.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "var(--text-tertiary)" }}>
                     هیچ کارمندی یافت نشد.
                   </td>
                 </tr>
@@ -1134,7 +1134,7 @@ export function WorkforcePage() {
               </div>
               <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ background: "#f1f3f5", textAlign: "right" }}>
+                  <tr style={{ background: "var(--bg-subtle)", textAlign: "right" }}>
                     <th style={{ padding: "0.5rem" }}>کد</th>
                     <th style={{ padding: "0.5rem" }}>عنوان دوره</th>
                     <th style={{ padding: "0.5rem" }}>مدت (دقیقه)</th>
@@ -1143,7 +1143,7 @@ export function WorkforcePage() {
                 </thead>
                 <tbody>
                   {courses.map((c) => (
-                    <tr key={c.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                    <tr key={c.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                       <td style={{ padding: "0.5rem" }}>{c.code}</td>
                       <td style={{ padding: "0.5rem", fontWeight: "bold" }}>{c.title}</td>
                       <td style={{ padding: "0.5rem" }}>{c.duration_minutes}</td>
@@ -1152,7 +1152,7 @@ export function WorkforcePage() {
                   ))}
                   {courses.length === 0 && (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: "center", padding: "1rem", color: "#888" }}>
+                      <td colSpan={4} style={{ textAlign: "center", padding: "1rem", color: "var(--text-tertiary)" }}>
                         دوره‌ای ثبت نشده است.
                       </td>
                     </tr>
@@ -1171,7 +1171,7 @@ export function WorkforcePage() {
               </div>
               <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ background: "#f1f3f5", textAlign: "right" }}>
+                  <tr style={{ background: "var(--bg-subtle)", textAlign: "right" }}>
                     <th style={{ padding: "0.5rem" }}>دوره</th>
                     <th style={{ padding: "0.5rem" }}>تاریخ</th>
                     <th style={{ padding: "0.5rem" }}>مدرس</th>
@@ -1185,9 +1185,9 @@ export function WorkforcePage() {
                       key={s.id}
                       onClick={() => setSelectedSessionId(s.id)}
                       style={{
-                        borderBottom: "1px solid #dee2e6",
+                        borderBottom: "1px solid var(--border-default)",
                         cursor: "pointer",
-                        background: selectedSessionId === s.id ? "#e8f0fe" : "transparent",
+                        background: selectedSessionId === s.id ? "var(--info-subtle)" : "transparent",
                       }}
                     >
                       <td style={{ padding: "0.5rem", fontWeight: "bold" }}>{s.course_detail?.title}</td>
@@ -1199,7 +1199,7 @@ export function WorkforcePage() {
                   ))}
                   {sessions.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: "center", padding: "1rem", color: "#888" }}>
+                      <td colSpan={5} style={{ textAlign: "center", padding: "1rem", color: "var(--text-tertiary)" }}>
                         نوبتی ثبت نشده است.
                       </td>
                     </tr>
@@ -1211,7 +1211,7 @@ export function WorkforcePage() {
 
           {/* Attendances for selected session */}
           {selectedSessionId && (
-            <div style={{ border: "1px solid #dee2e6", borderRadius: "8px", padding: "1rem", background: "#fafafa" }}>
+            <div style={{ border: "1px solid var(--border-default)", borderRadius: "8px", padding: "1rem", background: "var(--bg-subtle)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
                 <h4 style={{ margin: 0 }}>شرکت‌کنندگان و نتایج ارزیابی نوبت انتخابی</h4>
                 <button className="button button-sm button-primary" onClick={() => setShowAttendanceModal(true)}>
@@ -1220,7 +1220,7 @@ export function WorkforcePage() {
               </div>
               <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ background: "#eee", textAlign: "right" }}>
+                  <tr style={{ background: "var(--bg-subtle)", textAlign: "right" }}>
                     <th style={{ padding: "0.5rem" }}>کارمند</th>
                     <th style={{ padding: "0.5rem" }}>حضور</th>
                     <th style={{ padding: "0.5rem" }}>نتیجه ارزیابی</th>
@@ -1230,7 +1230,7 @@ export function WorkforcePage() {
                 </thead>
                 <tbody>
                   {attendances.map((a) => (
-                    <tr key={a.id} style={{ borderBottom: "1px solid #ddd" }}>
+                    <tr key={a.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                       <td style={{ padding: "0.5rem", fontWeight: "bold" }}>{a.employee_detail?.full_name}</td>
                       <td style={{ padding: "0.5rem" }}>{a.attendance_status_display}</td>
                       <td style={{ padding: "0.5rem" }}>
@@ -1241,16 +1241,16 @@ export function WorkforcePage() {
                             fontSize: "0.8rem",
                             backgroundColor:
                               a.assessment_result === "passed"
-                                ? "#e8f5e9"
+                                ? "var(--success-subtle)"
                                 : a.assessment_result === "failed"
-                                  ? "#ffebee"
-                                  : "#fff3cd",
+                                  ? "var(--danger-subtle)"
+                                  : "var(--warning-subtle)",
                             color:
                               a.assessment_result === "passed"
-                                ? "#2e7d32"
+                                ? "var(--success-fg)"
                                 : a.assessment_result === "failed"
-                                  ? "#c62828"
-                                  : "#856404",
+                                  ? "var(--danger-fg)"
+                                  : "var(--warning-fg)",
                           }}
                         >
                           {a.assessment_result_display}
@@ -1262,7 +1262,7 @@ export function WorkforcePage() {
                   ))}
                   {attendances.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: "center", padding: "1rem", color: "#888" }}>
+                      <td colSpan={5} style={{ textAlign: "center", padding: "1rem", color: "var(--text-tertiary)" }}>
                         هیچ شرکت‌کننده‌ای برای این نوبت ثبت نشده است.
                       </td>
                     </tr>
@@ -1292,7 +1292,7 @@ export function WorkforcePage() {
 
           <table className="table" style={{ width: "100%", borderCollapse: "collapse", marginBottom: "2rem" }}>
             <thead>
-              <tr style={{ background: "#f1f3f5", textAlign: "right" }}>
+              <tr style={{ background: "var(--bg-subtle)", textAlign: "right" }}>
                 <th style={{ padding: "0.75rem" }}>کارمند</th>
                 <th style={{ padding: "0.75rem" }}>عنوان صلاحیت</th>
                 <th style={{ padding: "0.75rem" }}>شماره گواهی</th>
@@ -1304,7 +1304,7 @@ export function WorkforcePage() {
             </thead>
             <tbody>
               {empCompetencies.map((ec) => (
-                <tr key={ec.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                <tr key={ec.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                   <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{ec.employee_detail?.full_name}</td>
                   <td style={{ padding: "0.75rem" }}>{ec.competency_detail?.name}</td>
                   <td style={{ padding: "0.75rem" }}>{ec.certificate_number || "—"}</td>
@@ -1318,16 +1318,16 @@ export function WorkforcePage() {
                         fontSize: "0.8rem",
                         backgroundColor:
                           ec.effective_status === "valid"
-                            ? "#e8f5e9"
+                            ? "var(--success-subtle)"
                             : ec.effective_status === "expiring_soon"
-                              ? "#fff3cd"
-                              : "#ffebee",
+                              ? "var(--warning-subtle)"
+                              : "var(--danger-subtle)",
                         color:
                           ec.effective_status === "valid"
-                            ? "#2e7d32"
+                            ? "var(--success-fg)"
                             : ec.effective_status === "expiring_soon"
-                              ? "#856404"
-                              : "#c62828",
+                              ? "var(--warning-fg)"
+                              : "var(--danger-fg)",
                       }}
                     >
                       {ec.effective_status_display}
@@ -1356,7 +1356,7 @@ export function WorkforcePage() {
               ))}
               {empCompetencies.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "var(--text-tertiary)" }}>
                     هیچ سابقه‌ای از صلاحیت کارکنان ثبت نشده است.
                   </td>
                 </tr>
@@ -1365,7 +1365,7 @@ export function WorkforcePage() {
           </table>
 
           {/* Permit Competency Requirements */}
-          <div style={{ borderTop: "2px solid #eee", paddingTop: "1.5rem" }}>
+          <div style={{ borderTop: "2px solid var(--border-default)", paddingTop: "1.5rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
               <h3 style={{ margin: 0 }}>الزامات صلاحیت مجوزهای کار پرخطر (PTW)</h3>
               <button className="button button-sm button-primary" onClick={() => setShowRequirementModal(true)}>
@@ -1374,7 +1374,7 @@ export function WorkforcePage() {
             </div>
             <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ background: "#f1f3f5", textAlign: "right" }}>
+                <tr style={{ background: "var(--bg-subtle)", textAlign: "right" }}>
                   <th style={{ padding: "0.75rem" }}>نوع مجوز کار</th>
                   <th style={{ padding: "0.75rem" }}>صلاحیت الزامی</th>
                   <th style={{ padding: "0.75rem" }}>کد صلاحیت</th>
@@ -1383,7 +1383,7 @@ export function WorkforcePage() {
               </thead>
               <tbody>
                 {permitRequirements.map((r) => (
-                  <tr key={r.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                  <tr key={r.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                     <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{r.permit_type_display}</td>
                     <td style={{ padding: "0.75rem" }}>{r.competency_detail?.name}</td>
                     <td style={{ padding: "0.75rem" }}>{r.competency_detail?.code}</td>
@@ -1425,7 +1425,7 @@ export function WorkforcePage() {
           <h4 style={{ margin: "1.5rem 0 0.5rem" }}>سوابق تحویل تجهیزات حفاظت فردی</h4>
           <table className="table" style={{ width: "100%", borderCollapse: "collapse", marginBottom: "2rem" }}>
             <thead>
-              <tr style={{ background: "#f1f3f5", textAlign: "right" }}>
+              <tr style={{ background: "var(--bg-subtle)", textAlign: "right" }}>
                 <th style={{ padding: "0.75rem" }}>کارمند</th>
                 <th style={{ padding: "0.75rem" }}>تجهیز PPE</th>
                 <th style={{ padding: "0.75rem" }}>تعداد</th>
@@ -1438,14 +1438,14 @@ export function WorkforcePage() {
             </thead>
             <tbody>
               {ppeAssignments.map((a) => (
-                <tr key={a.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                <tr key={a.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                   <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{a.employee_detail?.full_name}</td>
                   <td style={{ padding: "0.75rem" }}>{a.item_name}</td>
                   <td style={{ padding: "0.75rem" }}>{a.quantity}</td>
                   <td style={{ padding: "0.75rem" }}>{a.serial_number || "—"}</td>
                   <td style={{ padding: "0.75rem" }}>{a.issued_on}</td>
                   <td style={{ padding: "0.75rem" }}>
-                    <span style={{ color: a.is_overdue ? "#dc3545" : a.is_due_soon ? "#fd7e14" : "inherit" }}>
+                    <span style={{ color: a.is_overdue ? "var(--danger)" : a.is_due_soon ? "var(--warning)" : "inherit" }}>
                       {a.replacement_due_on || "—"}
                     </span>
                   </td>
@@ -1455,8 +1455,8 @@ export function WorkforcePage() {
                         padding: "0.2rem 0.5rem",
                         borderRadius: "4px",
                         fontSize: "0.8rem",
-                        backgroundColor: a.status === "active" ? "#e8f5e9" : "#f1f3f5",
-                        color: a.status === "active" ? "#2e7d32" : "#495057",
+                        backgroundColor: a.status === "active" ? "var(--success-subtle)" : "var(--bg-subtle)",
+                        color: a.status === "active" ? "var(--success-fg)" : "var(--text-secondary)",
                       }}
                     >
                       {a.status_display}
@@ -1479,7 +1479,7 @@ export function WorkforcePage() {
               ))}
               {ppeAssignments.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "var(--text-tertiary)" }}>
                     هیچ تخصیصی ثبت نشده است.
                   </td>
                 </tr>
@@ -1491,7 +1491,7 @@ export function WorkforcePage() {
           <h4 style={{ margin: "1.5rem 0 0.5rem" }}>موجودی انبارهای کارگاه</h4>
           <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "#f1f3f5", textAlign: "right" }}>
+              <tr style={{ background: "var(--bg-subtle)", textAlign: "right" }}>
                 <th style={{ padding: "0.5rem" }}>قلم PPE</th>
                 <th style={{ padding: "0.5rem" }}>کارگاه / محل انبار</th>
                 <th style={{ padding: "0.5rem" }}>موجودی موجود</th>
@@ -1501,16 +1501,16 @@ export function WorkforcePage() {
             </thead>
             <tbody>
               {ppeStocks.map((s) => (
-                <tr key={s.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                <tr key={s.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                   <td style={{ padding: "0.5rem", fontWeight: "bold" }}>{s.item_detail?.name || s.item_name || "—"}</td>
                   <td style={{ padding: "0.5rem" }}>{s.location_name} ({s.workplace_name || "مرکزی"})</td>
                   <td style={{ padding: "0.5rem" }}>{s.quantity_on_hand}</td>
                   <td style={{ padding: "0.5rem" }}>{s.quantity_minimum}</td>
                   <td style={{ padding: "0.5rem" }}>
                     {s.is_below_minimum ? (
-                      <span style={{ color: "#dc3545", fontWeight: "bold" }}>کسری موجودی</span>
+                      <span style={{ color: "var(--danger)", fontWeight: "bold" }}>کسری موجودی</span>
                     ) : (
-                      <span style={{ color: "#28a745" }}>کافی</span>
+                      <span style={{ color: "var(--success)" }}>کافی</span>
                     )}
                   </td>
                 </tr>
@@ -1532,7 +1532,7 @@ export function WorkforcePage() {
 
           <table className="table" style={{ width: "100%", borderCollapse: "collapse", marginBottom: "1.5rem" }}>
             <thead>
-              <tr style={{ textAlign: "right", borderBottom: "2px solid #dee2e6" }}>
+              <tr style={{ textAlign: "right", borderBottom: "2px solid var(--border-default)" }}>
                 <th style={{ padding: "0.75rem" }}>نام شرکت پیمانکار</th>
                 <th style={{ padding: "0.75rem" }}>شماره ثبت</th>
                 <th style={{ padding: "0.75rem" }}>مسئول رابط / تماس</th>
@@ -1545,7 +1545,7 @@ export function WorkforcePage() {
             </thead>
             <tbody>
               {contractors.map((c) => (
-                <tr key={c.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                <tr key={c.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                   <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{c.name}</td>
                   <td style={{ padding: "0.75rem" }}>{c.registration_no || "—"}</td>
                   <td style={{ padding: "0.75rem" }}>{c.contact_person} {c.contact_phone ? `(${c.contact_phone})` : ""}</td>
@@ -1557,8 +1557,8 @@ export function WorkforcePage() {
                         borderRadius: "4px",
                         fontSize: "0.85rem",
                         fontWeight: "bold",
-                        backgroundColor: Number(c.safety_score) >= 80 ? "#e8f5e9" : "#ffebee",
-                        color: Number(c.safety_score) >= 80 ? "#2e7d32" : "#c62828",
+                        backgroundColor: Number(c.safety_score) >= 80 ? "var(--success-subtle)" : "var(--danger-subtle)",
+                        color: Number(c.safety_score) >= 80 ? "var(--success-fg)" : "var(--danger-fg)",
                       }}
                     >
                       {c.safety_score} / 100
@@ -1570,8 +1570,8 @@ export function WorkforcePage() {
                         padding: "0.2rem 0.5rem",
                         borderRadius: "4px",
                         fontSize: "0.8rem",
-                        backgroundColor: c.status === "approved" ? "#e8f5e9" : "#fff3e0",
-                        color: c.status === "approved" ? "#2e7d32" : "#e65100",
+                        backgroundColor: c.status === "approved" ? "var(--success-subtle)" : "var(--warning-subtle)",
+                        color: c.status === "approved" ? "var(--success-fg)" : "var(--warning-fg)",
                       }}
                     >
                       {c.status_display}
@@ -1592,7 +1592,7 @@ export function WorkforcePage() {
               ))}
               {contractors.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "var(--text-tertiary)" }}>
                     هیچ شرکت پیمانکاری ثبت نشده است.
                   </td>
                 </tr>
@@ -1602,8 +1602,8 @@ export function WorkforcePage() {
 
           {/* Selected Contractor Dossier */}
           {selectedContractorId && (
-            <div className="card" style={{ padding: "1.25rem", border: "1px solid #dee2e6", borderRadius: "8px", marginBottom: "1.5rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #eee", paddingBottom: "0.75rem", marginBottom: "1rem" }}>
+            <div className="card" style={{ padding: "1.25rem", border: "1px solid var(--border-default)", borderRadius: "8px", marginBottom: "1.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-default)", paddingBottom: "0.75rem", marginBottom: "1rem" }}>
                 <h3 style={{ margin: 0 }}>
                   پرونده مدارک و پرسنل: {contractors.find((c) => c.id === selectedContractorId)?.name}
                 </h3>
@@ -1623,7 +1623,7 @@ export function WorkforcePage() {
                   <h4 style={{ margin: "0 0 0.5rem" }}>مدارک و مجوزهای ایمنی (HSE Plan، بیمه، استاندارد)</h4>
                   <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
-                      <tr style={{ textAlign: "right", borderBottom: "1px solid #dee2e6" }}>
+                      <tr style={{ textAlign: "right", borderBottom: "1px solid var(--border-default)" }}>
                         <th style={{ padding: "0.5rem" }}>نوع مدرک</th>
                         <th style={{ padding: "0.5rem" }}>عنوان</th>
                         <th style={{ padding: "0.5rem" }}>اعتبار</th>
@@ -1633,11 +1633,11 @@ export function WorkforcePage() {
                     </thead>
                     <tbody>
                       {contractorDocuments.map((doc) => (
-                        <tr key={doc.id} style={{ borderBottom: "1px solid #eee" }}>
+                        <tr key={doc.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                           <td style={{ padding: "0.5rem" }}>{doc.document_type_display}</td>
                           <td style={{ padding: "0.5rem", fontWeight: "bold" }}>{doc.title}</td>
                           <td style={{ padding: "0.5rem" }}>
-                            <span style={{ color: doc.is_expired ? "#dc3545" : "inherit" }}>
+                            <span style={{ color: doc.is_expired ? "var(--danger)" : "inherit" }}>
                               {doc.valid_until || "نامحدود"}
                             </span>
                           </td>
@@ -1647,8 +1647,8 @@ export function WorkforcePage() {
                                 padding: "0.15rem 0.4rem",
                                 borderRadius: "4px",
                                 fontSize: "0.75rem",
-                                backgroundColor: doc.status === "verified" ? "#e8f5e9" : "#fff3e0",
-                                color: doc.status === "verified" ? "#2e7d32" : "#e65100",
+                                backgroundColor: doc.status === "verified" ? "var(--success-subtle)" : "var(--warning-subtle)",
+                                color: doc.status === "verified" ? "var(--success-fg)" : "var(--warning-fg)",
                               }}
                             >
                               {doc.status_display}
@@ -1668,7 +1668,7 @@ export function WorkforcePage() {
                       ))}
                       {contractorDocuments.length === 0 && (
                         <tr>
-                          <td colSpan={5} style={{ textAlign: "center", padding: "1rem", color: "#888" }}>
+                          <td colSpan={5} style={{ textAlign: "center", padding: "1rem", color: "var(--text-tertiary)" }}>
                             مدرکی ثبت نشده است.
                           </td>
                         </tr>
@@ -1682,7 +1682,7 @@ export function WorkforcePage() {
                   <h4 style={{ margin: "0 0 0.5rem" }}>کارگران و تکنسین‌های تحت پوشش</h4>
                   <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
-                      <tr style={{ textAlign: "right", borderBottom: "1px solid #dee2e6" }}>
+                      <tr style={{ textAlign: "right", borderBottom: "1px solid var(--border-default)" }}>
                         <th style={{ padding: "0.5rem" }}>کد ملی</th>
                         <th style={{ padding: "0.5rem" }}>نام و نام خانوادگی</th>
                         <th style={{ padding: "0.5rem" }}>رسته شغلی</th>
@@ -1692,13 +1692,13 @@ export function WorkforcePage() {
                     </thead>
                     <tbody>
                       {contractorWorkers.map((w) => (
-                        <tr key={w.id} style={{ borderBottom: "1px solid #eee" }}>
+                        <tr key={w.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                           <td style={{ padding: "0.5rem" }}>{w.national_id}</td>
                           <td style={{ padding: "0.5rem", fontWeight: "bold" }}>{w.full_name}</td>
                           <td style={{ padding: "0.5rem" }}>{w.trade || "عمومی"}</td>
                           <td style={{ padding: "0.5rem" }}>{w.mobile || "—"}</td>
                           <td style={{ padding: "0.5rem" }}>
-                            <span style={{ color: w.is_active ? "#28a745" : "#6c757d" }}>
+                            <span style={{ color: w.is_active ? "var(--success)" : "var(--text-secondary)" }}>
                               {w.is_active ? "فعال" : "غیرفعال"}
                             </span>
                           </td>
@@ -1706,7 +1706,7 @@ export function WorkforcePage() {
                       ))}
                       {contractorWorkers.length === 0 && (
                         <tr>
-                          <td colSpan={5} style={{ textAlign: "center", padding: "1rem", color: "#888" }}>
+                          <td colSpan={5} style={{ textAlign: "center", padding: "1rem", color: "var(--text-tertiary)" }}>
                             کارگری برای این پیمانکار ثبت نشده است.
                           </td>
                         </tr>
@@ -1737,7 +1737,7 @@ export function WorkforcePage() {
 
           <table className="table" style={{ width: "100%", borderCollapse: "collapse", marginBottom: "2rem" }}>
             <thead>
-              <tr style={{ textAlign: "right", borderBottom: "2px solid #dee2e6" }}>
+              <tr style={{ textAlign: "right", borderBottom: "2px solid var(--border-default)" }}>
                 <th style={{ padding: "0.75rem" }}>کد شغل</th>
                 <th style={{ padding: "0.75rem" }}>عنوان سمت</th>
                 <th style={{ padding: "0.75rem" }}>دپارتمان / واحد</th>
@@ -1749,7 +1749,7 @@ export function WorkforcePage() {
             </thead>
             <tbody>
               {jobPositions.map((jp) => (
-                <tr key={jp.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                <tr key={jp.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                   <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{jp.code}</td>
                   <td style={{ padding: "0.75rem" }}>{jp.title}</td>
                   <td style={{ padding: "0.75rem" }}>{jp.department || "—"}</td>
@@ -1762,20 +1762,20 @@ export function WorkforcePage() {
                         fontWeight: "bold",
                         backgroundColor:
                           jp.risk_level === "critical"
-                            ? "#ffebee"
+                            ? "var(--danger-subtle)"
                             : jp.risk_level === "high"
-                            ? "#fff3e0"
+                            ? "var(--warning-subtle)"
                             : jp.risk_level === "medium"
-                            ? "#e3f2fd"
-                            : "#e8f5e9",
+                            ? "var(--info-subtle)"
+                            : "var(--success-subtle)",
                         color:
                           jp.risk_level === "critical"
-                            ? "#c62828"
+                            ? "var(--danger-fg)"
                             : jp.risk_level === "high"
-                            ? "#e65100"
+                            ? "var(--warning-fg)"
                             : jp.risk_level === "medium"
-                            ? "#1565c0"
-                            : "#2e7d32",
+                            ? "var(--info)"
+                            : "var(--success-fg)",
                       }}
                     >
                       {jp.risk_level_display}
@@ -1789,7 +1789,7 @@ export function WorkforcePage() {
                             key={c.id}
                             style={{
                               padding: "0.15rem 0.4rem",
-                              backgroundColor: "#f1f3f5",
+                              backgroundColor: "var(--bg-subtle)",
                               borderRadius: "4px",
                               fontSize: "0.75rem",
                             }}
@@ -1802,7 +1802,7 @@ export function WorkforcePage() {
                       "—"
                     )}
                   </td>
-                  <td style={{ padding: "0.75rem", fontSize: "0.85rem", color: "#555" }}>
+                  <td style={{ padding: "0.75rem", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
                     {jp.required_qualifications || "—"}
                   </td>
                   <td style={{ padding: "0.75rem", fontWeight: "bold" }}>
@@ -1812,7 +1812,7 @@ export function WorkforcePage() {
               ))}
               {jobPositions.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "var(--text-tertiary)" }}>
                     هیچ شناسنامه شغلی تعریف نشده است.
                   </td>
                 </tr>
@@ -1823,7 +1823,7 @@ export function WorkforcePage() {
           <h3 style={{ fontSize: "1.15rem", marginBottom: "0.75rem" }}>ماتریس سوابق انتصاب کارکنان به مشاغل</h3>
           <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ textAlign: "right", borderBottom: "2px solid #dee2e6" }}>
+              <tr style={{ textAlign: "right", borderBottom: "2px solid var(--border-default)" }}>
                 <th style={{ padding: "0.75rem" }}>نام کارمند</th>
                 <th style={{ padding: "0.75rem" }}>عنوان سمت شغلی</th>
                 <th style={{ padding: "0.75rem" }}>کد شغل</th>
@@ -1834,7 +1834,7 @@ export function WorkforcePage() {
             </thead>
             <tbody>
               {jobAssignments.map((ja) => (
-                <tr key={ja.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                <tr key={ja.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                   <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{ja.employee_name}</td>
                   <td style={{ padding: "0.75rem" }}>{ja.job_position_title}</td>
                   <td style={{ padding: "0.75rem" }}>{ja.job_position_code}</td>
@@ -1843,7 +1843,7 @@ export function WorkforcePage() {
                     {ja.end_date ? (
                       ja.end_date
                     ) : (
-                      <span style={{ color: "#28a745", fontWeight: "bold" }}>جاری / فعال</span>
+                      <span style={{ color: "var(--success)", fontWeight: "bold" }}>جاری / فعال</span>
                     )}
                   </td>
                   <td style={{ padding: "0.75rem" }}>
@@ -1853,7 +1853,7 @@ export function WorkforcePage() {
               ))}
               {jobAssignments.length === 0 && (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "2rem", color: "var(--text-tertiary)" }}>
                     هیچ سابقه‌ای از انتصاب مشاغل ثبت نشده است.
                   </td>
                 </tr>
@@ -1869,7 +1869,7 @@ export function WorkforcePage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
             <div>
               <h2 style={{ fontSize: "1.25rem", margin: 0 }}>پایش بلادرنگ حضور و غیاب و تردد شیفت کاری</h2>
-              <p style={{ margin: "0.25rem 0 0", color: "#666", fontSize: "0.9rem" }}>
+              <p style={{ margin: "0.25rem 0 0", color: "var(--text-tertiary)", fontSize: "0.9rem" }}>
                 ردیابی حضور کارکنان سازمانی و نیروهای پیمانکاری بر اساس گیت‌های هوشمند و دستگاه‌های بیومتریک
               </p>
             </div>
@@ -1879,7 +1879,7 @@ export function WorkforcePage() {
                 type="date"
                 value={attendanceDate}
                 onChange={(e) => setAttendanceDate(e.target.value)}
-                style={{ padding: "0.4rem 0.6rem", borderRadius: "4px", border: "1px solid #ccc" }}
+                style={{ padding: "0.4rem 0.6rem", borderRadius: "4px", border: "1px solid var(--border-default)" }}
               />
               <button className="button button-primary" onClick={() => setShowAttendanceModalP12(true)}>
                 ثبت ورود / تردد شیفت
@@ -1897,45 +1897,45 @@ export function WorkforcePage() {
               marginBottom: "1.5rem",
             }}
           >
-            <div className="stat-card" style={{ borderRight: "4px solid #1976d2", padding: "1rem", background: "#fff", borderRadius: "8px", border: "1px solid #dee2e6" }}>
-              <span style={{ fontSize: "0.85rem", color: "#666" }}>کل تردد ثبت‌شده شیفت</span>
-              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "#1976d2" }}>
+            <div className="stat-card" style={{ borderRight: "4px solid var(--info)", padding: "1rem", background: "var(--bg-surface)", borderRadius: "8px", border: "1px solid var(--border-default)" }}>
+              <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>کل تردد ثبت‌شده شیفت</span>
+              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "var(--info)" }}>
                 {attendanceRoster?.total_recorded ?? attendanceRecords.length}
               </div>
-              <span style={{ fontSize: "0.8rem", color: "#666" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-tertiary)" }}>
                 {attendanceRoster?.employee_count ?? 0} رسمی | {attendanceRoster?.contractor_worker_count ?? 0} پیمانکار
               </span>
             </div>
 
-            <div className="stat-card" style={{ borderRight: "4px solid #2e7d32", padding: "1rem", background: "#fff", borderRadius: "8px", border: "1px solid #dee2e6" }}>
-              <span style={{ fontSize: "0.85rem", color: "#666" }}>حاضرین به‌موقع</span>
-              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "#2e7d32" }}>
+            <div className="stat-card" style={{ borderRight: "4px solid var(--success)", padding: "1rem", background: "var(--bg-surface)", borderRadius: "8px", border: "1px solid var(--border-default)" }}>
+              <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>حاضرین به‌موقع</span>
+              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "var(--success-fg)" }}>
                 {attendanceRoster?.present_count ?? 0}
               </div>
-              <span style={{ fontSize: "0.8rem", color: "#2e7d32" }}>ورود بدون تأخیر</span>
+              <span style={{ fontSize: "0.8rem", color: "var(--success-fg)" }}>ورود بدون تأخیر</span>
             </div>
 
-            <div className="stat-card" style={{ borderRight: "4px solid #f57c00", padding: "1rem", background: "#fff", borderRadius: "8px", border: "1px solid #dee2e6" }}>
-              <span style={{ fontSize: "0.85rem", color: "#666" }}>تأخیر در ورود</span>
-              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "#f57c00" }}>
+            <div className="stat-card" style={{ borderRight: "4px solid var(--warning)", padding: "1rem", background: "var(--bg-surface)", borderRadius: "8px", border: "1px solid var(--border-default)" }}>
+              <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>تأخیر در ورود</span>
+              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "var(--warning)" }}>
                 {attendanceRoster?.late_count ?? 0}
               </div>
-              <span style={{ fontSize: "0.8rem", color: "#f57c00" }}>نیاز به بررسی سرپرست</span>
+              <span style={{ fontSize: "0.8rem", color: "var(--warning)" }}>نیاز به بررسی سرپرست</span>
             </div>
 
-            <div className="stat-card" style={{ borderRight: "4px solid #c62828", padding: "1rem", background: "#fff", borderRadius: "8px", border: "1px solid #dee2e6" }}>
-              <span style={{ fontSize: "0.85rem", color: "#666" }}>غایبین شیفت</span>
-              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "#c62828" }}>
+            <div className="stat-card" style={{ borderRight: "4px solid var(--danger)", padding: "1rem", background: "var(--bg-surface)", borderRadius: "8px", border: "1px solid var(--border-default)" }}>
+              <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>غایبین شیفت</span>
+              <div style={{ fontSize: "1.75rem", fontWeight: "bold", margin: "0.25rem 0", color: "var(--danger-fg)" }}>
                 {attendanceRoster?.absent_count ?? 0}
               </div>
-              <span style={{ fontSize: "0.8rem", color: "#c62828" }}>عدم ثبت تردد</span>
+              <span style={{ fontSize: "0.8rem", color: "var(--danger-fg)" }}>عدم ثبت تردد</span>
             </div>
           </div>
 
           {/* Attendance Table */}
           <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ textAlign: "right", borderBottom: "2px solid #dee2e6" }}>
+              <tr style={{ textAlign: "right", borderBottom: "2px solid var(--border-default)" }}>
                 <th style={{ padding: "0.75rem" }}>نام و نام خانوادگی</th>
                 <th style={{ padding: "0.75rem" }}>نوع نیرو</th>
                 <th style={{ padding: "0.75rem" }}>کارگاه / محل استقرار</th>
@@ -1947,7 +1947,7 @@ export function WorkforcePage() {
             </thead>
             <tbody>
               {attendanceRecords.map((att) => (
-                <tr key={att.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                <tr key={att.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                   <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{att.person_name}</td>
                   <td style={{ padding: "0.75rem" }}>
                     <span
@@ -1955,8 +1955,8 @@ export function WorkforcePage() {
                         padding: "0.2rem 0.5rem",
                         borderRadius: "4px",
                         fontSize: "0.8rem",
-                        backgroundColor: att.person_type === "employee" ? "#e3f2fd" : "#ede7f6",
-                        color: att.person_type === "employee" ? "#1565c0" : "#4527a0",
+                        backgroundColor: att.person_type === "employee" ? "var(--info-subtle)" : "var(--ai-subtle)",
+                        color: att.person_type === "employee" ? "var(--info)" : "var(--ai-fg)",
                       }}
                     >
                       {att.person_type_display}
@@ -1975,16 +1975,16 @@ export function WorkforcePage() {
                         fontWeight: "bold",
                         backgroundColor:
                           att.status === "present"
-                            ? "#e8f5e9"
+                            ? "var(--success-subtle)"
                             : att.status === "late"
-                            ? "#fff3e0"
-                            : "#ffebee",
+                            ? "var(--warning-subtle)"
+                            : "var(--danger-subtle)",
                         color:
                           att.status === "present"
-                            ? "#2e7d32"
+                            ? "var(--success-fg)"
                             : att.status === "late"
-                            ? "#e65100"
-                            : "#c62828",
+                            ? "var(--warning-fg)"
+                            : "var(--danger-fg)",
                       }}
                     >
                       {att.status_display}
@@ -1994,7 +1994,7 @@ export function WorkforcePage() {
               ))}
               {attendanceRecords.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "#888" }}>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem", color: "var(--text-tertiary)" }}>
                     هیچ ثبتی برای تاریخ {attendanceDate} وجود ندارد.
                   </td>
                 </tr>
@@ -2007,8 +2007,8 @@ export function WorkforcePage() {
       {/* MODAL: Employee History */}
       {historyEmployee && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "800px", width: "90%", maxHeight: "90vh", overflowY: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #dee2e6", paddingBottom: "0.75rem", marginBottom: "1rem" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "800px", width: "90%", maxHeight: "90vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-default)", paddingBottom: "0.75rem", marginBottom: "1rem" }}>
               <h3 style={{ margin: 0 }}>
                 پرونده پرسنلی: {historyEmployee.full_name} ({historyEmployee.employee_no})
               </h3>
@@ -2024,7 +2024,7 @@ export function WorkforcePage() {
                   {t.session_detail?.course_title} ({t.completed_on}): <strong>{t.assessment_result_display}</strong> (نمره: {t.score ?? "—"})
                 </li>
               ))}
-              {empHistoryTraining.length === 0 && <li style={{ color: "#888" }}>هیچ دوره آموزشی ثبت نشده است.</li>}
+              {empHistoryTraining.length === 0 && <li style={{ color: "var(--text-tertiary)" }}>هیچ دوره آموزشی ثبت نشده است.</li>}
             </ul>
 
             <h4>صلاحیت‌های احراز‌شده</h4>
@@ -2034,7 +2034,7 @@ export function WorkforcePage() {
                   {c.competency_detail?.name} — اعتبار: {c.expires_on || "نامحدود"} (<strong>{c.effective_status_display}</strong>)
                 </li>
               ))}
-              {empHistoryComp.length === 0 && <li style={{ color: "#888" }}>هیچ صلاحیتی صادر نشده است.</li>}
+              {empHistoryComp.length === 0 && <li style={{ color: "var(--text-tertiary)" }}>هیچ صلاحیتی صادر نشده است.</li>}
             </ul>
 
             <h4>تجهیزات حفاظت فردی PPE</h4>
@@ -2044,7 +2044,7 @@ export function WorkforcePage() {
                   {p.item_name} ({p.quantity} عدد) — تحویل {p.issued_on} (<strong>{p.status_display}</strong>)
                 </li>
               ))}
-              {empHistoryPPE.length === 0 && <li style={{ color: "#888" }}>هیچ تجهیز PPE تخصیص داده نشده است.</li>}
+              {empHistoryPPE.length === 0 && <li style={{ color: "var(--text-tertiary)" }}>هیچ تجهیز PPE تخصیص داده نشده است.</li>}
             </ul>
           </div>
         </div>
@@ -2053,7 +2053,7 @@ export function WorkforcePage() {
       {/* MODAL: Create Employee */}
       {showEmployeeModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>ثبت کارمند جدید</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateEmployee}>
@@ -2102,7 +2102,7 @@ export function WorkforcePage() {
       {/* MODAL: Create Course */}
       {showCourseModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>تعریف دوره آموزشی جدید</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateCourse}>
@@ -2161,7 +2161,7 @@ export function WorkforcePage() {
       {/* MODAL: Return PPE */}
       {showReturnModal && selectedAssignment && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>ثبت برگشت تجهیز PPE به انبار</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleReturnPPE}>
@@ -2195,7 +2195,7 @@ export function WorkforcePage() {
       {/* MODAL: Issue PPE */}
       {showPPEIssueModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>تحویل تجهیز حفاظت فردی به کارمند</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleIssuePPE}>
@@ -2262,7 +2262,7 @@ export function WorkforcePage() {
       {/* MODAL: Issue Competency */}
       {showIssueCompetencyModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>صدور صلاحیت برای کارمند</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleIssueCompetency}>
@@ -2318,7 +2318,7 @@ export function WorkforcePage() {
       {/* MODAL: Permit Competency Requirement */}
       {showRequirementModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>افزودن الزام صلاحیت به نوع مجوز کار</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateRequirement}>
@@ -2359,7 +2359,7 @@ export function WorkforcePage() {
       {/* MODAL: Create Session */}
       {showSessionModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>برنامه‌ریزی نوبت دوره آموزشی</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateSession}>
@@ -2409,7 +2409,7 @@ export function WorkforcePage() {
       {/* MODAL: Create Attendance */}
       {showAttendanceModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>ثبت حضور و نتیجه شرکت‌کننده</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateAttendance}>
@@ -2465,7 +2465,7 @@ export function WorkforcePage() {
       {/* MODAL: Create Competency */}
       {showCompetencyModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>تعریف عنوان صلاحیت جدید</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateCompetency}>
@@ -2499,7 +2499,7 @@ export function WorkforcePage() {
       {/* MODAL: Create PPE Item */}
       {showPPEItemModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>تعریف قلم جدید PPE</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreatePPEItem}>
@@ -2541,7 +2541,7 @@ export function WorkforcePage() {
       {/* MODAL: Create PPE Stock */}
       {showPPEStockModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>ثبت موجودی انبار PPE</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreatePPEStock}>
@@ -2591,7 +2591,7 @@ export function WorkforcePage() {
       {/* MODAL: Create Contractor */}
       {showContractorModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>ثبت شرکت پیمانکاری جدید</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateContractor}>
@@ -2627,7 +2627,7 @@ export function WorkforcePage() {
       {/* MODAL: Create Contractor Document */}
       {showContractorDocModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>ثبت مدرک / مجوز ایمنی پیمانکار</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateContractorDoc}>
@@ -2663,7 +2663,7 @@ export function WorkforcePage() {
       {/* MODAL: Create Contractor Worker */}
       {showContractorWorkerModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>ثبت مشخصات کارگر پیمانکار</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateContractorWorker}>
@@ -2705,7 +2705,7 @@ export function WorkforcePage() {
       {/* MODAL: Create Job Position */}
       {showJobPositionModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>تعریف شناسنامه شغل سازمانی</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateJobPosition}>
@@ -2752,7 +2752,7 @@ export function WorkforcePage() {
       {/* MODAL: Create Job Assignment */}
       {showJobAssignModal && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>انتصاب کارمند به سمت شغلی</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateJobAssign}>
@@ -2792,7 +2792,7 @@ export function WorkforcePage() {
       {/* MODAL: Record Attendance */}
       {showAttendanceModalP12 && (
         <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: "#fff", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
+          <div className="modal-content" style={{ background: "var(--bg-surface)", padding: "1.5rem", borderRadius: "8px", maxWidth: "500px", width: "90%" }}>
             <h3 style={{ marginTop: 0 }}>ثبت تردد و ورود به شیفت کاری</h3>
             {formError && <div className="alert alert-danger">{formError}</div>}
             <form onSubmit={handleCreateShiftAttendance}>

@@ -197,7 +197,7 @@ export function Sidebar({
                               alignItems: "center",
                               gap: "0.25rem",
                               backgroundColor: isActive ? "rgba(255, 255, 255, 0.2)" : "rgba(99, 102, 241, 0.12)",
-                              color: isActive ? "#ffffff" : "#6366f1",
+                              color: isActive ? "var(--text-inverse)" : "var(--ai-primary)",
                               fontSize: "0.65rem",
                               fontWeight: 800,
                               padding: "0.15rem 0.5rem",
@@ -210,7 +210,7 @@ export function Sidebar({
                                 width: "6px",
                                 height: "6px",
                                 borderRadius: "50%",
-                                backgroundColor: isActive ? "#a7f3d0" : "#10b981",
+                                backgroundColor: isActive ? "var(--primary-border)" : "var(--primary)",
                                 display: "inline-block",
                               }}
                             />
@@ -228,14 +228,27 @@ export function Sidebar({
 
         {/* Sidebar Footer */}
         <div className="sidebar-footer">
-          <span className="muted">{user ? (user.first_name || user.username) : ""}</span>
+          <div className="sidebar-user-card">
+            <div className="sidebar-user-avatar" aria-hidden="true">
+              {user?.first_name ? user.first_name[0] : (user?.username ? user.username[0].toUpperCase() : "U")}
+            </div>
+            <div className="sidebar-user-details">
+              <span className="sidebar-user-name">
+                {user ? (user.first_name ? `${user.first_name} ${user.last_name || ""}`.trim() : user.username) : "کاربر سامانه"}
+              </span>
+              <span className="sidebar-user-role">
+                {user?.global_role === "platform_admin" ? "مدیر ارشد ایمنی" : "کارشناس HSE"}
+              </span>
+            </div>
+          </div>
           <button
             type="button"
             className="link-button logout-btn"
             onClick={() => void logout()}
+            title="خروج از سامانه"
           >
-            <LogOut size={14} aria-hidden="true" style={{ verticalAlign: "middle", marginLeft: "4px" }} />
-            خروج
+            <LogOut size={16} aria-hidden="true" />
+            <span>خروج</span>
           </button>
         </div>
       </aside>

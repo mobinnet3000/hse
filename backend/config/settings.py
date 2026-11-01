@@ -5,10 +5,10 @@ from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")
-load_dotenv(BASE_DIR.parent / ".env")
+load_dotenv(BASE_DIR / ".env", override=True)
+load_dotenv(BASE_DIR.parent / ".env", override=True)
 if not os.getenv("AVALAI_API_KEY"):
-    load_dotenv(BASE_DIR / ".env.example")
+    load_dotenv(BASE_DIR / ".env.example", override=True)
 
 
 def env_bool(name, default=False):

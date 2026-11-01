@@ -170,8 +170,8 @@ export function KnowledgeBasePage() {
           type="button"
           onClick={() => setIsModalOpen(true)}
           style={{
-            backgroundColor: "var(--primary, #0f6b57)",
-            color: "#fff",
+            backgroundColor: "var(--primary)",
+            color: "var(--text-inverse)",
             border: "none",
             borderRadius: "6px",
             padding: "0.5rem 1rem",
@@ -191,19 +191,19 @@ export function KnowledgeBasePage() {
         </div>
         <div className="card" style={{ padding: "1rem" }}>
           <span className="muted" style={{ fontSize: "0.8rem" }}>آیین‌نامه‌های حفاظت فنی</span>
-          <strong style={{ display: "block", fontSize: "1.4rem", marginTop: "0.25rem", color: "var(--primary, #0f6b57)" }}>
+          <strong style={{ display: "block", fontSize: "1.4rem", marginTop: "0.25rem", color: "var(--primary)" }}>
             {sources.filter((s) => s.category === "regulation").length}
           </strong>
         </div>
         <div className="card" style={{ padding: "1rem" }}>
           <span className="muted" style={{ fontSize: "0.8rem" }}>استانداردهای ملی / ISO</span>
-          <strong style={{ display: "block", fontSize: "1.4rem", marginTop: "0.25rem", color: "#166534" }}>
+          <strong style={{ display: "block", fontSize: "1.4rem", marginTop: "0.25rem", color: "var(--success-fg)" }}>
             {sources.filter((s) => s.category === "standard").length}
           </strong>
         </div>
         <div className="card" style={{ padding: "1rem" }}>
           <span className="muted" style={{ fontSize: "0.8rem" }}>دستورالعمل‌های سازمانی</span>
-          <strong style={{ display: "block", fontSize: "1.4rem", marginTop: "0.25rem", color: "#9a3412" }}>
+          <strong style={{ display: "block", fontSize: "1.4rem", marginTop: "0.25rem", color: "var(--warning-fg)" }}>
             {sources.filter((s) => s.category === "internal_procedure").length}
           </strong>
         </div>
@@ -221,7 +221,7 @@ export function KnowledgeBasePage() {
               flex: 1,
               padding: "0.5rem 0.75rem",
               borderRadius: "6px",
-              border: "1px solid var(--border, #d9e0e7)",
+              border: "1px solid var(--border-default)",
               font: "inherit",
             }}
           />
@@ -230,8 +230,8 @@ export function KnowledgeBasePage() {
             style={{
               padding: "0.5rem 1.25rem",
               borderRadius: "6px",
-              border: "1px solid var(--border, #d9e0e7)",
-              backgroundColor: "var(--surface, #fff)",
+              border: "1px solid var(--border-default)",
+              backgroundColor: "var(--bg-surface)",
               cursor: "pointer",
             }}
           >
@@ -239,13 +239,13 @@ export function KnowledgeBasePage() {
           </button>
         </form>
 
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "1rem", borderTop: "1px solid var(--border, #d9e0e7)", paddingTop: "0.75rem" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "1rem", borderTop: "1px solid var(--border-default)", paddingTop: "0.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <label style={{ fontSize: "0.85rem", color: "var(--muted, #5b6b7a)" }}>دسته‌بندی:</label>
+            <label style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>دسته‌بندی:</label>
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              style={{ padding: "0.35rem 0.6rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+              style={{ padding: "0.35rem 0.6rem", borderRadius: "6px", border: "1px solid var(--border-default)" }}
             >
               <option value="">همه دسته‌ها</option>
               {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
@@ -257,11 +257,11 @@ export function KnowledgeBasePage() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <label style={{ fontSize: "0.85rem", color: "var(--muted, #5b6b7a)" }}>محدوده منابع:</label>
+            <label style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>محدوده منابع:</label>
             <select
               value={scopeFilter}
               onChange={(e) => setScopeFilter(e.target.value)}
-              style={{ padding: "0.35rem 0.6rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+              style={{ padding: "0.35rem 0.6rem", borderRadius: "6px", border: "1px solid var(--border-default)" }}
             >
               <option value="all">همه منابع در دسترس</option>
               <option value="global">فقط قوانین و استانداردهای سراسری و ملی</option>
@@ -271,11 +271,11 @@ export function KnowledgeBasePage() {
 
           {organizations.length > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <label style={{ fontSize: "0.85rem", color: "var(--muted, #5b6b7a)" }}>سازمان انتخابی:</label>
+              <label style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>سازمان انتخابی:</label>
               <select
                 value={organizationId ?? ""}
                 onChange={(e) => setOrganizationId(Number(e.target.value))}
-                style={{ padding: "0.35rem 0.6rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                style={{ padding: "0.35rem 0.6rem", borderRadius: "6px", border: "1px solid var(--border-default)" }}
               >
                 {organizations.map((org) => (
                   <option key={org.id} value={org.id}>
@@ -308,8 +308,8 @@ export function KnowledgeBasePage() {
                     <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.5rem" }}>
                       <span
                         style={{
-                          backgroundColor: "var(--primary-soft, #e3f2ee)",
-                          color: "var(--primary, #0f6b57)",
+                          backgroundColor: "var(--primary-subtle)",
+                          color: "var(--primary)",
                           padding: "0.15rem 0.45rem",
                           borderRadius: "4px",
                           fontSize: "0.75rem",
@@ -318,14 +318,14 @@ export function KnowledgeBasePage() {
                       >
                         {item.code}
                       </span>
-                      <span style={{ fontSize: "0.75rem", color: "var(--muted, #5b6b7a)" }}>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
                         {item.category_display || CATEGORY_LABELS[item.category] || item.category}
                       </span>
                       {item.is_verified && (
                         <span
                           style={{
-                            backgroundColor: "#dcfce7",
-                            color: "#166534",
+                            backgroundColor: "var(--success-subtle)",
+                            color: "var(--success-fg)",
                             padding: "0.15rem 0.45rem",
                             borderRadius: "4px",
                             fontSize: "0.75rem",
@@ -337,8 +337,8 @@ export function KnowledgeBasePage() {
                       {item.organization_name ? (
                         <span
                           style={{
-                            backgroundColor: "#ffedd5",
-                            color: "#9a3412",
+                            backgroundColor: "var(--warning-subtle)",
+                            color: "var(--warning-fg)",
                             padding: "0.15rem 0.45rem",
                             borderRadius: "4px",
                             fontSize: "0.75rem",
@@ -349,8 +349,8 @@ export function KnowledgeBasePage() {
                       ) : (
                         <span
                           style={{
-                            backgroundColor: "#e0f2fe",
-                            color: "#0369a1",
+                            backgroundColor: "var(--info-subtle)",
+                            color: "var(--info-fg)",
                             padding: "0.15rem 0.45rem",
                             borderRadius: "4px",
                             fontSize: "0.75rem",
@@ -380,7 +380,7 @@ export function KnowledgeBasePage() {
                         style={{
                           background: "none",
                           border: "none",
-                          color: "var(--danger, #b3261e)",
+                          color: "var(--danger)",
                           cursor: "pointer",
                           fontSize: "0.8rem",
                         }}
@@ -394,8 +394,8 @@ export function KnowledgeBasePage() {
                       style={{
                         padding: "0.35rem 0.75rem",
                         borderRadius: "6px",
-                        border: "1px solid var(--border, #d9e0e7)",
-                        backgroundColor: "var(--surface, #fff)",
+                        border: "1px solid var(--border-default)",
+                        backgroundColor: "var(--bg-surface)",
                         fontSize: "0.8rem",
                         cursor: "pointer",
                       }}
@@ -406,7 +406,7 @@ export function KnowledgeBasePage() {
                 </div>
 
                 {item.summary && (
-                  <p style={{ fontSize: "0.88rem", marginTop: "0.75rem", borderTop: "1px solid var(--border, #d9e0e7)", paddingTop: "0.6rem" }}>
+                  <p style={{ fontSize: "0.88rem", marginTop: "0.75rem", borderTop: "1px solid var(--border-default)", paddingTop: "0.6rem" }}>
                     {item.summary}
                   </p>
                 )}
@@ -417,8 +417,8 @@ export function KnowledgeBasePage() {
                       <span
                         key={idx}
                         style={{
-                          backgroundColor: "var(--bg, #f4f6f8)",
-                          color: "var(--muted, #5b6b7a)",
+                          backgroundColor: "var(--bg-subtle)",
+                          color: "var(--text-tertiary)",
                           padding: "0.1rem 0.4rem",
                           borderRadius: "4px",
                           fontSize: "0.7rem",
@@ -436,8 +436,8 @@ export function KnowledgeBasePage() {
                       marginTop: "1rem",
                       padding: "1rem",
                       borderRadius: "6px",
-                      backgroundColor: "var(--bg, #f4f6f8)",
-                      border: "1px solid var(--border, #d9e0e7)",
+                      backgroundColor: "var(--bg-subtle)",
+                      border: "1px solid var(--border-default)",
                     }}
                   >
                     <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.85rem" }}>متن و الزامات کلیدی استاندارد / آیین‌نامه:</h4>
@@ -489,7 +489,7 @@ export function KnowledgeBasePage() {
                   required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border-default)" }}
                 />
               </div>
 
@@ -502,7 +502,7 @@ export function KnowledgeBasePage() {
                     required
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                    style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border-default)" }}
                   />
                 </div>
                 <div>
@@ -511,7 +511,7 @@ export function KnowledgeBasePage() {
                     id="source-category"
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value as KnowledgeSource["category"] })}
-                    style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                    style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border-default)" }}
                   >
                     {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
                       <option key={k} value={k}>
@@ -530,7 +530,7 @@ export function KnowledgeBasePage() {
                     type="text"
                     value={formData.issuing_authority}
                     onChange={(e) => setFormData({ ...formData, issuing_authority: e.target.value })}
-                    style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                    style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border-default)" }}
                   />
                 </div>
                 <div>
@@ -540,13 +540,13 @@ export function KnowledgeBasePage() {
                     type="text"
                     value={formData.version}
                     onChange={(e) => setFormData({ ...formData, version: e.target.value })}
-                    style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                    style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border-default)" }}
                   />
                 </div>
               </div>
 
               {user?.global_role === "platform_admin" && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--bg, #f4f6f8)", padding: "0.5rem", borderRadius: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "var(--bg-subtle)", padding: "0.5rem", borderRadius: "6px" }}>
                   <input
                     type="checkbox"
                     id="is_global"
@@ -566,7 +566,7 @@ export function KnowledgeBasePage() {
                   rows={2}
                   value={formData.summary}
                   onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border-default)" }}
                 />
               </div>
 
@@ -578,7 +578,7 @@ export function KnowledgeBasePage() {
                   required
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border-default)" }}
                 />
               </div>
 
@@ -590,7 +590,7 @@ export function KnowledgeBasePage() {
                   value={formData.tags}
                   onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
                   placeholder="مثال: ارتفاع، داربست، سقوط (با کاما جدا کنید)"
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border-default)" }}
                 />
               </div>
 
@@ -598,7 +598,7 @@ export function KnowledgeBasePage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)", background: "none", cursor: "pointer" }}
+                  style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "1px solid var(--border-default)", background: "none", cursor: "pointer" }}
                 >
                   انصراف
                 </button>
@@ -606,8 +606,8 @@ export function KnowledgeBasePage() {
                   type="submit"
                   disabled={submitting}
                   style={{
-                    backgroundColor: "var(--primary, #0f6b57)",
-                    color: "#fff",
+                    backgroundColor: "var(--primary)",
+                    color: "var(--text-inverse)",
                     border: "none",
                     borderRadius: "6px",
                     padding: "0.5rem 1rem",

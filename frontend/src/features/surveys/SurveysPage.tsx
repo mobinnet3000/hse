@@ -107,10 +107,10 @@ export function SurveysPage() {
     <div className="card" dir="rtl">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <HelpCircle size={28} color="#2563eb" />
+          <HelpCircle size={28} color="var(--info)" />
           <div>
             <h2 style={{ margin: 0, fontSize: "1.5rem" }}>پرسشنامه‌ها و آزمون‌های ارزیابی HSE</h2>
-            <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.875rem" }}>
+            <p style={{ margin: "0.25rem 0 0", color: "var(--text-tertiary)", fontSize: "0.875rem" }}>
               سنجش فرهنگ ایمنی، آزمون‌های نمره‌دار دوره‌های آموزشی و بازخورد کارکنان با حفظ کامل محرمانگی
             </p>
           </div>
@@ -121,7 +121,7 @@ export function SurveysPage() {
       </div>
 
       {error && (
-        <div style={{ padding: "0.75rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px", marginBottom: "1rem" }}>
+        <div style={{ padding: "0.75rem", background: "var(--danger-subtle)", color: "var(--danger-fg)", borderRadius: "6px", marginBottom: "1rem" }}>
           {error}
         </div>
       )}
@@ -129,17 +129,17 @@ export function SurveysPage() {
       {/* KPI Cards */}
       {summary && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-          <div style={{ padding: "1rem", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-            <span style={{ fontSize: "0.85rem", color: "#64748b" }}>کل پرسشنامه‌ها</span>
+          <div style={{ padding: "1rem", background: "var(--bg-subtle)", borderRadius: "8px", border: "1px solid var(--border-default)" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}>کل پرسشنامه‌ها</span>
             <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>{summary.total}</div>
           </div>
-          <div style={{ padding: "1rem", background: "#eff6ff", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
-            <span style={{ fontSize: "0.85rem", color: "#1e40af" }}>آزمون‌های شایستگی نمره‌دار</span>
-            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#2563eb" }}>{summary.exams}</div>
+          <div style={{ padding: "1rem", background: "var(--info-subtle)", borderRadius: "8px", border: "1px solid var(--info-border)" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--info-fg)" }}>آزمون‌های شایستگی نمره‌دار</span>
+            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--info)" }}>{summary.exams}</div>
           </div>
-          <div style={{ padding: "1rem", background: "#f0fdf4", borderRadius: "8px", border: "1px solid #86efac" }}>
-            <span style={{ fontSize: "0.85rem", color: "#166534" }}>پرسشنامه‌های فعال</span>
-            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#16a34a" }}>{summary.active}</div>
+          <div style={{ padding: "1rem", background: "var(--success-subtle)", borderRadius: "8px", border: "1px solid var(--success-border)" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--success-fg)" }}>پرسشنامه‌های فعال</span>
+            <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--success)" }}>{summary.active}</div>
           </div>
         </div>
       )}
@@ -149,12 +149,12 @@ export function SurveysPage() {
         loading ? (
           <div style={{ textAlign: "center", padding: "3rem" }}>در حال بارگذاری پرسشنامه‌ها...</div>
         ) : surveys.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "3rem", color: "#64748b" }}>پرسشنامه‌ای ثبت نشده است.</div>
+          <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-tertiary)" }}>پرسشنامه‌ای ثبت نشده است.</div>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
               <thead>
-                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
+                <tr style={{ background: "var(--bg-subtle)", borderBottom: "2px solid var(--border-strong)" }}>
                   <th style={{ padding: "0.75rem" }}>عنوان پرسشنامه / آزمون</th>
                   <th style={{ padding: "0.75rem" }}>نوع</th>
                   <th style={{ padding: "0.75rem" }}>حالت محرمانگی</th>
@@ -165,16 +165,16 @@ export function SurveysPage() {
               </thead>
               <tbody>
                 {surveys.map((s) => (
-                  <tr key={s.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <tr key={s.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                     <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{s.title}</td>
                     <td style={{ padding: "0.75rem" }}>{s.survey_type_display || s.survey_type}</td>
                     <td style={{ padding: "0.75rem" }}>
                       {s.is_anonymous ? (
-                        <span style={{ color: "#16a34a", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                        <span style={{ color: "var(--success)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
                           <ShieldCheck size={16} /> ناشناس (حفظ هویت)
                         </span>
                       ) : (
-                        <span style={{ color: "#475569" }}>با ثبت هویت</span>
+                        <span style={{ color: "var(--text-secondary)" }}>با ثبت هویت</span>
                       )}
                     </td>
                     <td style={{ padding: "0.75rem" }}>%{s.passing_score_percentage}</td>
@@ -183,8 +183,8 @@ export function SurveysPage() {
                         padding: "0.2rem 0.5rem",
                         borderRadius: "4px",
                         fontSize: "0.8rem",
-                        background: s.is_active ? "#dcfce7" : "#f1f5f9",
-                        color: s.is_active ? "#166534" : "#64748b",
+                        background: s.is_active ? "var(--success-subtle)" : "var(--bg-subtle)",
+                        color: s.is_active ? "var(--success-fg)" : "var(--text-tertiary)",
                       }}>
                         {s.is_active ? "فعال" : "بایگانی"}
                       </span>
@@ -206,7 +206,7 @@ export function SurveysPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
             <div>
               <h3 style={{ margin: "0 0 0.25rem" }}>{activeSurvey.title}</h3>
-              <p style={{ margin: 0, color: "#64748b" }}>{activeSurvey.description}</p>
+              <p style={{ margin: 0, color: "var(--text-tertiary)" }}>{activeSurvey.description}</p>
             </div>
             <button className="btn btn-secondary" onClick={() => setActiveSurvey(null)}>بازگشت به لیست</button>
           </div>
@@ -214,29 +214,29 @@ export function SurveysPage() {
           {/* Analytics Overview for this survey */}
           {analytics && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
-              <div style={{ padding: "0.75rem", background: "#f8fafc", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                <span style={{ fontSize: "0.8rem", color: "#64748b" }}>تعداد پاسخ‌ها</span>
+              <div style={{ padding: "0.75rem", background: "var(--bg-subtle)", borderRadius: "6px", border: "1px solid var(--border-default)" }}>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-tertiary)" }}>تعداد پاسخ‌ها</span>
                 <div style={{ fontSize: "1.3rem", fontWeight: "bold" }}>{analytics.total_submissions} نفر</div>
               </div>
-              <div style={{ padding: "0.75rem", background: "#f8fafc", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                <span style={{ fontSize: "0.8rem", color: "#64748b" }}>میانگین نمره / شاخص</span>
-                <div style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#2563eb" }}>%{analytics.avg_score_percentage}</div>
+              <div style={{ padding: "0.75rem", background: "var(--bg-subtle)", borderRadius: "6px", border: "1px solid var(--border-default)" }}>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-tertiary)" }}>میانگین نمره / شاخص</span>
+                <div style={{ fontSize: "1.3rem", fontWeight: "bold", color: "var(--info)" }}>%{analytics.avg_score_percentage}</div>
               </div>
-              <div style={{ padding: "0.75rem", background: "#f8fafc", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                <span style={{ fontSize: "0.8rem", color: "#64748b" }}>درصد قبولی (Pass Rate)</span>
-                <div style={{ fontSize: "1.3rem", fontWeight: "bold", color: "#16a34a" }}>%{analytics.pass_rate_percentage}</div>
+              <div style={{ padding: "0.75rem", background: "var(--bg-subtle)", borderRadius: "6px", border: "1px solid var(--border-default)" }}>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-tertiary)" }}>درصد قبولی (Pass Rate)</span>
+                <div style={{ fontSize: "1.3rem", fontWeight: "bold", color: "var(--success)" }}>%{analytics.pass_rate_percentage}</div>
               </div>
             </div>
           )}
 
           {/* Submission Success Box */}
           {submissionResult && (
-            <div style={{ padding: "1.25rem", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "8px", marginBottom: "1.5rem" }}>
-              <h4 style={{ margin: "0 0 0.5rem", color: "#166534" }}>پاسخ شما با موفقیت ثبت شد.</h4>
+            <div style={{ padding: "1.25rem", background: "var(--success-subtle)", border: "1px solid var(--success-border)", borderRadius: "8px", marginBottom: "1.5rem" }}>
+              <h4 style={{ margin: "0 0 0.5rem", color: "var(--success-fg)" }}>پاسخ شما با موفقیت ثبت شد.</h4>
               {submissionResult.score_pct !== undefined && (
                 <div style={{ fontSize: "1.1rem" }}>
                   نمره کسب‌شده: <strong>%{submissionResult.score_pct}</strong> - وضعیت:{" "}
-                  <strong style={{ color: submissionResult.passed ? "#16a34a" : "#dc2626" }}>
+                  <strong style={{ color: submissionResult.passed ? "var(--success)" : "var(--danger)" }}>
                     {submissionResult.passed ? "قبول شده" : "مردود (کمتر از حدنصاب)"}
                   </strong>
                 </div>
@@ -261,7 +261,7 @@ export function SurveysPage() {
 
             {activeSurvey.questions && activeSurvey.questions.length > 0 ? (
               activeSurvey.questions.map((q, idx) => (
-                <div key={q.id} style={{ padding: "1rem", background: "#f8fafc", borderRadius: "8px", marginBottom: "1rem", border: "1px solid #e2e8f0" }}>
+                <div key={q.id} style={{ padding: "1rem", background: "var(--bg-subtle)", borderRadius: "8px", marginBottom: "1rem", border: "1px solid var(--border-default)" }}>
                   <div style={{ fontWeight: "bold", marginBottom: "0.75rem" }}>
                     {idx + 1}. {q.question_text}
                   </div>
@@ -320,7 +320,7 @@ export function SurveysPage() {
                 </div>
               ))
             ) : (
-              <div style={{ padding: "1.5rem", color: "#64748b", textAlign: "center" }}>سوالی برای این پرسشنامه ثبت نشده است.</div>
+              <div style={{ padding: "1.5rem", color: "var(--text-tertiary)", textAlign: "center" }}>سوالی برای این پرسشنامه ثبت نشده است.</div>
             )}
 
             <button type="submit" className="btn btn-primary" style={{ marginTop: "1rem" }}>

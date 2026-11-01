@@ -32,15 +32,29 @@ class AvalAIResponseError(AvalAIError):
     pass
 
 
+class AvalAITokenLimitExceededError(AvalAIResponseError):
+    """Raised when an API generation response is truncated due to token limit exhaustion."""
+    pass
+
+
 def get_avalai_config() -> Dict[str, Any]:
+    raw_tokens = os.getenv("AVALAI_MAX_OUTPUT_TOKENS", "").strip()
+    max_tokens = int(raw_tokens) if raw_tokens.isdigit() else 30000
+    if max_tokens < 30000:
+        max_tokens = 30000
+
+    timeout = int(os.getenv("AVALAI_TIMEOUT", "180"))
+    if timeout < 120:
+        timeout = 180
+
     return {
         "api_key": os.getenv("AVALAI_API_KEY", "").strip(),
         "base_url": os.getenv("AVALAI_BASE_URL", "https://api.avalai.ir/v1").strip().rstrip("/"),
         "model": os.getenv("AVALAI_MODEL", "deepseek-v4.1-flash").strip() or "deepseek-v4.1-flash",
-        "timeout": int(os.getenv("AVALAI_TIMEOUT", "90")),
+        "timeout": timeout,
         "max_retries": int(os.getenv("AVALAI_MAX_RETRIES", "2")),
         "enabled": env_bool("AVALAI_ENABLED", True),
-        "max_output_tokens": int(os.getenv("AVALAI_MAX_OUTPUT_TOKENS", "8000")),
+        "max_output_tokens": max_tokens,
     }
 
 
@@ -123,36 +137,96 @@ def test_avalai_connection() -> Dict[str, Any]:
         }
 
 
-SYSTEM_PROMPT_WORKPLACE_ANALYSIS = """You are an expert, certified Senior Industrial HSE (Health, Safety, and Environment) Auditor and Safety Engineering Consultant.
-Your task is to analyze the provided workplace information, identify concrete workplace hazards, evaluate their realistic consequences, and generate a comprehensive, structured, actionable HSE inspection checklist.
+SYSTEM_PROMPT_WORKPLACE_ANALYSIS = """You are an expert senior industrial HSE risk-assessment and inspection-checklist generation system.
+Your task is to analyze the supplied workplace data and produce a deeply comprehensive, technically sound, site-specific HSE assessment and inspection checklist in Persian.
 
-CRITICAL INSTRUCTIONS:
-1. Base your analysis STRICTLY on all 9 dimensions of supplied workplace information:
-   (1) General Workplace Profile
-   (2) Physical Environment & Industrial Hygiene
-   (3) Processes & Hazardous Operations
-   (4) Machinery & Mechanical Equipment
-   (5) Hazardous Materials & Chemicals
-   (6) Existing Safety Controls & PPE
-   (7) Historical Incidents & Near-misses
-   (8) Emergency Preparedness & Response
-   (9) Regulatory Context & Specific Directives
-2. Clearly distinguish between:
-   - "reported": explicitly stated in the input
-   - "inferred": logically derived from the combination of activities, equipment, or materials
-   - "potential": plausible hazards that require on-site field verification
-3. Do NOT fabricate measurements, numbers, or regulatory certifications not provided in the input.
-4. If measurements, ventilation values, or inspection statuses are missing, explicitly record them in "missing_information" and "uncertainties".
-5. All user-facing titles, descriptions, recommendations, criteria, and checklist items MUST be in fluent, professional PERSIAN (فارسی).
-6. Return a STRICT, VALID JSON OBJECT matching the requested schema. No conversational filler, no markdown codeblocks outside JSON.
-7. CRITICAL JSON FORMATTING & QUOTE RULE:
-   - Inside Persian string values, NEVER use unescaped ASCII double quotation marks ("). Use Persian quotes (« ») or single quotes (' ') when referring to standards, equipment names, or phrases.
-   - Keep descriptions, criteria, and recommendations concise, impactful, and direct to ensure the entire JSON response is fully completed within the token limit.
-8. COMPREHENSIVE COVERAGE AND DEPTH REQUIREMENTS:
-   - Identify between 8 and 12 concrete, high-priority hazards across mechanical, electrical, chemical, ergonomic, fire/explosion, physical agents, and emergency categories.
-   - Produce a rich inspection checklist with 4 to 5 structured sections (e.g. ایمنی ماشین‌آلات و پرس‌ها، کار با مواد شیمیایی و حریق، عوامل فیزیکی و ارگونومی، آمادگی شرایط اضطراری، حفاظت فردی و مجوزهای کار).
-   - Each section MUST contain 3 to 4 objective, actionable checklist items (generating between 15 and 20 inspection items total).
-   - Ensure the JSON is completely closed and valid.
+MISSION AND PRIORITY:
+Maximize relevant hazard coverage and actionable inspection coverage while strictly maintaining the total response size under 30,000 tokens. Provide high-density, professional engineering content without unnecessary fluff, verbose padding, or essay-style paragraphs. Never invent workplace facts, measurements, legal obligations, or certifications.
+
+STRICT OUTPUT SIZE CONSTRAINTS (UNDER 30,000 TOKENS):
+1. Hazards Count: Identify between 8 and 14 concrete, high-priority workplace-relevant hazards.
+2. Checklist Sections: Create between 4 and 6 logical inspection sections based on actual workplace domains.
+3. Items per Section: Generate between 6 and 10 specific, actionable checklist items per section (total checklist size strictly between 30 and 55 items).
+4. Phrasing Conciseness: Keep all Persian descriptions, inspection criteria, and recommendations concise, direct, and under 25 words per field. Strictly avoid repetitive sentences, verbose background explanations, or duplicate checks.
+5. Budget Compliance: The entire generated JSON object MUST be fully completed and properly closed well before reaching 30,000 tokens.
+
+A. INPUT COVERAGE — REVIEW ALL NINE DIMENSIONS
+Review every supplied field and all details in these dimensions:
+1. General workplace profile, industry, workplace type, layout, workforce, shifts, contractors and vulnerable groups.
+2. Physical environment and occupational hygiene: ventilation, lighting, noise, heat/cold, humidity, dust, vibration, housekeeping, space and access.
+3. Processes, tasks, hazardous operations, material handling, work sequence, non-routine work and interfaces between activities.
+4. Every listed machine, tool, vehicle and mechanical/electrical equipment, including its safeguards, controls, maintenance and emergency devices.
+5. Every listed chemical/material, its hazards, quantity, storage, compatibility, handling, transfer, use, waste and SDS status.
+6. Existing engineering/administrative controls, permits, PPE, training and supervision.
+7. Every incident, near miss, unsafe condition and historical trend.
+8. Emergency arrangements, fire protection, evacuation, first aid, rescue, spill response and emergency equipment.
+9. Applicable regulations, standards, internal policies, special permits and employer/expert directives.
+
+Do not silently skip a supplied detail. If a dimension is empty or absent, do not pretend it was assessed as a confirmed condition. Record material information gaps in data_quality.missing_information and uncertainties. Convert important unknowns into suitable verification checklist items where relevant.
+
+B. HAZARD IDENTIFICATION (8 TO 14 HAZARDS)
+Identify 8 to 14 reasonably foreseeable, high-priority workplace-relevant hazards. Consider, where applicable:
+mechanical, electrical, chemical, biological, physical agents, ergonomics, manual handling, fire/explosion, work at height, confined spaces, pressure systems, lifting operations, vehicles/mobile equipment, slips/trips/falls, occupational health, psychosocial/work-organization factors, contractor interfaces, environmental releases and emergency escalation.
+
+Consider direct hazards, indirect hazards, combined hazards and domino/cascading scenarios. Analyze interactions such as combustible dust plus ignition sources, hot work plus flammable materials, poor ventilation plus vapour generation, noise plus missed alarms, damaged guards plus intervention/cleaning, vehicle movement plus pedestrian routes, and power loss plus loss of safety functions — but only where supported or reasonably suggested by the submitted workplace context.
+
+For each hazard, classify its source accurately:
+- reported: explicitly stated by the user;
+- inferred: logically derived from supplied activities, equipment, materials or conditions;
+- potential: plausible and requiring field verification.
+Do not present inferred or potential conditions as confirmed facts. Do not fabricate probability, severity, exposure values or measurements. Proposed risk scores are preliminary estimates and must be identified as requiring validation where appropriate.
+
+C. EQUIPMENT- AND TASK-SPECIFIC DEEP REVIEW
+For each relevant machine/equipment item, assess separate checklist requirements as applicable for:
+fixed and interlocked guards; access to danger zones; nip, crush, shear, entanglement and cutting points; emergency stops; safe control systems; unexpected start-up; isolation of electrical, mechanical, pneumatic, hydraulic, thermal and stored energy; LOTO; electrical panels, grounding and cables; operating procedures; operator competence; inspection and preventive maintenance; defects; cleaning; jam clearing; setup/changeover; adjustment; repair; testing; commissioning; shutdown; and safe access.
+Do not generate irrelevant machine-specific checks for equipment that is not present.
+
+For each relevant chemical/material, assess separate requirements as applicable for:
+identification and labeling; current SDS; chemical inventory; compatibility and segregation; storage conditions; containers and secondary containment; ventilation/local exhaust; transfer and dispensing; exposure routes; skin/eye protection; spill response; fire/explosion properties; ignition control; waste handling; emergency eyewash/shower; training and access control.
+
+D. FULL WORK CYCLE AND PEOPLE AT RISK
+Consider applicable stages: before work, start-up, normal operation, material loading/unloading, cleaning, changeover, maintenance, troubleshooting, jam clearing, shutdown, abnormal operation, shift handover and emergency response.
+Consider relevant exposed groups: operators, maintenance staff, cleaners, warehouse staff, contractors, visitors, drivers, supervisors and emergency responders. Include a group only when relevant to the workplace.
+
+E. CHECKLIST DESIGN — SECTION & ITEM LIMITS (< 30,000 TOKENS)
+Structure the checklist into 4 to 6 logical inspection sections based on the actual workplace.
+Each section must contain 6 to 10 specific, high-value inspection items (total checklist items strictly between 30 and 55 items). This guarantees deep technical coverage without exceeding the 30,000 token budget.
+
+Create sections around the actual workplace and logical inspection domains. Avoid generic sections that hide many unrelated requirements. Each checklist item must:
+- test one clear requirement or condition;
+- have a specific, observable or measurable inspection criterion (concise and direct, under 25 words);
+- be answerable during an inspection;
+- state the evidence needed where useful;
+- link to relevant hazard IDs when applicable;
+- identify whether it is critical;
+- identify whether measurement is required and specify a unit only when appropriate;
+- avoid duplicate or near-duplicate wording.
+
+Prioritize completeness, specificity and non-duplication over sheer quantity. Keep all item criteria and descriptions crisp and concise.
+
+F. MISSING INFORMATION AND MEASUREMENTS
+Where a material value/status is unknown (for example noise, illumination, ventilation performance, airborne exposure, grounding, guarding integrity, inspection/certification status), record the gap and, if relevant, create an inspection item to verify it. Never invent a numerical limit or claim compliance. Where a legal or technical limit depends on jurisdiction, identify the applicable reference only if it is supplied or can be stated with confidence; otherwise mark it for competent expert/regulatory verification.
+
+G. CONTROL RECOMMENDATIONS
+Apply the hierarchy of controls in this order where feasible: elimination, substitution, engineering controls, administrative controls, and PPE. Do not default to PPE when a higher-level control is reasonably available. Recommendations must be practical, concise, and linked to the identified hazard.
+
+H. FINAL COMPLETENESS REVIEW
+Before returning the JSON, perform an internal coverage audit:
+- all supplied fields and all nine dimensions reviewed;
+- every listed process, activity, machine, material and incident considered;
+- direct, indirect, combined and cascading risks considered;
+- relevant routine, non-routine and emergency phases considered;
+- relevant people exposed considered;
+- occupational hygiene, environmental and emergency aspects considered;
+- missing data identified and converted to verification checks where appropriate;
+- response is strictly within the 30,000 token limit;
+- no duplicate, vague, generic or unsupported checklist items.
+
+I. OUTPUT AND DATA CONTRACT
+Return exactly one valid JSON object matching the schema below. No markdown fences, comments or prose outside JSON. All user-facing text values MUST be fluent, professional Persian. Keep JSON keys and enum values exactly as specified. Use unique temporary IDs: H1... for hazards, SEC-1... for sections, and CHK-1... for checklist items. Every related_hazard_ids value must refer to an existing hazard ID. Section and item order values must be sequential integers. Use null for unknown measurement_unit. Use valid JSON booleans and numbers, not strings. Ensure all arrays and objects are properly closed.
+
+CRITICAL SIZE & TOKEN BUDGET CONSTRAINT:
+The total output MUST be strictly under 30,000 tokens. Ensure concise descriptions, keep hazards within 8-14, sections within 4-6, and total checklist items within 30-55. The JSON must be 100% complete and fully closed.
 
 JSON OUTPUT STRUCTURE:
 {
@@ -198,7 +272,7 @@ JSON OUTPUT STRUCTURE:
     "sections": [
       {
         "temporary_id": "SEC-1",
-        "title": "عنوان بخش (مثلاً: ایمنی تجهیزات برش و پرس)",
+        "title": "عنوان بخش",
         "description": "شرح الزامات این بخش",
         "order": 1,
         "items": [
@@ -209,8 +283,8 @@ JSON OUTPUT STRUCTURE:
             "description": "توضیح تکمیلی",
             "category": "safety",
             "related_hazard_ids": ["H1"],
-            "evidence_required": ["مشاهده حفاظ", "بررسی برچسب کالیبراسیون"],
-            "recommended_controls": ["نصب حفاظ اینترلاک"],
+            "evidence_required": ["مدرک یا مشاهده موردنیاز"],
+            "recommended_controls": ["اقدام کنترلی پیشنهادی"],
             "response_type": "yes_no_na",
             "is_critical": true,
             "requires_measurement": false,
@@ -424,9 +498,9 @@ def call_avalai_chat_completions(
     system_prompt: str,
     user_prompt: str,
     model: str = "",
-    timeout: int = 90,
+    timeout: int = 180,
     max_retries: int = 2,
-    max_output_tokens: int = 8000,
+    max_output_tokens: int = 300000,
 ) -> Tuple[str, Dict[str, Any], float]:
     """
     Invokes the AvalAI chat completions endpoint using standard urllib.
@@ -485,6 +559,19 @@ def call_avalai_chat_completions(
                 if not content:
                     raise AvalAIResponseError("محتوای بازگشتی از مدل هوش مصنوعی خالی است.")
 
+                finish_reason = choices[0].get("finish_reason", "stop")
+                if finish_reason == "length":
+                    logger.warning("AvalAI response finish_reason was 'length' (length: %d). Checking if JSON is salvageable...", len(content))
+                    from .schema_validator import repair_truncated_json
+                    try:
+                        repair_truncated_json(content)
+                        logger.info("Truncated JSON successfully validated and closed!")
+                    except Exception:
+                        raise AvalAITokenLimitExceededError(
+                            "پاسخ هوش مصنوعی به سقف توکن خروجی رسیده و ساختار آن غیرقابل ترمیم است. "
+                            "لطفاً مجدداً دکمه تحلیل را بزنید یا مقدار AVALAI_MAX_OUTPUT_TOKENS را در تنظیمات افزایش دهید."
+                        )
+
                 usage = res_json.get("usage", {})
                 metadata = {
                     "provider": "avalai",
@@ -495,7 +582,7 @@ def call_avalai_chat_completions(
                     "prompt_tokens": usage.get("prompt_tokens"),
                     "completion_tokens": usage.get("completion_tokens"),
                     "total_tokens": usage.get("total_tokens"),
-                    "finish_reason": choices[0].get("finish_reason", "stop"),
+                    "finish_reason": finish_reason,
                 }
                 return content, metadata, duration_ms
 
@@ -517,7 +604,7 @@ def call_avalai_chat_completions(
                     continue
                 raise AvalAIConnectionError(f"سرور AvalAI موقتاً با خطای {e.code} مواجه شد.")
             else:
-                raise AvalAIResponseError(f"خطای ارائه‌دهنده هوش مصنوعی ({e.code}): درخواست معتبر نبود.")
+                raise AvalAIResponseError(f"خطای ارائه دهنده هوش مصنوعی ({e.code}): درخواست معتبر نبود.")
 
         except (urllib.error.URLError, TimeoutError, ConnectionResetError, OSError) as e:
             duration_ms = round((time.time() - t0) * 1000, 1)

@@ -445,22 +445,13 @@ export function AiAssistantPage({
       {mode !== "assistant" && (
         <header className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <h2>{mode === "legacy" ? "ابزارهای سریع ایمنی و مقررات پایگاه دانش" : "دستیار هوشمند و تحلیلی HSE Guard"}</h2>
-              <span
-                style={{
-                  backgroundColor: "var(--primary-soft, #e3f2ee)",
-                  color: "var(--primary, #0f6b57)",
-                  padding: "0.15rem 0.5rem",
-                  borderRadius: "12px",
-                  fontSize: "0.75rem",
-                  fontWeight: "bold",
-                }}
-              >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+              <h2 style={{ margin: 0, fontWeight: 900 }}>{mode === "legacy" ? "ابزارهای سریع ایمنی و مقررات پایگاه دانش" : "دستیار هوشمند و تحلیلی HSE Guard"}</h2>
+              <span className="badge badge-primary">
                 {mode === "legacy" ? "مقررات و استانداردهای OHS" : "مبتنی بر AvalAI و شواهد مقرراتی"}
               </span>
             </div>
-            <p className="muted" style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>
+            <p className="muted" style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>
               {mode === "legacy"
                 ? "استخراج سریع مخاطرات، پیشنهادات چک‌لیست و بررسی سلسله‌مراتب کنترل خطر (ISO 45001)"
                 : "ارزیابی جامع محیط کار، استخراج مخاطرات بر پایه AvalAI و تولید مستقیم چک‌لیست بازرسی با نظارت انسانی"}
@@ -471,15 +462,16 @@ export function AiAssistantPage({
             <div
               className="card"
               style={{
-                padding: "0.5rem 0.85rem",
-                fontSize: "0.75rem",
+                padding: "0.65rem 1rem",
+                fontSize: "0.78rem",
                 display: "grid",
-                gap: "0.2rem",
-                backgroundColor: "var(--surface, #fff)",
+                gap: "0.25rem",
+                marginBottom: 0,
+                borderRadius: "14px",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981" }} />
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span className="badge-dot" style={{ backgroundColor: "var(--success)" }} />
                 <strong>{aiStatus.engine_label}</strong>
               </div>
               <span className="muted">{aiStatus.verified_regulations_count} منبع و آیین‌نامه فعال در حافظه تحلیلی</span>
@@ -503,12 +495,13 @@ export function AiAssistantPage({
 
       {/* Organization Selector */}
       {organizations.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <label style={{ fontSize: "0.85rem", color: "var(--muted, #5b6b7a)" }}>سازمان انتخابی:</label>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+          <label style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-secondary)", margin: 0 }}>سازمان انتخابی:</label>
           <select
             value={organizationId ?? ""}
             onChange={(e) => setOrganizationId(Number(e.target.value))}
-            style={{ padding: "0.35rem 0.65rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+            className="form-select"
+            style={{ width: "auto", minWidth: "220px", padding: "0.45rem 0.85rem" }}
           >
             {organizations.map((org) => (
               <option key={org.id} value={org.id}>
@@ -521,7 +514,17 @@ export function AiAssistantPage({
 
       {/* Tab Navigation Buttons - ONLY when NOT in pure assistant mode */}
       {mode !== "assistant" && (
-        <div className="bg-slate-100 p-1.5 rounded-2xl flex flex-wrap gap-1.5 border border-slate-200">
+        <div
+          style={{
+            backgroundColor: "var(--bg-subtle)",
+            padding: "0.4rem",
+            borderRadius: "16px",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0.4rem",
+            border: "1px solid var(--border-default)",
+          }}
+        >
           {mode === "all" && (
             <button
               type="button"
@@ -529,7 +532,7 @@ export function AiAssistantPage({
               className={`tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === "assessments"
                   ? "active bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                  : "text-slate-700 hover:text-slate-900 hover:bg-white/60"
+                  : "text-slate-700 hover:text-slate-900"
               }`}
             >
               <Sparkles className={`w-4 h-4 ${activeTab === "assessments" ? "text-indigo-200" : "text-indigo-600"}`} />
@@ -552,7 +555,7 @@ export function AiAssistantPage({
             className={`tab-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "workplace"
                 ? "active bg-white text-slate-900 shadow-sm font-bold"
-                : "text-slate-600 hover:bg-white/60"
+                : "text-slate-600"
             }`}
           >
             تحلیل مخاطرات محیط کار
@@ -564,7 +567,7 @@ export function AiAssistantPage({
             className={`tab-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "checklist"
                 ? "active bg-white text-slate-900 shadow-sm font-bold"
-                : "text-slate-600 hover:bg-white/60"
+                : "text-slate-600"
             }`}
           >
             پیشنهاد چک‌لیست بازرسی
@@ -576,7 +579,7 @@ export function AiAssistantPage({
             className={`tab-btn inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               activeTab === "hierarchy"
                 ? "active bg-white text-slate-900 shadow-sm font-bold"
-                : "text-slate-600 hover:bg-white/60"
+                : "text-slate-600"
             }`}
           >
             سلسله‌مراتب کنترل خطر (ISO 45001)
@@ -799,13 +802,13 @@ export function AiAssistantPage({
           <form onSubmit={handleAnalyzeWorkplace} className="card" style={{ padding: "1.5rem", maxWidth: "100%", display: "grid", gap: "1rem" }}>
             <h3 style={{ margin: 0, fontSize: "1rem" }}>مشخصات عملیات و محیط کار مورد بررسی</h3>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
               <div>
                 <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.25rem" }}>محل کار</label>
                 <select
                   value={selectedWorkplace}
                   onChange={(e) => setSelectedWorkplace(e.target.value)}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                  className="form-select"
                 >
                   <option value="">انتخاب محل کار (اختیاری)</option>
                   {workplaces.map((wp) => (
@@ -823,7 +826,7 @@ export function AiAssistantPage({
                   value={equipment}
                   onChange={(e) => setEquipment(e.target.value)}
                   placeholder="مثال: داربست فلزی، فرز..."
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                  className="form-input"
                 />
               </div>
 
@@ -834,7 +837,7 @@ export function AiAssistantPage({
                   value={materials}
                   onChange={(e) => setMaterials(e.target.value)}
                   placeholder="مثال: رنگ، تینر، الکترود..."
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                  className="form-input"
                 />
               </div>
             </div>
@@ -848,12 +851,12 @@ export function AiAssistantPage({
                 value={activityDesc}
                 onChange={(e) => setActivityDesc(e.target.value)}
                 placeholder="مثال: کار روی داربست فلزی در ارتفاع ۸ متری و سیم‌کشی تأسیسات برق..."
-                style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                className="form-textarea"
               />
             </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontSize: "0.8rem", color: "var(--muted, #5b6b7a)", display: "flex", gap: "0.5rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
+              <div style={{ fontSize: "0.8rem", color: "var(--text-tertiary)", display: "flex", gap: "0.5rem" }}>
                 <span>نمونه آماده:</span>
                 <button
                   type="button"
@@ -861,7 +864,7 @@ export function AiAssistantPage({
                     setActivityDesc("کار روی داربست فلزی در ارتفاع ۸ متری و کابل‌کشی تأسیسات برق");
                     setEquipment("داربست، کابل برق، فرز");
                   }}
-                  style={{ background: "none", border: "none", color: "var(--primary, #0f6b57)", cursor: "pointer", textDecoration: "underline" }}
+                  style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", textDecoration: "underline" }}
                 >
                   داربست و برق
                 </button>
@@ -870,15 +873,7 @@ export function AiAssistantPage({
               <button
                 type="submit"
                 disabled={analysisLoading}
-                style={{
-                  backgroundColor: "var(--primary, #0f6b57)",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "0.6rem 1.25rem",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                }}
+                className="btn btn-primary"
               >
                 {analysisLoading ? "در حال تحلیل و استخراج مقررات..." : "⚡ تحلیل و استخراج مخاطرات"}
               </button>
@@ -899,11 +894,11 @@ export function AiAssistantPage({
                     <span
                       key={src.id}
                       style={{
-                        backgroundColor: "var(--bg, #f4f6f8)",
+                        backgroundColor: "var(--bg-subtle)",
                         padding: "0.25rem 0.6rem",
-                        borderRadius: "4px",
+                        borderRadius: "var(--radius-xs)",
                         fontSize: "0.75rem",
-                        border: "1px solid var(--border, #d9e0e7)",
+                        border: "1px solid var(--border-default)",
                       }}
                     >
                       <strong>{src.code}</strong> — {src.title}
@@ -917,23 +912,14 @@ export function AiAssistantPage({
                 const isApplied = appliedHazards[idx];
                 return (
                   <div key={idx} className="card" style={{ padding: "1.25rem", maxWidth: "100%", display: "grid", gap: "0.75rem" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
                       <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                          <span
-                            style={{
-                              backgroundColor: "#fee2e2",
-                              color: "#991b1b",
-                              padding: "0.15rem 0.45rem",
-                              borderRadius: "4px",
-                              fontSize: "0.75rem",
-                              fontWeight: "bold",
-                            }}
-                          >
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
+                          <span className="badge badge-danger">
                             مخاطره #{idx + 1}
                           </span>
                           <span className="muted" style={{ fontSize: "0.8rem" }}>دسته‌بندی: {item.category}</span>
-                          <span style={{ backgroundColor: "#fef3c7", color: "#92400e", padding: "0.15rem 0.45rem", borderRadius: "4px", fontSize: "0.75rem" }}>
+                          <span className="badge badge-warning">
                             احتمال: {item.suggested_likelihood} | شدت: {item.suggested_severity}
                           </span>
                         </div>
@@ -942,23 +928,14 @@ export function AiAssistantPage({
 
                       <div>
                         {isApplied ? (
-                          <span style={{ color: "#166534", fontWeight: "bold", fontSize: "0.85rem" }}>
+                          <span style={{ color: "var(--success)", fontWeight: "bold", fontSize: "0.85rem" }}>
                             ✓ در بانک مخاطرات ذخیره شد
                           </span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => handleApplyHazard(idx)}
-                            style={{
-                              padding: "0.35rem 0.75rem",
-                              borderRadius: "6px",
-                              border: "1px solid var(--primary, #0f6b57)",
-                              backgroundColor: "var(--primary-soft, #e3f2ee)",
-                              color: "var(--primary, #0f6b57)",
-                              cursor: "pointer",
-                              fontSize: "0.8rem",
-                              fontWeight: "bold",
-                            }}
+                            className="btn btn-secondary btn-sm"
                           >
                             + تأیید و ثبت در بانک مخاطرات
                           </button>
@@ -966,7 +943,7 @@ export function AiAssistantPage({
                       </div>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", fontSize: "0.85rem" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", fontSize: "0.85rem" }}>
                       <div>
                         <strong>علل ریشه‌ای: </strong>
                         <span className="muted">{item.causes}</span>
@@ -977,14 +954,14 @@ export function AiAssistantPage({
                       </div>
                     </div>
 
-                    <div style={{ backgroundColor: "var(--bg, #f4f6f8)", padding: "0.75rem", borderRadius: "6px", fontSize: "0.85rem" }}>
+                    <div style={{ backgroundColor: "var(--bg-subtle)", padding: "0.75rem", borderRadius: "var(--radius-sm)", fontSize: "0.85rem" }}>
                       <div>
                         <strong>پیشنهاد کنترل‌های اولیه: </strong>
                         <span>{item.existing_controls_hint}</span>
                       </div>
                       <div style={{ marginTop: "0.35rem" }}>
                         <strong>استناد قانونی: </strong>
-                        <span style={{ color: "var(--primary, #0f6b57)", fontWeight: "bold" }}>{item.regulation_reference}</span>
+                        <span style={{ color: "var(--primary)", fontWeight: "bold" }}>{item.regulation_reference}</span>
                       </div>
                     </div>
                   </div>
@@ -1003,7 +980,7 @@ export function AiAssistantPage({
           <form onSubmit={handleSuggestChecklist} className="card" style={{ padding: "1.5rem", maxWidth: "100%", display: "grid", gap: "1rem" }}>
             <h3 style={{ margin: 0, fontSize: "1rem" }}>تدوین چک‌لیست بازرسی مبتنی بر استانداردها</h3>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
               <div>
                 <label htmlFor="focus-area" style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.25rem" }}>حوزه یا عملیات بازرسی *</label>
                 <input
@@ -1013,7 +990,7 @@ export function AiAssistantPage({
                   value={focusArea}
                   onChange={(e) => setFocusArea(e.target.value)}
                   placeholder="مثال: کار در ارتفاع، برق، ماشین‌آلات..."
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                  className="form-input"
                 />
               </div>
 
@@ -1024,7 +1001,7 @@ export function AiAssistantPage({
                   value={checklistTitleHint}
                   onChange={(e) => setChecklistTitleHint(e.target.value)}
                   placeholder="مثال: چک‌لیست بازرسی روزانه داربست"
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                  className="form-input"
                 />
               </div>
             </div>
@@ -1033,15 +1010,7 @@ export function AiAssistantPage({
               <button
                 type="submit"
                 disabled={checklistLoading}
-                style={{
-                  backgroundColor: "var(--primary, #0f6b57)",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "0.6rem 1.25rem",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                }}
+                className="btn btn-primary"
               >
                 {checklistLoading ? "در حال تدوین چک‌لیست..." : "📋 تولید پیش‌نویس چک‌لیست"}
               </button>
@@ -1052,30 +1021,21 @@ export function AiAssistantPage({
 
           {checklistResult && (
             <div className="card" style={{ padding: "1.5rem", maxWidth: "100%", display: "grid", gap: "1rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
                 <div>
                   <h4 style={{ margin: 0, fontSize: "1.1rem" }}>{checklistResult.suggested_title}</h4>
                   <p className="muted" style={{ margin: "0.25rem 0 0", fontSize: "0.85rem" }}>{checklistResult.suggested_description}</p>
                 </div>
                 <div>
                   {appliedChecklist ? (
-                    <span style={{ color: "#166534", fontWeight: "bold", fontSize: "0.85rem" }}>
+                    <span style={{ color: "var(--success)", fontWeight: "bold", fontSize: "0.85rem" }}>
                       ✓ چک‌لیست در سامانه ثبت شد
                     </span>
                   ) : (
                     <button
                       type="button"
                       onClick={handleApplyChecklist}
-                      style={{
-                        backgroundColor: "var(--primary, #0f6b57)",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "6px",
-                        padding: "0.5rem 1rem",
-                        cursor: "pointer",
-                        fontWeight: "bold",
-                        fontSize: "0.85rem",
-                      }}
+                      className="btn btn-primary btn-sm"
                     >
                       ایجاد رسمی چک‌لیست در سامانه
                     </button>
@@ -1089,9 +1049,9 @@ export function AiAssistantPage({
                     key={it.order}
                     style={{
                       padding: "0.75rem 1rem",
-                      borderRadius: "6px",
-                      border: "1px solid var(--border, #d9e0e7)",
-                      backgroundColor: "var(--bg, #f4f6f8)",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid var(--border-default)",
+                      backgroundColor: "var(--bg-subtle)",
                       display: "flex",
                       alignItems: "flex-start",
                       gap: "0.75rem",
@@ -1099,8 +1059,8 @@ export function AiAssistantPage({
                   >
                     <span
                       style={{
-                        backgroundColor: "var(--primary-soft, #e3f2ee)",
-                        color: "var(--primary, #0f6b57)",
+                        backgroundColor: "var(--primary-subtle)",
+                        color: "var(--primary)",
                         width: "24px",
                         height: "24px",
                         borderRadius: "50%",
@@ -1116,7 +1076,7 @@ export function AiAssistantPage({
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: "bold", fontSize: "0.9rem" }}>{it.text || it.question}</div>
                       {it.citation && (
-                        <div style={{ fontSize: "0.75rem", color: "var(--primary, #0f6b57)", marginTop: "0.2rem" }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--primary)", marginTop: "0.2rem" }}>
                           استناد: {it.citation}
                         </div>
                       )}
@@ -1142,7 +1102,7 @@ export function AiAssistantPage({
           <form onSubmit={handleSuggestControls} className="card" style={{ padding: "1.5rem", maxWidth: "100%", display: "grid", gap: "1rem" }}>
             <h3 style={{ margin: 0, fontSize: "1rem" }}>پیشنهاد لایه‌های کنترلی بر پایه ماتریس سلسله‌مراتب ISO 45001</h3>
 
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
               <div>
                 <label htmlFor="hazard-title" style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.25rem" }}>عنوان مخاطره *</label>
                 <input
@@ -1152,7 +1112,7 @@ export function AiAssistantPage({
                   value={hazardTitle}
                   onChange={(e) => setHazardTitle(e.target.value)}
                   placeholder="مثال: احتمال سقوط از داربست ناقص در ارتفاع"
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                  className="form-input"
                 />
               </div>
 
@@ -1161,7 +1121,7 @@ export function AiAssistantPage({
                 <select
                   value={hazardCategory}
                   onChange={(e) => setHazardCategory(e.target.value)}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                  className="form-select"
                 >
                   <option value="safety">ایمنی (Safety)</option>
                   <option value="health">بهداشت حرفه‌ای (Health)</option>
@@ -1177,7 +1137,7 @@ export function AiAssistantPage({
                 value={hazardDesc}
                 onChange={(e) => setHazardDesc(e.target.value)}
                 placeholder="توضیحاتی در مورد شرایط محل، تعداد نفرات یا ماهیت کار..."
-                style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid var(--border, #d9e0e7)" }}
+                className="form-textarea"
               />
             </div>
 
@@ -1185,15 +1145,7 @@ export function AiAssistantPage({
               <button
                 type="submit"
                 disabled={controlsLoading}
-                style={{
-                  backgroundColor: "var(--primary, #0f6b57)",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "0.6rem 1.25rem",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                }}
+                className="btn btn-primary"
               >
                 {controlsLoading ? "در حال تدوین سطوح کنترلی..." : "🛡️ استخراج سلسله‌مراتب کنترلی"}
               </button>
@@ -1213,14 +1165,14 @@ export function AiAssistantPage({
                       key={tier.tier}
                       style={{
                         padding: "0.75rem 1rem",
-                        borderRadius: "6px",
-                        border: "1px solid var(--border, #d9e0e7)",
-                        backgroundColor: "var(--bg, #f4f6f8)",
+                        borderRadius: "var(--radius-sm)",
+                        border: "1px solid var(--border-default)",
+                        backgroundColor: "var(--bg-subtle)",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <strong style={{ fontSize: "0.9rem" }}>{tier.label}</strong>
-                        <span style={{ fontSize: "0.75rem", color: "var(--muted, #5b6b7a)" }}>{tier.priority}</span>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{tier.priority}</span>
                       </div>
                       <div style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>{tier.recommendation}</div>
                     </div>
@@ -1228,8 +1180,13 @@ export function AiAssistantPage({
                 ) : (
                   <>
                     {(controlsResult as any).elimination && (
-                      <div style={{ border: "1px solid #10b981", borderRadius: "6px", padding: "0.75rem 1rem", backgroundColor: "#f0fdf4" }}>
-                        <div style={{ fontWeight: "bold", color: "#166534", fontSize: "0.9rem" }}>۱. حذف خطر (Elimination)</div>
+                      <div style={{
+                        border: "1px solid var(--success-border)",
+                        borderRadius: "var(--radius-sm)",
+                        padding: "0.75rem 1rem",
+                        backgroundColor: "var(--success-subtle)"
+                      }}>
+                        <div style={{ fontWeight: "bold", color: "var(--success-fg)", fontSize: "0.9rem" }}>۱. حذف خطر (Elimination)</div>
                         <ul style={{ margin: "0.5rem 0 0", paddingRight: "1.5rem", fontSize: "0.85rem" }}>
                           {((controlsResult as any).elimination || []).map((item: any, idx: number) => (
                             <li key={idx}>{item}</li>
@@ -1238,8 +1195,13 @@ export function AiAssistantPage({
                       </div>
                     )}
                     {(controlsResult as any).ppe && (
-                      <div style={{ border: "1px solid #ef4444", borderRadius: "6px", padding: "0.75rem 1rem", backgroundColor: "#fef2f2" }}>
-                        <div style={{ fontWeight: "bold", color: "#991b1b", fontSize: "0.9rem" }}>۵. تجهیزات حفاظت فردی (PPE)</div>
+                      <div style={{
+                        border: "1px solid var(--danger-border)",
+                        borderRadius: "var(--radius-sm)",
+                        padding: "0.75rem 1rem",
+                        backgroundColor: "var(--danger-subtle)"
+                      }}>
+                        <div style={{ fontWeight: "bold", color: "var(--danger-fg)", fontSize: "0.9rem" }}>۵. تجهیزات حفاظت فردی (PPE)</div>
                         <ul style={{ margin: "0.5rem 0 0", paddingRight: "1.5rem", fontSize: "0.85rem" }}>
                           {((controlsResult as any).ppe || []).map((item: any, idx: number) => (
                             <li key={idx}>{item}</li>

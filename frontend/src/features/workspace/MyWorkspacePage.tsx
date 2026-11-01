@@ -3,7 +3,7 @@ import {
   fetchPersonalWorkspace,
   type PersonalWorkspaceResponse,
 } from "../../services/api";
-import { UserCheck, CheckCircle2, AlertTriangle, Bell, Clock } from "lucide-react";
+import { UserCheck, CheckCircle2, AlertTriangle, Bell, Clock, FileCheck } from "lucide-react";
 
 export function MyWorkspacePage() {
   const [data, setData] = useState<PersonalWorkspaceResponse | null>(null);
@@ -28,108 +28,180 @@ export function MyWorkspacePage() {
   }, []);
 
   return (
-    <div className="card" dir="rtl">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <UserCheck size={28} color="#2563eb" />
-          <div>
-            <h2 style={{ margin: 0, fontSize: "1.5rem" }}>کارتابل شخصی و وظایف من (My Workspace)</h2>
-            <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.875rem" }}>
-              وظایف اختصاص‌یافته، تاییدهای در انتظار امضا، اقدامات اصلاحی معوق و پیام‌های جدید
-            </p>
+    <div className="workspace-page stack" dir="rtl">
+      {/* Header Card */}
+      <div className="card toolbar-card" style={{ marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+            <div style={{
+              width: "48px",
+              height: "48px",
+              borderRadius: "var(--radius-md)",
+              backgroundColor: "var(--info-subtle)",
+              color: "var(--info)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0
+            }}>
+              <UserCheck size={26} aria-hidden="true" />
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: "1.4rem", fontWeight: 800 }}>کارتابل شخصی و وظایف من (My Workspace)</h2>
+              <p className="muted" style={{ margin: "0.3rem 0 0", fontSize: "0.875rem" }}>
+                وظایف اختصاص‌یافته، تاییدیه‌های در انتظار امضا، اقدامات اصلاحی و اعلان‌های سیستمی
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {error && (
-        <div style={{ padding: "0.75rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px", marginBottom: "1rem" }}>
-          {error}
+        <div className="alert alert-danger" style={{ marginBottom: "1.5rem" }}>
+          <AlertTriangle size={18} aria-hidden="true" />
+          <div>{error}</div>
         </div>
       )}
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: "3rem" }}>در حال بارگذاری کارتابل...</div>
+        <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
+          <div className="spinner" style={{ margin: "0 auto 1rem auto" }} aria-hidden="true" />
+          <p className="muted">در حال بارگذاری اطلاعات کارتابل شخصی…</p>
+        </div>
       ) : !data ? (
-        <div style={{ textAlign: "center", padding: "3rem", color: "#64748b" }}>اطلاعاتی یافت نشد.</div>
+        <div className="card empty-state">
+          <p className="empty-state-title">اطلاعاتی یافت نشد</p>
+        </div>
       ) : (
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           {/* Top KPI Cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-            <div style={{ padding: "1rem", background: "#eff6ff", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
+            {/* Pending Approvals */}
+            <div className="card stat-mini-card" style={{
+              borderLeft: "4px solid var(--info)",
+              padding: "1.25rem",
+            }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "0.85rem", color: "#1e40af" }}>مجوزها و طرح‌های در انتظار تایید</span>
-                <Clock size={20} color="#2563eb" />
+                <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 600 }}>مجوزها و طرح‌های منتظر تایید</span>
+                <Clock size={20} className="text-info" />
               </div>
-              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#1d4ed8", marginTop: "0.25rem" }}>
+              <div style={{ fontSize: "1.85rem", fontWeight: 900, color: "var(--info)", marginTop: "0.4rem" }}>
                 {data.pending_approvals?.total ?? 0}
               </div>
             </div>
 
-            <div style={{ padding: "1rem", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+            {/* Assigned Actions */}
+            <div className="card stat-mini-card" style={{
+              borderLeft: "4px solid var(--primary)",
+              padding: "1.25rem",
+            }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "0.85rem", color: "#475569" }}>اقدامات اصلاحی محوله به من</span>
-                <CheckCircle2 size={20} color="#16a34a" />
+                <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 600 }}>اقدامات اصلاحی محوله</span>
+                <CheckCircle2 size={20} className="text-primary" />
               </div>
-              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#0f172a", marginTop: "0.25rem" }}>
+              <div style={{ fontSize: "1.85rem", fontWeight: 900, color: "var(--text-primary)", marginTop: "0.4rem" }}>
                 {data.my_tasks?.actions?.length ?? 0}
               </div>
             </div>
 
-            <div style={{ padding: "1rem", background: "#fef2f2", borderRadius: "8px", border: "1px solid #fecaca" }}>
+            {/* Overdue Actions */}
+            <div className="card stat-mini-card" style={{
+              borderLeft: "4px solid var(--danger)",
+              padding: "1.25rem",
+            }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "0.85rem", color: "#991b1b" }}>اقدامات دارای تأخیر (Overdue)</span>
-                <AlertTriangle size={20} color="#dc2626" />
+                <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 600 }}>اقدامات دارای تأخیر (Overdue)</span>
+                <AlertTriangle size={20} className="text-danger" />
               </div>
-              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#dc2626", marginTop: "0.25rem" }}>
+              <div style={{ fontSize: "1.85rem", fontWeight: 900, color: "var(--danger)", marginTop: "0.4rem" }}>
                 {data.my_tasks?.actions?.filter((a) => a.is_overdue).length ?? 0}
               </div>
             </div>
 
-            <div style={{ padding: "1rem", background: "#fdf4ff", borderRadius: "8px", border: "1px solid #f0abfc" }}>
+            {/* Unread Counts */}
+            <div className="card stat-mini-card" style={{
+              borderLeft: "4px solid var(--warning)",
+              padding: "1.25rem",
+            }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "0.85rem", color: "#86198f" }}>اعلان‌ها و پیام‌های خوانده‌نشده</span>
-                <Bell size={20} color="#c026d3" />
+                <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 600 }}>اعلان‌ها و پیام‌های جدید</span>
+                <Bell size={20} className="text-warning" />
               </div>
-              <div style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#a21caf", marginTop: "0.25rem" }}>
+              <div style={{ fontSize: "1.85rem", fontWeight: 900, color: "var(--warning)", marginTop: "0.4rem" }}>
                 {(data.unread_counts?.notifications || 0) + (data.unread_counts?.messages || 0)}
               </div>
             </div>
           </div>
 
           {/* Pending Approvals Section */}
-          <div style={{ marginBottom: "2rem" }}>
-            <h3 style={{ margin: "0 0 1rem", fontSize: "1.15rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Clock size={20} color="#ea580c" />
+          <div className="card">
+            <h3 style={{ margin: "0 0 1.25rem", fontSize: "1.15rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Clock size={20} className="text-warning" />
               پرونده‌های منتظر تایید و امضای شما
             </h3>
             {(data.pending_approvals?.total ?? 0) === 0 ? (
-              <div style={{ padding: "1.5rem", background: "#f8fafc", borderRadius: "6px", textAlign: "center", color: "#64748b" }}>
-                هیچ مجوزی در انتظار تایید شما نیست.
+              <div className="empty-state" style={{ padding: "2rem" }}>
+                <FileCheck size={36} className="empty-state-icon" style={{ opacity: 0.5 }} />
+                <p className="empty-state-title" style={{ fontSize: "1rem" }}>هیچ مجوزی در انتظار تایید شما نیست</p>
+                <p className="empty-state-desc" style={{ marginBottom: 0 }}>کلیه بررسی‌های ارجاعی در وضعیت به‌روز هستند.</p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {(data.pending_approvals?.permits || []).map((p) => (
-                  <div key={p.id} style={{ padding: "0.75rem 1rem", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div key={p.id} style={{
+                    padding: "0.85rem 1.25rem",
+                    background: "var(--bg-subtle)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: "var(--radius-md)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "0.5rem"
+                  }}>
                     <div>
-                      <strong>مجوز کار ({p.permit_type}): {p.reference_code}</strong> - {p.title}
+                      <strong style={{ color: "var(--text-primary)" }}>مجوز کار ({p.permit_type}): {p.reference_code}</strong>
+                      <span className="muted" style={{ marginRight: "0.5rem" }}>— {p.title}</span>
                     </div>
-                    <span style={{ fontSize: "0.85rem", color: "#92400e" }}>ارائه‌شده جهت بررسی</span>
+                    <span className="badge badge-warning">ارائه‌شده جهت بررسی</span>
                   </div>
                 ))}
                 {(data.pending_approvals?.lifting_plans || []).map((l) => (
-                  <div key={l.id} style={{ padding: "0.75rem 1rem", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div key={l.id} style={{
+                    padding: "0.85rem 1.25rem",
+                    background: "var(--bg-subtle)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: "var(--radius-md)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "0.5rem"
+                  }}>
                     <div>
-                      <strong>طرح باربرداری ({l.category}): {l.plan_number}</strong> - {l.title}
+                      <strong style={{ color: "var(--text-primary)" }}>طرح باربرداری ({l.category}): {l.plan_number}</strong>
+                      <span className="muted" style={{ marginRight: "0.5rem" }}>— {l.title}</span>
                     </div>
-                    <span style={{ fontSize: "0.85rem", color: "#1e40af" }}>در انتظار تایید سرپرست باربرداری</span>
+                    <span className="badge badge-info">در انتظار تایید سرپرست باربرداری</span>
                   </div>
                 ))}
                 {(data.pending_approvals?.pssr_reviews || []).map((ps) => (
-                  <div key={ps.id} style={{ padding: "0.75rem 1rem", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div key={ps.id} style={{
+                    padding: "0.85rem 1.25rem",
+                    background: "var(--bg-subtle)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: "var(--radius-md)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "0.5rem"
+                  }}>
                     <div>
-                      <strong>پرونده راه‌اندازی (PSSR): {ps.pssr_number}</strong> - {ps.project_or_system_name}
+                      <strong style={{ color: "var(--text-primary)" }}>پرونده راه‌اندازی (PSSR): {ps.pssr_number}</strong>
+                      <span className="muted" style={{ marginRight: "0.5rem" }}>— {ps.project_or_system_name}</span>
                     </div>
-                    <span style={{ fontSize: "0.85rem", color: "#6b21a8" }}>موعد استارت: {ps.target_startup_date}</span>
+                    <span className="badge badge-primary">موعد استارت: {ps.target_startup_date}</span>
                   </div>
                 ))}
               </div>
@@ -137,39 +209,43 @@ export function MyWorkspacePage() {
           </div>
 
           {/* My Tasks & Actions Section */}
-          <div>
-            <h3 style={{ margin: "0 0 1rem", fontSize: "1.15rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <CheckCircle2 size={20} color="#16a34a" />
+          <div className="card">
+            <h3 style={{ margin: "0 0 1.25rem", fontSize: "1.15rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <CheckCircle2 size={20} className="text-primary" />
               اقدامات اصلاحی و بازرسی‌های محوله
             </h3>
             {(data.my_tasks?.actions || []).length === 0 ? (
-              <div style={{ padding: "1.5rem", background: "#f8fafc", borderRadius: "6px", textAlign: "center", color: "#64748b" }}>
-                هیچ اقدام باز یا معوقی به شما ارجاع داده نشده است.
+              <div className="empty-state" style={{ padding: "2rem" }}>
+                <CheckCircle2 size={36} className="empty-state-icon" style={{ opacity: 0.5 }} />
+                <p className="empty-state-title" style={{ fontSize: "1rem" }}>هیچ اقدام باز یا معوقی وجود ندارد</p>
+                <p className="empty-state-desc" style={{ marginBottom: 0 }}>تمامی اقدامات محوله با موفقیت انجام یا بسته شده‌اند.</p>
               </div>
             ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
+              <div className="table-container" style={{ overflowX: "auto" }}>
+                <table className="table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
                   <thead>
-                    <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
-                      <th style={{ padding: "0.6rem" }}>شرح اقدام اصلاحی</th>
-                      <th style={{ padding: "0.6rem" }}>مهلت انجام</th>
-                      <th style={{ padding: "0.6rem" }}>وضعیت</th>
-                      <th style={{ padding: "0.6rem" }}>هشدار سررسید</th>
+                    <tr>
+                      <th style={{ padding: "0.75rem 1rem" }}>شرح اقدام اصلاحی</th>
+                      <th style={{ padding: "0.75rem 1rem" }}>مهلت انجام</th>
+                      <th style={{ padding: "0.75rem 1rem" }}>وضعیت</th>
+                      <th style={{ padding: "0.75rem 1rem" }}>هشدار سررسید</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(data.my_tasks?.actions || []).map((act) => (
-                      <tr key={act.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                        <td style={{ padding: "0.6rem" }}>{act.description}</td>
-                        <td style={{ padding: "0.6rem" }}>{act.due_date || "نامشخص"}</td>
-                        <td style={{ padding: "0.6rem" }}>{act.status}</td>
-                        <td style={{ padding: "0.6rem" }}>
+                      <tr key={act.id}>
+                        <td style={{ padding: "0.75rem 1rem", fontWeight: 600 }}>{act.description}</td>
+                        <td style={{ padding: "0.75rem 1rem" }} className="muted">{act.due_date || "نامشخص"}</td>
+                        <td style={{ padding: "0.75rem 1rem" }}>
+                          <span className="badge">{act.status}</span>
+                        </td>
+                        <td style={{ padding: "0.75rem 1rem" }}>
                           {act.is_overdue ? (
-                            <span style={{ color: "#dc2626", fontWeight: "bold", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                              <AlertTriangle size={14} /> مهلت منقضی شده!
+                            <span style={{ color: "var(--danger)", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                              <AlertTriangle size={15} /> مهلت منقضی شده!
                             </span>
                           ) : (
-                            <span style={{ color: "#16a34a" }}>در مهلت مجاز</span>
+                            <span style={{ color: "var(--success)", fontWeight: 600 }}>در مهلت مجاز</span>
                           )}
                         </td>
                       </tr>

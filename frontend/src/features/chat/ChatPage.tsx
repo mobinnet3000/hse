@@ -8,7 +8,7 @@ import {
   type ChatConversationItem,
   type ChatMessageItem,
 } from "../../services/api";
-import { MessageSquare, Users, Send, Plus, Hash, User } from "lucide-react";
+import { MessageSquare, Users, Send, Plus, Hash, User, X } from "lucide-react";
 
 export function ChatPage() {
   const [conversations, setConversations] = useState<ChatConversationItem[]>([]);
@@ -105,14 +105,16 @@ export function ChatPage() {
   };
 
   return (
-    <div className="card" dir="rtl" style={{ height: "750px", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.75rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <MessageSquare size={26} color="#2563eb" />
+    <div className="card" dir="rtl" style={{ height: "760px", display: "flex", flexDirection: "column", padding: "1.5rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", borderBottom: "1px solid var(--border-default)", paddingBottom: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+          <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: "var(--primary-subtle)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--primary-border)" }}>
+            <MessageSquare size={22} />
+          </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: "1.4rem" }}>پیام‌رسان و ارتباطات داخلی HSE</h2>
-            <p style={{ margin: 0, color: "#64748b", fontSize: "0.85rem" }}>
-              هماهنگی سریع تیم‌های عملیاتی، اخطاریه‌های فوری هواشناسی و کانال‌های تخصصی ایمنی
+            <h2 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 800 }}>پیام‌رسان و ارتباطات داخلی HSE</h2>
+            <p style={{ margin: 0, color: "var(--text-tertiary)", fontSize: "0.825rem", marginTop: "2px" }}>
+              هماهنگی سریع تیم‌های عملیاتی، اخطاریه‌های فوری ایمنی و کانال‌های تخصصی کارگاه
             </p>
           </div>
         </div>
@@ -122,51 +124,63 @@ export function ChatPage() {
       </div>
 
       {error && (
-        <div style={{ padding: "0.5rem 0.75rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px", marginBottom: "0.75rem" }}>
+        <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>
           {error}
         </div>
       )}
 
       {/* Main Chat Splitter */}
-      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "1rem", flex: 1, minHeight: 0 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "1.25rem", flex: 1, minHeight: 0 }}>
         {/* Conversations Sidebar */}
-        <div style={{ borderLeft: "1px solid #e2e8f0", overflowY: "auto", paddingLeft: "0.5rem" }}>
-          <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.9rem", color: "#475569" }}>گفت‌وگوها و کانال‌ها</h4>
+        <div style={{ borderLeft: "1px solid var(--border-default)", overflowY: "auto", paddingLeft: "0.75rem", display: "flex", flexDirection: "column" }}>
+          <h4 style={{ margin: "0 0 0.75rem", fontSize: "0.85rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+            کانال‌ها و گفت‌وگوهای فعال
+          </h4>
           {loading ? (
-            <div style={{ padding: "1rem", color: "#64748b", textAlign: "center" }}>در حال بارگذاری...</div>
+            <div style={{ padding: "2rem", color: "var(--text-tertiary)", textAlign: "center" }}>در حال بارگذاری...</div>
           ) : conversations.length === 0 ? (
-            <div style={{ padding: "1rem", color: "#64748b", textAlign: "center" }}>گفت‌وگویی یافت نشد.</div>
+            <div style={{ padding: "2rem", color: "var(--text-tertiary)", textAlign: "center" }}>گفت‌وگویی یافت نشد.</div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-              {conversations.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => selectConversation(c)}
-                  style={{
-                    padding: "0.6rem 0.75rem",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    background: activeConv?.id === c.id ? "#eff6ff" : "#f8fafc",
-                    border: activeConv?.id === c.id ? "1px solid #93c5fd" : "1px solid transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    {c.conversation_type === "direct" ? <User size={16} color="#64748b" /> : <Hash size={16} color="#2563eb" />}
-                    <div>
-                      <div style={{ fontWeight: activeConv?.id === c.id ? "bold" : "normal", fontSize: "0.9rem" }}>{c.title}</div>
-                      <small style={{ color: "#94a3b8" }}>{c.conversation_type_display || c.conversation_type}</small>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+              {conversations.map((c) => {
+                const isSelected = activeConv?.id === c.id;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => selectConversation(c)}
+                    style={{
+                      padding: "0.75rem 0.85rem",
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      background: isSelected ? "var(--primary-subtle)" : "var(--bg-subtle)",
+                      border: isSelected ? "1px solid var(--primary-border)" : "1px solid var(--border-default)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      transition: "all var(--transition-fast)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", overflow: "hidden" }}>
+                      <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: isSelected ? "var(--primary)" : "var(--bg-muted)", color: isSelected ? "var(--primary-fg)" : "var(--text-secondary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {c.conversation_type === "direct" ? <User size={16} /> : <Hash size={16} />}
+                      </div>
+                      <div style={{ overflow: "hidden" }}>
+                        <div style={{ fontWeight: isSelected ? 800 : 600, fontSize: "0.875rem", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {c.title}
+                        </div>
+                        <small style={{ color: "var(--text-tertiary)", fontSize: "0.725rem" }}>
+                          {c.conversation_type_display || c.conversation_type}
+                        </small>
+                      </div>
                     </div>
+                    {c.unread_count ? (
+                      <span className="badge badge-danger" style={{ fontSize: "0.7rem", padding: "0.1rem 0.45rem" }}>
+                        {c.unread_count}
+                      </span>
+                    ) : null}
                   </div>
-                  {c.unread_count ? (
-                    <span style={{ background: "#dc2626", color: "#ffffff", borderRadius: "10px", padding: "0.1rem 0.4rem", fontSize: "0.75rem", fontWeight: "bold" }}>
-                      {c.unread_count}
-                    </span>
-                  ) : null}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -175,86 +189,117 @@ export function ChatPage() {
         <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
           {activeConv ? (
             <>
-              {/* Header */}
-              <div style={{ padding: "0.5rem 0.75rem", background: "#f8fafc", borderRadius: "6px", borderBottom: "1px solid #e2e8f0", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Users size={18} color="#2563eb" />
-                <span style={{ fontWeight: "bold" }}>{activeConv.title}</span>
-                <span style={{ fontSize: "0.8rem", color: "#64748b" }}>({activeConv.conversation_type_display || activeConv.conversation_type})</span>
+              {/* Thread Header */}
+              <div style={{ padding: "0.75rem 1rem", background: "var(--bg-subtle)", borderRadius: "12px", border: "1px solid var(--border-default)", marginBottom: "0.75rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+                  <Users size={18} color="var(--primary)" />
+                  <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--text-primary)" }}>{activeConv.title}</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>({activeConv.conversation_type_display || activeConv.conversation_type})</span>
+                </div>
+                <span className="badge badge-success">آنلاین</span>
               </div>
 
               {/* Messages Scroll Area */}
-              <div style={{ flex: 1, overflowY: "auto", padding: "0.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div style={{ flex: 1, overflowY: "auto", padding: "0.5rem 0.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {messages.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "3rem", color: "#94a3b8" }}>هنوز پیامی در این گفت‌وگو ارسال نشده است.</div>
+                  <div style={{ textAlign: "center", padding: "4rem 1rem", color: "var(--text-tertiary)" }}>
+                    هنوز پیامی در این گفت‌وگو ارسال نشده است. اولین پیام را ارسال کنید.
+                  </div>
                 ) : (
-                  messages.map((m) => (
-                    <div
-                      key={m.id}
-                      style={{
-                        padding: "0.75rem 1rem",
-                        borderRadius: "8px",
-                        maxWidth: "75%",
-                        background: m.is_system ? "#fef3c7" : "#f1f5f9",
-                        border: m.is_system ? "1px solid #fde68a" : "1px solid #e2e8f0",
-                        alignSelf: "flex-start",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", marginBottom: "0.25rem" }}>
-                        <span style={{ fontWeight: "bold", fontSize: "0.85rem", color: m.is_system ? "#92400e" : "#1e40af" }}>
-                          {m.sender_name || (m.is_system ? "پیام سیستمی" : "کاربر")}
-                        </span>
-                        <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>{new Date(m.created_at).toLocaleTimeString("fa-IR")}</span>
+                  messages.map((m) => {
+                    const isSys = m.is_system;
+                    return (
+                      <div
+                        key={m.id}
+                        style={{
+                          padding: "0.85rem 1.15rem",
+                          borderRadius: "14px",
+                          maxWidth: "75%",
+                          background: isSys ? "var(--warning-subtle)" : "var(--bg-surface)",
+                          border: isSys ? "1px solid var(--warning-border)" : "1px solid var(--border-default)",
+                          boxShadow: "var(--shadow-2xs)",
+                          alignSelf: "flex-start",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1.25rem", marginBottom: "0.35rem" }}>
+                          <span style={{ fontWeight: 800, fontSize: "0.825rem", color: isSys ? "var(--warning-fg)" : "var(--primary)" }}>
+                            {m.sender_name || (isSys ? "اعلان سیستمی HSE" : "همکار")}
+                          </span>
+                          <span style={{ fontSize: "0.725rem", color: "var(--text-tertiary)" }}>
+                            {new Date(m.created_at).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "0.9rem", lineHeight: "1.6", color: "var(--text-primary)" }}>
+                          {m.content}
+                        </div>
                       </div>
-                      <div style={{ fontSize: "0.95rem", lineHeight: "1.5" }}>{m.content}</div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
                 <div ref={messagesEndRef} />
               </div>
 
               {/* Input */}
-              <form onSubmit={handleSendMessage} style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+              <form onSubmit={handleSendMessage} style={{ display: "flex", gap: "0.65rem", marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid var(--border-default)" }}>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="پیام خود را تایپ کنید..."
+                  placeholder="پیام خود را به تیم ارسال کنید..."
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, borderRadius: "12px" }}
                   required
                 />
-                <button type="submit" className="btn btn-primary" style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                <button type="submit" className="btn btn-primary" style={{ display: "flex", alignItems: "center", gap: "0.4rem", borderRadius: "12px", padding: "0 1.5rem" }}>
                   <Send size={16} /> ارسال
                 </button>
               </form>
             </>
           ) : (
-            <div style={{ textAlign: "center", padding: "5rem", color: "#94a3b8" }}>یک گفت‌وگو را از ستون کناری انتخاب کنید.</div>
+            <div style={{ textAlign: "center", padding: "6rem 1rem", color: "var(--text-tertiary)" }}>
+              یک گفت‌وگو را از ستون سمت راست انتخاب کنید.
+            </div>
           )}
         </div>
       </div>
 
       {/* Modal: New Conversation */}
       {showCreateModal && (
-        <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div className="card" style={{ maxWidth: "450px", width: "90%" }}>
-            <h3 style={{ margin: "0 0 1rem" }}>ایجاد گفت‌وگو یا کارگروه جدید</h3>
+        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="modal-container" style={{ maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">ایجاد گفت‌وگو یا کارگروه جدید</h3>
+              <button type="button" className="modal-close-btn" onClick={() => setShowCreateModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
             <form onSubmit={handleCreateConversation}>
-              <div style={{ marginBottom: "1rem" }}>
+              <div className="form-group">
                 <label className="form-label">عنوان گفت‌وگو / نام کارگروه</label>
-                <input type="text" className="form-input" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required />
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="مثلاً: کمیته بررسی شبه‌حوادث، تیم ایمنی شیفت شب"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  required
+                />
               </div>
-              <div style={{ marginBottom: "1.5rem" }}>
+              <div className="form-group">
                 <label className="form-label">نوع کانال</label>
-                <select className="form-input" value={newType} onChange={(e: any) => setNewType(e.target.value)}>
+                <select className="form-select" value={newType} onChange={(e: any) => setNewType(e.target.value)}>
                   <option value="group">گروه تیمی / کارگروه تخصصی (Group)</option>
                   <option value="channel">کانال عمومی اطلاع‌رسانی و اعلام وضعیت اضطراری (Broadcast Channel)</option>
                   <option value="direct">گفت‌وگوی دونفره مستقیم (Direct)</option>
                 </select>
               </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>انصراف</button>
-                <button type="submit" className="btn btn-primary">ایجاد</button>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
+                  انصراف
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  ایجاد کارگروه
+                </button>
               </div>
             </form>
           </div>

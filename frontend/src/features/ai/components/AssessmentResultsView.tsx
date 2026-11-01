@@ -115,18 +115,18 @@ export const AssessmentResultsView: React.FC<AssessmentResultsViewProps> = ({
   const getMatrixCellData = (p: number, s: number) => {
     const score = p * s;
     let level: "low" | "medium" | "high" | "critical" = "low";
-    let bg = "bg-emerald-50 text-emerald-800 border-emerald-200";
+    let bg = "matrix-cell-low";
     if (score >= 16) {
       level = "critical";
-      bg = "bg-rose-500 text-white border-rose-600 font-bold";
+      bg = "matrix-cell-critical";
     } else if (score >= 10) {
       level = "high";
-      bg = "bg-amber-400 text-amber-950 border-amber-500 font-semibold";
+      bg = "matrix-cell-high";
     } else if (score >= 5) {
       level = "medium";
-      bg = "bg-yellow-200 text-yellow-900 border-yellow-300 font-medium";
+      bg = "matrix-cell-medium";
     } else {
-      bg = "bg-emerald-100 text-emerald-900 border-emerald-200";
+      bg = "matrix-cell-low";
     }
 
     const cellHazards = hazards.filter(

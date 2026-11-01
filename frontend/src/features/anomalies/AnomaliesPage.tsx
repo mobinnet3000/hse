@@ -95,10 +95,10 @@ export function AnomaliesPage() {
     <div className="card" dir="rtl">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <AlertCircle size={28} color="#2563eb" />
+          <AlertCircle size={28} color="var(--info)" />
           <div>
             <h2 style={{ margin: 0, fontSize: "1.5rem" }}>مدیریت یکپارچه ناهنجاری‌ها و مشاهدات ناایمن</h2>
-            <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.875rem" }}>
+            <p style={{ margin: "0.25rem 0 0", color: "var(--text-tertiary)", fontSize: "0.875rem" }}>
               ثبت و پیگیری اعمال ناایمن، شرایط ناایمن، شبه‌حوادث، انحرافات پیمانکار و نقایص تجهیزاتی
             </p>
           </div>
@@ -109,7 +109,7 @@ export function AnomaliesPage() {
       </div>
 
       {error && (
-        <div style={{ padding: "0.75rem", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px", marginBottom: "1rem" }}>
+        <div style={{ padding: "0.75rem", background: "var(--danger-subtle)", color: "var(--danger-fg)", borderRadius: "6px", marginBottom: "1rem" }}>
           {error}
         </div>
       )}
@@ -117,7 +117,7 @@ export function AnomaliesPage() {
       {/* Filters */}
       <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "center" }}>
         <div>
-          <label style={{ fontSize: "0.85rem", color: "#475569", marginLeft: "0.5rem" }}>نوع ناهنجاری:</label>
+          <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginLeft: "0.5rem" }}>نوع ناهنجاری:</label>
           <select className="form-input" style={{ width: "220px", display: "inline-block" }} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
             <option value="all">همه انواع</option>
             <option value="unsafe_act">عمل ناایمن (Unsafe Act)</option>
@@ -130,7 +130,7 @@ export function AnomaliesPage() {
           </select>
         </div>
         <div>
-          <label style={{ fontSize: "0.85rem", color: "#475569", marginLeft: "0.5rem" }}>وضعیت:</label>
+          <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginLeft: "0.5rem" }}>وضعیت:</label>
           <select className="form-input" style={{ width: "160px", display: "inline-block" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="all">همه وضعیت‌ها</option>
             <option value="open">باز (Open)</option>
@@ -145,12 +145,12 @@ export function AnomaliesPage() {
       {loading ? (
         <div style={{ textAlign: "center", padding: "3rem" }}>در حال بارگذاری مشاهدات...</div>
       ) : anomalies.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "3rem", color: "#64748b" }}>هیچ موردی با فیلترهای انتخابی یافت نشد.</div>
+        <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-tertiary)" }}>هیچ موردی با فیلترهای انتخابی یافت نشد.</div>
       ) : (
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "right" }}>
             <thead>
-              <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #cbd5e1" }}>
+              <tr style={{ background: "var(--bg-subtle)", borderBottom: "2px solid var(--border-strong)" }}>
                 <th style={{ padding: "0.75rem" }}>کد پیگیری</th>
                 <th style={{ padding: "0.75rem" }}>نوع ناهنجاری</th>
                 <th style={{ padding: "0.75rem" }}>شرح مشاهده</th>
@@ -163,21 +163,21 @@ export function AnomaliesPage() {
             </thead>
             <tbody>
               {anomalies.map((a) => (
-                <tr key={a.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                <tr key={a.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
                   <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{a.reference_number}</td>
                   <td style={{ padding: "0.75rem" }}>
                     <span style={{
                       padding: "0.2rem 0.6rem",
                       borderRadius: "12px",
                       fontSize: "0.8rem",
-                      background: a.anomaly_type === "unsafe_act" ? "#fee2e2" : "#e0f2fe",
-                      color: a.anomaly_type === "unsafe_act" ? "#991b1b" : "#0369a1",
+                      background: a.anomaly_type === "unsafe_act" ? "var(--danger-subtle)" : "var(--info-subtle)",
+                      color: a.anomaly_type === "unsafe_act" ? "var(--danger-fg)" : "var(--info-fg)",
                     }}>
                       {a.anomaly_type_display || a.anomaly_type}
                     </span>
                   </td>
                   <td style={{ padding: "0.75rem", maxWidth: "250px" }}>{a.description}</td>
-                  <td style={{ padding: "0.75rem", fontSize: "0.85rem", color: "#166534" }}>
+                  <td style={{ padding: "0.75rem", fontSize: "0.85rem", color: "var(--success-fg)" }}>
                     {a.immediate_containment || "—"}
                   </td>
                   <td style={{ padding: "0.75rem" }}>
@@ -185,8 +185,8 @@ export function AnomaliesPage() {
                       padding: "0.2rem 0.5rem",
                       borderRadius: "4px",
                       fontSize: "0.8rem",
-                      background: a.severity === "critical" ? "#dc2626" : a.severity === "high" ? "#ea580c" : "#fef08a",
-                      color: a.severity === "critical" || a.severity === "high" ? "#ffffff" : "#854d0e",
+                      background: a.severity === "critical" ? "var(--danger)" : a.severity === "high" ? "var(--warning)" : "var(--warning-subtle)",
+                      color: a.severity === "critical" || a.severity === "high" ? "var(--text-inverse)" : "var(--warning-fg)",
                       fontWeight: "bold",
                     }}>
                       {a.severity} / {a.priority}
@@ -198,8 +198,8 @@ export function AnomaliesPage() {
                       padding: "0.2rem 0.5rem",
                       borderRadius: "4px",
                       fontSize: "0.8rem",
-                      background: a.status === "closed" ? "#dcfce7" : "#fee2e2",
-                      color: a.status === "closed" ? "#166534" : "#991b1b",
+                      background: a.status === "closed" ? "var(--success-subtle)" : "var(--danger-subtle)",
+                      color: a.status === "closed" ? "var(--success-fg)" : "var(--danger-fg)",
                     }}>
                       {a.status_display || a.status}
                     </span>
@@ -207,7 +207,7 @@ export function AnomaliesPage() {
                   <td style={{ padding: "0.75rem" }}>
                     <div style={{ display: "flex", gap: "0.3rem" }}>
                       {a.status !== "closed" ? (
-                        <button className="btn btn-primary" style={{ padding: "0.3rem 0.6rem", background: "#16a34a" }} onClick={() => handleClose(a.id)}>
+                        <button className="btn btn-primary" style={{ padding: "0.3rem 0.6rem", background: "var(--success)" }} onClick={() => handleClose(a.id)}>
                           بستن
                         </button>
                       ) : (

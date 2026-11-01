@@ -63,16 +63,16 @@ const STATUS_LABELS: Record<EquipmentStatus, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  ready: "#1e7d45",
-  under_maintenance: "#9a6700",
-  out_of_service: "#b42318",
-  retired: "#59636e",
-  valid: "#1e7d45",
-  due_soon: "#9a6700",
-  expired: "#b42318",
-  failed: "#b42318",
-  missing: "#b42318",
-  not_required: "#59636e",
+  ready: "var(--success-fg)",
+  under_maintenance: "var(--warning-fg)",
+  out_of_service: "var(--danger-fg)",
+  retired: "var(--text-secondary)",
+  valid: "var(--success-fg)",
+  due_soon: "var(--warning-fg)",
+  expired: "var(--danger-fg)",
+  failed: "var(--danger-fg)",
+  missing: "var(--danger-fg)",
+  not_required: "var(--text-secondary)",
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -552,7 +552,7 @@ export function AssetsPage() {
   }
 
   function statusColor(status: string) {
-    return STATUS_COLORS[status] ?? "#59636e";
+    return STATUS_COLORS[status] ?? "var(--text-secondary)";
   }
 
   function startEditPlan(plan: MaintenancePlan) {
@@ -1143,7 +1143,7 @@ export function AssetsPage() {
                     <tr key={record.id}>
                       <td>{record.performed_on}</td>
                       <td>{record.next_due_on}</td>
-                      <td style={{ color: record.result === "failed" ? "#b42318" : "#1e7d45" }}>{record.result_display}</td>
+                      <td style={{ color: record.result === "failed" ? "var(--danger-fg)" : "var(--success-fg)" }}>{record.result_display}</td>
                       <td>{record.provider}</td>
                       <td>{record.certificate_number || "—"}</td>
                     </tr>
@@ -1284,7 +1284,7 @@ export function AssetsPage() {
                         <td>{plan.title}</td>
                         <td>{plan.interval_days} روز</td>
                         <td>{plan.next_due_date}</td>
-                        <td style={{ color: plan.is_overdue ? "#b42318" : plan.is_due_soon ? "#9a6700" : "inherit" }}>
+                        <td style={{ color: plan.is_overdue ? "var(--danger-fg)" : plan.is_due_soon ? "var(--warning-fg)" : "inherit" }}>
                           {plan.is_overdue ? "عقب‌افتاده" : plan.is_due_soon ? "نزدیک سررسید" : plan.is_active ? "فعال" : "غیرفعال"}
                         </td>
                         <td>{plan.responsible_name ?? "—"}</td>
@@ -1637,7 +1637,7 @@ export function AssetsPage() {
                         <td>{record.equipment_code} — {record.equipment_name}</td>
                         <td>{record.performed_on}</td>
                         <td>{record.next_due_on}</td>
-                        <td style={{ color: record.result === "failed" ? "#b42318" : "#1e7d45" }}>{record.result_display}</td>
+                        <td style={{ color: record.result === "failed" ? "var(--danger-fg)" : "var(--success-fg)" }}>{record.result_display}</td>
                         <td>{record.provider}</td>
                         <td>{record.certificate_number || "—"}</td>
                         <td>{record.performed_by_name ?? "—"}</td>

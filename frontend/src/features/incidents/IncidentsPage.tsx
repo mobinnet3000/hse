@@ -572,7 +572,7 @@ export function IncidentsPage() {
                     وضعیت: {item.status_display}
                   </span>
                   {item.is_synthetic && (
-                    <span className="badge" style={{ backgroundColor: "rgba(109, 40, 217, 0.15)", color: "#8b5cf6" }}>
+                    <span className="badge" style={{ backgroundColor: "rgba(109, 40, 217, 0.15)", color: "var(--ai-primary)" }}>
                       داده آزمایشی
                     </span>
                   )}
@@ -620,17 +620,17 @@ export function IncidentsPage() {
 
             {/* Quick Status Bar */}
             <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap", alignItems: "center" }}>
-              <span style={{ padding: "0.25rem 0.6rem", borderRadius: "4px", background: selectedIncident.incident_type === "incident" ? "#fee2e2" : "#fef3c7", color: selectedIncident.incident_type === "incident" ? "#991b1b" : "#92400e", fontWeight: "bold" }}>
+              <span style={{ padding: "0.25rem 0.6rem", borderRadius: "4px", background: selectedIncident.incident_type === "incident" ? "var(--danger-subtle)" : "var(--warning-subtle)", color: selectedIncident.incident_type === "incident" ? "var(--danger-fg)" : "var(--warning-fg)", fontWeight: "bold" }}>
                 {selectedIncident.incident_type_display}
               </span>
-              <span style={{ padding: "0.25rem 0.6rem", borderRadius: "4px", background: "#f1f5f9", color: "#0f172a", fontWeight: "bold" }}>
+              <span style={{ padding: "0.25rem 0.6rem", borderRadius: "4px", background: "var(--bg-subtle)", color: "var(--text-primary)", fontWeight: "bold" }}>
                 شدت: {selectedIncident.severity_display}
               </span>
-              <span style={{ padding: "0.25rem 0.6rem", borderRadius: "4px", background: "#dbeafe", color: "#1e40af", fontWeight: "bold" }}>
+              <span style={{ padding: "0.25rem 0.6rem", borderRadius: "4px", background: "var(--info-subtle)", color: "var(--info-fg)", fontWeight: "bold" }}>
                 وضعیت: {selectedIncident.status_display}
               </span>
               {selectedIncident.workplace_name && (
-                <span style={{ padding: "0.25rem 0.6rem", borderRadius: "4px", background: "#f8fafc", color: "#475569" }}>
+                <span style={{ padding: "0.25rem 0.6rem", borderRadius: "4px", background: "var(--bg-subtle)", color: "var(--text-secondary)" }}>
                   کارگاه: {selectedIncident.workplace_name}
                 </span>
               )}
@@ -638,24 +638,24 @@ export function IncidentsPage() {
 
             {/* Description & Impact */}
             <div style={{ marginBottom: "1.25rem" }}>
-              <h3 style={{ fontSize: "1rem", color: "#334155", marginBottom: "0.5rem" }}>شرح واقعه و اقدامات فوری</h3>
-              <p style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "6px", fontSize: "0.9rem", lineHeight: "1.6", margin: 0 }}>
+              <h3 style={{ fontSize: "1rem", color: "var(--text-secondary)", marginBottom: "0.5rem" }}>شرح واقعه و اقدامات فوری</h3>
+              <p style={{ background: "var(--bg-subtle)", padding: "0.75rem", borderRadius: "6px", fontSize: "0.9rem", lineHeight: "1.6", margin: 0 }}>
                 {selectedIncident.description}
               </p>
               {selectedIncident.immediate_actions_taken && (
-                <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: "#475569" }}>
+                <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
                   <strong>اقدامات فوری انجام‌شده: </strong>{selectedIncident.immediate_actions_taken}
                 </div>
               )}
               {selectedIncident.location_details && (
-                <div style={{ marginTop: "0.25rem", fontSize: "0.85rem", color: "#475569" }}>
+                <div style={{ marginTop: "0.25rem", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
                   <strong>موقعیت دقیق: </strong>{selectedIncident.location_details}
                 </div>
               )}
             </div>
 
             {/* Metrics & Impact */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.75rem", marginBottom: "1.25rem", background: "#f1f5f9", padding: "0.75rem", borderRadius: "6px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.75rem", marginBottom: "1.25rem", background: "var(--bg-subtle)", padding: "0.75rem", borderRadius: "6px" }}>
               <div><strong>تعداد مصدومین:</strong> {selectedIncident.injury_count} نفر</div>
               <div><strong>روزهای غیبت از کار:</strong> {selectedIncident.lost_time_days} روز</div>
               <div><strong>خسارت تخمینی:</strong> {selectedIncident.property_damage_cost ? Number(selectedIncident.property_damage_cost).toLocaleString("fa-IR") + " ریال" : "نامشخص"}</div>
@@ -663,9 +663,9 @@ export function IncidentsPage() {
             </div>
 
             {/* Investigation & RCA Section */}
-            <div style={{ marginBottom: "1.25rem", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "1rem" }}>
+            <div style={{ marginBottom: "1.25rem", border: "1px solid var(--border-strong)", borderRadius: "6px", padding: "1rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                <h3 style={{ fontSize: "1rem", color: "#1e293b", margin: 0 }}>نتایج ریشه‌یابی و تحلیل علل وقوع (RCA)</h3>
+                <h3 style={{ fontSize: "1rem", color: "var(--text-primary)", margin: 0 }}>نتایج ریشه‌یابی و تحلیل علل وقوع (RCA)</h3>
                 {selectedIncident.can_investigate && (
                   <button
                     type="button"
@@ -673,7 +673,7 @@ export function IncidentsPage() {
                       setActionError(null);
                       setIsInvestigateModalOpen(true);
                     }}
-                    style={{ background: "#475569", color: "#fff", border: "none", padding: "0.3rem 0.6rem", borderRadius: "4px", fontSize: "0.8rem", cursor: "pointer" }}
+                    style={{ background: "var(--text-secondary)", color: "var(--text-inverse)", border: "none", padding: "0.3rem 0.6rem", borderRadius: "4px", fontSize: "0.8rem", cursor: "pointer" }}
                   >
                     ویرایش / ثبت ریشه‌یابی
                   </button>
@@ -682,34 +682,34 @@ export function IncidentsPage() {
               {selectedIncident.root_cause ? (
                 <div>
                   <div style={{ marginBottom: "0.5rem" }}>
-                    <strong style={{ color: "#b91c1c" }}>علت ریشه‌ای اصلی (Root Cause):</strong>
+                    <strong style={{ color: "var(--danger-fg)" }}>علت ریشه‌ای اصلی (Root Cause):</strong>
                     <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>{selectedIncident.root_cause}</p>
                   </div>
                   {selectedIncident.contributing_factors && (
                     <div>
-                      <strong style={{ color: "#d97706" }}>عوامل کمکی و زمینه‌ساز:</strong>
+                      <strong style={{ color: "var(--warning)" }}>عوامل کمکی و زمینه‌ساز:</strong>
                       <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>{selectedIncident.contributing_factors}</p>
                     </div>
                   )}
                 </div>
               ) : (
-                <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: 0 }}>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
                   هنوز تحلیل علت ریشه‌ای برای این حادثه ثبت نشده است.
                 </p>
               )}
             </div>
 
             {/* Linked CAPAs Section */}
-            <div style={{ marginBottom: "1.25rem", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "1rem" }}>
+            <div style={{ marginBottom: "1.25rem", border: "1px solid var(--border-strong)", borderRadius: "6px", padding: "1rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                <h3 style={{ fontSize: "1rem", color: "#1e293b", margin: 0 }}>اقدامات اصلاحی متناظر (CAPA)</h3>
+                <h3 style={{ fontSize: "1rem", color: "var(--text-primary)", margin: 0 }}>اقدامات اصلاحی متناظر (CAPA)</h3>
                 <button
                   type="button"
                   onClick={() => {
                     setActionError(null);
                     setIsLinkCapaModalOpen(true);
                   }}
-                  style={{ background: "#059669", color: "#fff", border: "none", padding: "0.3rem 0.6rem", borderRadius: "4px", fontSize: "0.8rem", cursor: "pointer" }}
+                  style={{ background: "var(--success)", color: "var(--text-inverse)", border: "none", padding: "0.3rem 0.6rem", borderRadius: "4px", fontSize: "0.8rem", cursor: "pointer" }}
                 >
                   + اتصال اقدام اصلاحی
                 </button>
@@ -723,13 +723,13 @@ export function IncidentsPage() {
                   ))}
                 </ul>
               ) : (
-                <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: 0 }}>هیچ اقدام اصلاحی متصلی یافت نشد.</p>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>هیچ اقدام اصلاحی متصلی یافت نشد.</p>
               )}
             </div>
 
             {/* Attachments Section */}
             {selectedIncident.attachments && selectedIncident.attachments.length > 0 && (
-              <div style={{ marginBottom: "1.25rem", background: "#f8fafc", padding: "0.75rem", borderRadius: "6px" }}>
+              <div style={{ marginBottom: "1.25rem", background: "var(--bg-subtle)", padding: "0.75rem", borderRadius: "6px" }}>
                 <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.9rem" }}>پیوست‌ها و مدارک حادثه</h4>
                 <ul style={{ margin: 0, paddingRight: "1.2rem", fontSize: "0.85rem" }}>
                   {selectedIncident.attachments.map((att) => (
@@ -742,7 +742,7 @@ export function IncidentsPage() {
             )}
 
             {/* Workflow Action Buttons */}
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", borderTop: "1px solid #e2e8f0", paddingTop: "1rem" }}>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", borderTop: "1px solid var(--border-default)", paddingTop: "1rem" }}>
               {selectedIncident.can_review && selectedIncident.status === "reported" && (
                 <button
                   type="button"
@@ -750,7 +750,7 @@ export function IncidentsPage() {
                     setActionError(null);
                     setIsReviewModalOpen(true);
                   }}
-                  style={{ background: "#2563eb", color: "#fff", border: "none", padding: "0.5rem 1rem", borderRadius: "6px", cursor: "pointer", fontSize: "0.85rem" }}
+                  style={{ background: "var(--info)", color: "var(--text-inverse)", border: "none", padding: "0.5rem 1rem", borderRadius: "6px", cursor: "pointer", fontSize: "0.85rem" }}
                 >
                   بررسی اولیه و تعیین بازرس
                 </button>
@@ -763,7 +763,7 @@ export function IncidentsPage() {
                     setActionError(null);
                     setIsCloseModalOpen(true);
                   }}
-                  style={{ background: "#16a34a", color: "#fff", border: "none", padding: "0.5rem 1rem", borderRadius: "6px", cursor: "pointer", fontSize: "0.85rem", fontWeight: "bold" }}
+                  style={{ background: "var(--success)", color: "var(--text-inverse)", border: "none", padding: "0.5rem 1rem", borderRadius: "6px", cursor: "pointer", fontSize: "0.85rem", fontWeight: "bold" }}
                 >
                   مختومه‌سازی پرونده
                 </button>
@@ -776,7 +776,7 @@ export function IncidentsPage() {
                     setActionError(null);
                     setIsReopenModalOpen(true);
                   }}
-                  style={{ background: "#dc2626", color: "#fff", border: "none", padding: "0.5rem 1rem", borderRadius: "6px", cursor: "pointer", fontSize: "0.85rem" }}
+                  style={{ background: "var(--danger)", color: "var(--text-inverse)", border: "none", padding: "0.5rem 1rem", borderRadius: "6px", cursor: "pointer", fontSize: "0.85rem" }}
                 >
                   بازگشایی مجدد پرونده
                 </button>

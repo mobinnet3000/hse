@@ -284,7 +284,7 @@ export function EnvironmentPage() {
       </div>
 
       {error && (
-        <div style={{ padding: "1rem", backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#ef4444", borderRadius: "8px", marginBottom: "1.5rem" }}>
+        <div style={{ padding: "1rem", backgroundColor: "rgba(239, 68, 68, 0.1)", color: "var(--danger)", borderRadius: "8px", marginBottom: "1.5rem" }}>
           ⚠️ {error}
         </div>
       )}
@@ -292,29 +292,29 @@ export function EnvironmentPage() {
       {/* KPI Cards */}
       {summary && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-          <div className="card" style={{ padding: "1rem", borderRight: "4px solid #10b981" }}>
+          <div className="card" style={{ padding: "1rem", borderRight: "4px solid var(--success)" }}>
             <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>جنبه‌های زیست‌محیطی</div>
             <div style={{ fontSize: "1.4rem", fontWeight: 700, marginTop: "0.4rem" }}>
               {summary.aspects_significant} <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>بارز / {summary.aspects_total} کل</span>
             </div>
           </div>
-          <div className="card" style={{ padding: "1rem", borderRight: "4px solid #f59e0b" }}>
+          <div className="card" style={{ padding: "1rem", borderRight: "4px solid var(--warning)" }}>
             <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>پسماندهای ویژه و انبارش</div>
             <div style={{ fontSize: "1.4rem", fontWeight: 700, marginTop: "0.4rem" }}>
               {summary.hazardous_waste_kg.toLocaleString()} <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>کیلوگرم ویژه</span>
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{summary.active_stored_waste_count} محموله در سایت</div>
           </div>
-          <div className="card" style={{ padding: "1rem", borderRight: "4px solid #ef4444" }}>
+          <div className="card" style={{ padding: "1rem", borderRight: "4px solid var(--danger)" }}>
             <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>تخطی از حدود پساب/دودکش</div>
-            <div style={{ fontSize: "1.4rem", fontWeight: 700, marginTop: "0.4rem", color: summary.emission_exceedances_count > 0 ? "#ef4444" : "var(--color-text)" }}>
+            <div style={{ fontSize: "1.4rem", fontWeight: 700, marginTop: "0.4rem", color: summary.emission_exceedances_count > 0 ? "var(--danger)" : "var(--color-text)" }}>
               {summary.emission_exceedances_count} <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>تخطی ثبت‌شده</span>
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>از {summary.emission_records_count} نمونه آزمایشگاهی</div>
           </div>
-          <div className="card" style={{ padding: "1rem", borderRight: "4px solid #8b5cf6" }}>
+          <div className="card" style={{ padding: "1rem", borderRight: "4px solid var(--ai-primary)" }}>
             <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>مخاطرات بهداشت حرفه‌ای (TLV)</div>
-            <div style={{ fontSize: "1.4rem", fontWeight: 700, marginTop: "0.4rem", color: summary.hygiene_exceedances_count > 0 ? "#8b5cf6" : "var(--color-text)" }}>
+            <div style={{ fontSize: "1.4rem", fontWeight: 700, marginTop: "0.4rem", color: summary.hygiene_exceedances_count > 0 ? "var(--ai-primary)" : "var(--color-text)" }}>
               {summary.hygiene_exceedances_count} <span style={{ fontSize: "0.9rem", fontWeight: 400 }}>ایستگاه بحرانی</span>
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>از {summary.hygiene_surveys_count} ایستگاه سنجش‌شده</div>
@@ -331,9 +331,9 @@ export function EnvironmentPage() {
             padding: "0.75rem 1.25rem",
             background: "none",
             border: "none",
-            borderBottom: activeTab === "emissions" ? "3px solid #10b981" : "3px solid transparent",
+            borderBottom: activeTab === "emissions" ? "3px solid var(--success)" : "3px solid transparent",
             fontWeight: activeTab === "emissions" ? 700 : 500,
-            color: activeTab === "emissions" ? "#10b981" : "var(--color-text-muted)",
+            color: activeTab === "emissions" ? "var(--success)" : "var(--color-text-muted)",
             cursor: "pointer",
           }}
         >
@@ -346,9 +346,9 @@ export function EnvironmentPage() {
             padding: "0.75rem 1.25rem",
             background: "none",
             border: "none",
-            borderBottom: activeTab === "hygiene" ? "3px solid #8b5cf6" : "3px solid transparent",
+            borderBottom: activeTab === "hygiene" ? "3px solid var(--ai-primary)" : "3px solid transparent",
             fontWeight: activeTab === "hygiene" ? 700 : 500,
-            color: activeTab === "hygiene" ? "#8b5cf6" : "var(--color-text-muted)",
+            color: activeTab === "hygiene" ? "var(--ai-primary)" : "var(--color-text-muted)",
             cursor: "pointer",
           }}
         >
@@ -361,9 +361,9 @@ export function EnvironmentPage() {
             padding: "0.75rem 1.25rem",
             background: "none",
             border: "none",
-            borderBottom: activeTab === "waste" ? "3px solid #f59e0b" : "3px solid transparent",
+            borderBottom: activeTab === "waste" ? "3px solid var(--warning)" : "3px solid transparent",
             fontWeight: activeTab === "waste" ? 700 : 500,
-            color: activeTab === "waste" ? "#f59e0b" : "var(--color-text-muted)",
+            color: activeTab === "waste" ? "var(--warning)" : "var(--color-text-muted)",
             cursor: "pointer",
           }}
         >
@@ -376,9 +376,9 @@ export function EnvironmentPage() {
             padding: "0.75rem 1.25rem",
             background: "none",
             border: "none",
-            borderBottom: activeTab === "aspects_thresholds" ? "3px solid #3b82f6" : "3px solid transparent",
+            borderBottom: activeTab === "aspects_thresholds" ? "3px solid var(--info)" : "3px solid transparent",
             fontWeight: activeTab === "aspects_thresholds" ? 700 : 500,
-            color: activeTab === "aspects_thresholds" ? "#3b82f6" : "var(--color-text-muted)",
+            color: activeTab === "aspects_thresholds" ? "var(--info)" : "var(--color-text-muted)",
             cursor: "pointer",
           }}
         >
@@ -433,11 +433,11 @@ export function EnvironmentPage() {
                       </td>
                       <td style={{ padding: "0.75rem" }}>
                         {em.is_exceedance ? (
-                          <span style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", backgroundColor: "#fee2e2", color: "#dc2626", fontWeight: 700 }}>
+                          <span style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", backgroundColor: "var(--danger-subtle)", color: "var(--danger)", fontWeight: 700 }}>
                             🚨 تخطی از حد مجاز
                           </span>
                         ) : (
-                          <span style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", backgroundColor: "#dcfce7", color: "#16a34a", fontWeight: 600 }}>
+                          <span style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", backgroundColor: "var(--success-subtle)", color: "var(--success)", fontWeight: 600 }}>
                             ✓ مجاز و استاندارد
                           </span>
                         )}
@@ -447,7 +447,7 @@ export function EnvironmentPage() {
                       </td>
                       <td style={{ padding: "0.75rem" }}>
                         {em.non_conformity ? (
-                          <span style={{ color: "#dc2626", fontSize: "0.85rem" }}>
+                          <span style={{ color: "var(--danger)", fontSize: "0.85rem" }}>
                             عدم انطباق #{em.non_conformity}
                           </span>
                         ) : (
@@ -508,17 +508,17 @@ export function EnvironmentPage() {
                       </td>
                       <td style={{ padding: "0.75rem" }}>
                         {hy.assessment_result === "unacceptable" && (
-                          <span style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", backgroundColor: "#fee2e2", color: "#dc2626", fontWeight: 700 }}>
+                          <span style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", backgroundColor: "var(--danger-subtle)", color: "var(--danger)", fontWeight: 700 }}>
                             ⚠️ غیرمجاز و بحرانی
                           </span>
                         )}
                         {hy.assessment_result === "warning" && (
-                          <span style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", backgroundColor: "#fef3c7", color: "#b45309", fontWeight: 600 }}>
+                          <span style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", backgroundColor: "var(--warning-subtle)", color: "var(--warning-fg)", fontWeight: 600 }}>
                             ⚡ آستانه هشدار
                           </span>
                         )}
                         {hy.assessment_result === "acceptable" && (
-                          <span style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", backgroundColor: "#dcfce7", color: "#16a34a", fontWeight: 600 }}>
+                          <span style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", backgroundColor: "var(--success-subtle)", color: "var(--success)", fontWeight: 600 }}>
                             ✓ ایمن و مجاز
                           </span>
                         )}
@@ -591,16 +591,16 @@ export function EnvironmentPage() {
                             fontWeight: 600,
                             backgroundColor:
                               w.waste_type === "hazardous"
-                                ? "#fee2e2"
+                                ? "var(--danger-subtle)"
                                 : w.waste_type === "recyclable"
-                                ? "#dbeafe"
-                                : "#f3f4f6",
+                                ? "var(--info-subtle)"
+                                : "var(--bg-subtle)",
                             color:
                               w.waste_type === "hazardous"
-                                ? "#b91c1c"
+                                ? "var(--danger-fg)"
                                 : w.waste_type === "recyclable"
-                                ? "#1e40af"
-                                : "#374151",
+                                ? "var(--info-fg)"
+                                : "var(--text-secondary)",
                           }}
                         >
                           {w.waste_type_display}
@@ -620,16 +620,16 @@ export function EnvironmentPage() {
                             fontWeight: 600,
                             backgroundColor:
                               w.status === "stored"
-                                ? "#fef3c7"
+                                ? "var(--warning-subtle)"
                                 : w.status === "transferred"
-                                ? "#e0e7ff"
-                                : "#dcfce7",
+                                ? "var(--ai-subtle)"
+                                : "var(--success-subtle)",
                             color:
                               w.status === "stored"
-                                ? "#92400e"
+                                ? "var(--warning-fg)"
                                 : w.status === "transferred"
-                                ? "#3730a3"
-                                : "#166534",
+                                ? "var(--ai-fg)"
+                                : "var(--success-fg)",
                           }}
                         >
                           {w.status_display}
@@ -716,11 +716,11 @@ export function EnvironmentPage() {
                         </td>
                         <td style={{ padding: "0.75rem" }}>
                           {asp.is_significant ? (
-                            <span style={{ padding: "0.2rem 0.5rem", borderRadius: "4px", backgroundColor: "#fee2e2", color: "#b91c1c", fontWeight: 700 }}>
+                            <span style={{ padding: "0.2rem 0.5rem", borderRadius: "4px", backgroundColor: "var(--danger-subtle)", color: "var(--danger-fg)", fontWeight: 700 }}>
                               🚨 جنبه بارز
                             </span>
                           ) : (
-                            <span style={{ padding: "0.2rem 0.5rem", borderRadius: "4px", backgroundColor: "#f3f4f6", color: "#6b7280" }}>
+                            <span style={{ padding: "0.2rem 0.5rem", borderRadius: "4px", backgroundColor: "var(--bg-subtle)", color: "var(--text-secondary)" }}>
                               غیربارز
                             </span>
                           )}
