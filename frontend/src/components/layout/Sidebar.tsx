@@ -54,17 +54,17 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    groupTitle: "هوش مصنوعی و ارزیابی هوشمند",
+    groupTitle: "صفحه اصلی",
     items: [
-      { id: "ai", label: "دستیار هوشمند HSE", icon: <Sparkles size={18} /> },
+      { id: "dashboard", label: "صفحه اصلی و داشبورد", icon: <LayoutDashboard size={18} /> },
+      { id: "workspace", label: "کارتابل وظایف من", icon: <UserCheck size={18} /> },
+      { id: "chat", label: "پیام‌رسان سازمانی", icon: <MessageSquare size={18} /> },
     ],
   },
   {
-    groupTitle: "اصلی",
+    groupTitle: "هوش مصنوعی و ارزیابی هوشمند",
     items: [
-      { id: "dashboard", label: "داشبورد و شاخص‌ها", icon: <LayoutDashboard size={18} /> },
-      { id: "workspace", label: "کارتابل وظایف من", icon: <UserCheck size={18} /> },
-      { id: "chat", label: "پیام‌رسان سازمانی", icon: <MessageSquare size={18} /> },
+      { id: "ai", label: "دستیار هوشمند HSE", icon: <Sparkles size={18} /> },
     ],
   },
   {
@@ -136,7 +136,19 @@ export function Sidebar({
         aria-label="نوار کناری سامانه"
       >
         {/* Brand Area */}
-        <div className="brand">
+        <div
+          className="brand"
+          style={{ cursor: "pointer" }}
+          onClick={() => onTabChange?.("dashboard")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              onTabChange?.("dashboard");
+            }
+          }}
+          title="بازگشت به صفحه اصلی و داشبورد"
+        >
           <div className="brand-logo-wrap">
             <ShieldCheck size={26} className="brand-shield-icon" aria-hidden="true" />
           </div>
@@ -148,7 +160,10 @@ export function Sidebar({
             <button
               type="button"
               className="mobile-close-btn"
-              onClick={onCloseMobile}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCloseMobile();
+              }}
               aria-label="بستن منو"
             >
               <X size={18} aria-hidden="true" />

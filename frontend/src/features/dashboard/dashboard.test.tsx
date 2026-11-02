@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,6 +13,7 @@ import {
 describe("Phase 5 Dashboard, Reports, Notifications & Audit Log Flow", () => {
   beforeEach(() => {
     document.cookie = "csrftoken=test-token";
+    window.location.hash = "";
   });
 
   afterEach(() => {
@@ -133,4 +134,29 @@ describe("Phase 5 Dashboard, Reports, Notifications & Audit Log Flow", () => {
       "_blank",
     );
   });
+
+  it("renders module launchpad and allows filtering and navigating to sections", async () => {
+    mockApi(riskRoutes());
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    const hubSection = await screen.findByRole("region", { name: "درگاه بخش‌های سامانه" });
+    expect(hubSection).toBeInTheDocument();
+    expect(within(hubSection).getByRole("heading", { name: "دستیار هوشمند HSE" })).toBeInTheDocument();
+    expect(within(hubSection).getByRole("heading", { name: "مجوزهای کار (PTW)" })).toBeInTheDocument();
+
+    // Filter by search
+    const searchInput = within(hubSection).getByRole("textbox", { name: "جستجوی بخش‌ها" });
+    await user.type(searchInput, "باربرداری");
+    expect(within(hubSection).getByRole("heading", { name: "باربرداری و شبیه‌سازی" })).toBeInTheDocument();
+    expect(within(hubSection).queryByRole("heading", { name: "مجوزهای کار (PTW)" })).not.toBeInTheDocument();
+
+    // Click module card to navigate
+    const liftingCard = within(hubSection).getByRole("button", { name: /باربرداری و شبیه‌سازی/ });
+    await user.click(liftingCard);
+
+    expect(window.location.hash).toBe("#lifting");
+  });
 });
+

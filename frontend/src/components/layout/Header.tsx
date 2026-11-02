@@ -14,7 +14,7 @@ interface HeaderProps {
 
 const TAB_TITLES: Record<NavTab, string> = {
   all: "نمای یکپارچه سامانه",
-  dashboard: "داشبورد تحلیلی و مدیریتی",
+  dashboard: "صفحه اصلی و داشبورد مدیریتی",
   workspace: "میز کار شخصی و وظایف من",
   chat: "پیام‌رسان و ارتباطات درون‌سازمانی",
   anomalies: "مدیریت عدم انطباق، اعمال و شرایط ناایمن",
@@ -83,7 +83,22 @@ export function Header({
         <div className="header-titles">
           <h1 className="header-app-title">سامانه مدیریت ایمنی، بهداشت و محیط زیست</h1>
           <nav aria-label="موقعیت فعلی" className="breadcrumb">
-            <span className="breadcrumb-root">HSE Guard</span>
+            <button
+              type="button"
+              className="breadcrumb-root"
+              onClick={() => onTabChange?.("dashboard")}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                color: "inherit",
+                cursor: "pointer",
+                font: "inherit",
+              }}
+              title="بازگشت به صفحه اصلی و داشبورد"
+            >
+              HSE Guard
+            </button>
             <span className="breadcrumb-separator" aria-hidden="true">/</span>
             <span className="breadcrumb-current">{TAB_TITLES[activeTab] || "داشبورد"}</span>
           </nav>

@@ -39,7 +39,7 @@ function AppContent() {
     if (typeof (globalThis as any).process !== "undefined" && (globalThis as any).process.env?.NODE_ENV === "test") {
       return "all";
     }
-    return "ai";
+    return "dashboard";
   });
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
@@ -93,7 +93,7 @@ function AppContent() {
 
       {(activeTab === "all" || activeTab === "dashboard") && (
         <section id="dashboard" className="section-container" style={{ marginBottom: "2rem" }}>
-          <DashboardPage />
+          <DashboardPage onNavigate={handleTabChange} />
         </section>
       )}
 
