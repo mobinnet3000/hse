@@ -153,9 +153,9 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
-CORS_ALLOWED_ORIGINS = env_list("FRONTEND_ORIGIN", "http://localhost:5173")
+CORS_ALLOWED_ORIGINS = env_list("FRONTEND_ORIGIN", "http://localhost:5173,http://127.0.0.1:5173")
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = env_list("FRONTEND_ORIGIN", "http://localhost:5173")
+CSRF_TRUSTED_ORIGINS = env_list("FRONTEND_ORIGIN", "http://localhost:5173,http://127.0.0.1:5173")
 
 if not DEBUG:
     if SECRET_KEY == "insecure-dev-only-change-me" or len(SECRET_KEY) < 50:

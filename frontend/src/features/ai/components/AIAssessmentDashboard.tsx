@@ -85,58 +85,50 @@ export const AIAssessmentDashboard: React.FC<AIAssessmentDashboardProps> = ({
     switch (status) {
       case "checklist_generated":
         return {
-          bg: "bg-emerald-50 text-emerald-800 border-emerald-300 ring-1 ring-emerald-200",
-          dot: "bg-emerald-500",
-          icon: <ShieldCheck className="w-3.5 h-3.5" />,
+          className: "badge badge-success",
+          icon: <ShieldCheck size={13} />,
           label: display || "چک‌لیست صادر شد",
         };
       case "approved":
         return {
-          bg: "bg-teal-50 text-teal-800 border-teal-300 ring-1 ring-teal-200",
-          dot: "bg-teal-500",
-          icon: <CheckCircle className="w-3.5 h-3.5" />,
+          className: "badge badge-success",
+          icon: <CheckCircle size={13} />,
           label: display || "تأیید نهایی شده",
         };
       case "validated":
         return {
-          bg: "bg-indigo-50 text-indigo-800 border-indigo-300 ring-1 ring-indigo-200",
-          dot: "bg-indigo-500",
-          icon: <CheckCircle className="w-3.5 h-3.5" />,
+          className: "badge badge-info",
+          icon: <CheckCircle size={13} />,
           label: display || "اعتبارسنجی شده",
         };
       case "editing":
         return {
-          bg: "bg-amber-50 text-amber-800 border-amber-300 ring-1 ring-amber-200",
-          dot: "bg-amber-500",
-          icon: <Clock className="w-3.5 h-3.5" />,
+          className: "badge badge-warning",
+          icon: <Clock size={13} />,
           label: display || "در حال ویرایش پیش‌نویس",
         };
       case "analyzed":
         return {
-          bg: "bg-sky-50 text-sky-800 border-sky-300 ring-1 ring-sky-200",
-          dot: "bg-sky-500",
-          icon: <Sparkles className="w-3.5 h-3.5" />,
+          className: "badge badge-primary",
+          icon: <Sparkles size={13} />,
           label: display || "تحلیل شد",
         };
       case "analyzing":
         return {
-          bg: "bg-indigo-50 text-indigo-800 border-indigo-300 ring-1 ring-indigo-200 animate-pulse",
-          dot: "bg-indigo-500 animate-ping",
-          icon: <Clock className="w-3.5 h-3.5" />,
+          className: "badge badge-info animate-pulse",
+          icon: <Clock size={13} />,
           label: display || "در حال پردازش هوش مصنوعی",
         };
       case "analysis_failed":
         return {
-          bg: "bg-rose-50 text-rose-800 border-rose-300 ring-1 ring-rose-200",
-          dot: "bg-rose-500",
-          icon: <AlertTriangle className="w-3.5 h-3.5" />,
+          className: "badge badge-danger",
+          icon: <AlertTriangle size={13} />,
           label: display || "خطا در تحلیل",
         };
       default:
         return {
-          bg: "bg-slate-100 text-slate-800 border-slate-300",
-          dot: "bg-slate-400",
-          icon: <Clock className="w-3.5 h-3.5" />,
+          className: "badge badge-neutral",
+          icon: <Clock size={13} />,
           label: display || "پیش‌نویس اولیه",
         };
     }
@@ -151,224 +143,187 @@ export const AIAssessmentDashboard: React.FC<AIAssessmentDashboardProps> = ({
   });
 
   return (
-    <div className="space-y-6" dir="rtl">
-      {/* Top Hero Banner with AvalAI Status & CTA */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 p-6 md:p-8 text-white shadow-xl border border-slate-800">
-        {/* Subtle decorative glow */}
-        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 rounded-full bg-indigo-600/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-96 h-96 rounded-full bg-emerald-600/10 blur-3xl pointer-events-none" />
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }} dir="rtl">
+      {/* Top AI Workspace Header with Telemetry & Actions */}
+      <div className="ai-workspace-header">
+        <div className="ai-header-content">
+          <div className="ai-header-badges">
+            <span className="badge badge-primary">
+              <Sparkles size={14} />
+              دستیار هوشمند HSE بر پایه شبکه AvalAI
+            </span>
 
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
-          <div className="space-y-3 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/25 border border-indigo-400/40 text-indigo-200 shadow-sm">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-                دستیار هوشمند HSE بر پایه شبکه AvalAI
-              </span>
-
-              {serviceStatus && (
-                <button
-                  type="button"
-                  onClick={() => setIsTestModalOpen(true)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer hover:scale-105 ${
-                    serviceStatus.service_status === "ready"
-                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40 hover:bg-emerald-500/30"
-                      : "bg-amber-500/20 text-amber-300 border-amber-400/40 hover:bg-amber-500/30"
-                  }`}
-                  title="کلیک برای تست و مشاهده وضعیت ارتباط زنده"
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      serviceStatus.service_status === "ready"
-                        ? "bg-emerald-400 animate-ping"
-                        : "bg-amber-400"
-                    }`}
-                  />
-                  <Server className="w-3.5 h-3.5" />
-                  {serviceStatus.service_status === "ready"
-                    ? `AvalAI متصل (${serviceStatus.model})`
-                    : "حالت شبیه‌ساز دانش‌بنیان"}
-                </button>
-              )}
-            </div>
-
-            <h1 className="text-xl md:text-2xl font-black tracking-tight leading-snug">
-              مدیریت و تحلیل هوشمند ارزیابی‌های محیط کار و صدور خودکار چک‌لیست
-            </h1>
-            <p className="text-xs md:text-sm text-slate-300 leading-relaxed max-w-xl">
-              ثبت اطلاعات ساختاریافته ۹ مرحله‌ای کارگاه، استخراج ریسک‌های بحرانی و پنهان با موتور هوش مصنوعی و تدوین چک‌لیست بازرسی تخصصی با دروازه نظارت انسانی ISO 45001.
-            </p>
+            {serviceStatus && (
+              <button
+                type="button"
+                onClick={() => setIsTestModalOpen(true)}
+                className={`badge ${serviceStatus.service_status === "ready" ? "badge-success" : "badge-warning"}`}
+                style={{ cursor: "pointer" }}
+                title="کلیک برای تست و مشاهده وضعیت ارتباط زنده"
+              >
+                <span className="badge-dot" />
+                <Server size={13} />
+                {serviceStatus.service_status === "ready"
+                  ? `AvalAI متصل (${serviceStatus.model})`
+                  : "حالت شبیه‌ساز دانش‌بنیان"}
+              </button>
+            )}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            <button
-              onClick={() => setIsTestModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700 font-semibold text-xs shadow-md transition-all cursor-pointer"
-            >
-              <Activity className="w-4 h-4 text-indigo-400" />
-              تست سلامت سرویس
-            </button>
-            <button
-              onClick={onNewAssessment}
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-black text-xs md:text-sm shadow-xl shadow-indigo-600/30 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              ارزیابی جدید محیط کار (فرم ۹ مرحله‌ای)
-            </button>
-          </div>
+          <h1 className="ai-header-title">
+            مدیریت و تحلیل هوشمند ارزیابی‌های محیط کار و صدور خودکار چک‌لیست
+          </h1>
+          <p className="ai-header-desc">
+            ثبت اطلاعات ساختاریافته ۹ مرحله‌ای کارگاه، استخراج ریسک‌های بحرانی و پنهان با موتور هوش مصنوعی و تدوین چک‌لیست بازرسی تخصصی با دروازه نظارت انسانی ISO 45001.
+          </p>
+        </div>
+
+        <div className="ai-header-actions">
+          <button
+            type="button"
+            onClick={() => setIsTestModalOpen(true)}
+            className="btn btn-secondary"
+          >
+            <Activity size={16} />
+            تست سلامت سرویس
+          </button>
+          <button
+            type="button"
+            onClick={onNewAssessment}
+            className="btn btn-primary"
+          >
+            <Plus size={16} />
+            ارزیابی جدید محیط کار (فرم ۹ مرحله‌ای)
+          </button>
         </div>
       </div>
 
       {/* KPI Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="ai-kpi-grid">
         {/* Total Assessments */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200/90 shadow-sm hover:shadow-md transition-all group">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">کل ارزیابی‌های ثبت‌شده</span>
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Sparkles className="w-5 h-5" />
-            </div>
+        <div className="ai-kpi-card">
+          <div className="ai-kpi-header">
+            <span className="ai-kpi-label">کل ارزیابی‌های ثبت‌شده</span>
+            <Sparkles size={18} style={{ color: "var(--text-muted)" }} />
           </div>
-          <div className="text-2xl font-black text-slate-900 mt-2">
+          <div className="ai-kpi-value">
             {(stats?.total_assessments ?? assessments.length).toLocaleString("fa-IR")}
           </div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+          <div className="ai-kpi-meta">
             <span>در سامانه مدیریت چندمستأجره</span>
           </div>
         </div>
 
         {/* Checklists Generated */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200/90 shadow-sm hover:shadow-md transition-all group">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">چک‌لیست‌های رسمی صادرشده</span>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <FileSpreadsheet className="w-5 h-5" />
-            </div>
+        <div className="ai-kpi-card">
+          <div className="ai-kpi-header">
+            <span className="ai-kpi-label">چک‌لیست‌های رسمی صادرشده</span>
+            <FileSpreadsheet size={18} style={{ color: "var(--success)" }} />
           </div>
-          <div className="text-2xl font-black text-emerald-700 mt-2">
+          <div className="ai-kpi-value" style={{ color: "var(--success)" }}>
             {(
               stats?.checklists_generated_count ??
               assessments.filter((a) => a.generated_checklist).length
             ).toLocaleString("fa-IR")}
           </div>
-          <div className="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
-            <CheckCircle className="w-3.5 h-3.5" />
+          <div className="ai-kpi-meta" style={{ color: "var(--success)" }}>
+            <CheckCircle size={13} />
             <span>متصل به ماژول بازرسی‌های میدانی</span>
           </div>
         </div>
 
         {/* Pending Review / Editing */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200/90 shadow-sm hover:shadow-md transition-all group">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">در انتظار ویرایش یا تأیید ناظر</span>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Clock className="w-5 h-5" />
-            </div>
+        <div className="ai-kpi-card">
+          <div className="ai-kpi-header">
+            <span className="ai-kpi-label">در انتظار ویرایش یا تأیید ناظر</span>
+            <Clock size={18} style={{ color: "var(--warning)" }} />
           </div>
-          <div className="text-2xl font-black text-amber-700 mt-2">
+          <div className="ai-kpi-value" style={{ color: "var(--warning)" }}>
             {assessments
               .filter((a) => ["analyzed", "editing", "validated"].includes(a.status))
               .length.toLocaleString("fa-IR")}
           </div>
-          <div className="text-[11px] text-amber-700 mt-1 flex items-center gap-1">
+          <div className="ai-kpi-meta" style={{ color: "var(--warning)" }}>
             <span>نیازمند نظارت انسانی (Human Gate)</span>
           </div>
         </div>
 
         {/* Hazards Identified */}
-        <div className="bg-white rounded-xl p-5 border border-slate-200/90 shadow-sm hover:shadow-md transition-all group">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">مخاطرات استخراج‌شده</span>
-            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
+        <div className="ai-kpi-card">
+          <div className="ai-kpi-header">
+            <span className="ai-kpi-label">مخاطرات استخراج‌شده</span>
+            <AlertTriangle size={18} style={{ color: "var(--danger)" }} />
           </div>
-          <div className="text-2xl font-black text-rose-700 mt-2">
+          <div className="ai-kpi-value" style={{ color: "var(--danger)" }}>
             {assessments
               .reduce((acc, a) => acc + (a.hazards_count || 0), 0)
               .toLocaleString("fa-IR")}
           </div>
-          <div className="text-[11px] text-rose-600 mt-1 flex items-center gap-1">
-            <AlertOctagon className="w-3.5 h-3.5" />
+          <div className="ai-kpi-meta" style={{ color: "var(--danger)" }}>
+            <AlertOctagon size={13} />
             <span>تحلیل‌شده بر پایه ماتریس ۵×۵</span>
           </div>
         </div>
       </div>
 
       {/* Main Assessments Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 overflow-hidden">
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         {/* Table Filters & Search */}
-        <div className="p-5 border-b border-slate-200/90 bg-slate-50/60 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2 flex-1 max-w-md">
-            <div className="relative w-full">
-              <input
-                type="text"
-                placeholder="جستجو در عنوان ارزیابی، کارگاه یا شماره چک‌لیست..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pr-9 pl-4 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white shadow-sm transition-all"
-              />
-              <Search className="w-4 h-4 text-slate-400 absolute right-3 top-2.5" />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm("")}
-                  className="absolute left-3 top-2.5 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+        <div className="ai-toolbar">
+          <div className="ai-search-wrap">
+            <Search size={16} className="ai-search-icon" />
+            <input
+              type="text"
+              placeholder="جستجو در عنوان ارزیابی، کارگاه یا شماره چک‌لیست..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="ai-search-input"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="ai-search-clear"
+                title="پاک کردن جستجو"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs overflow-x-auto pb-1 sm:pb-0">
+          <div className="segmented-controls">
             <button
+              type="button"
               onClick={() => setStatusFilter("all")}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                statusFilter === "all"
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
+              className={`segmented-btn ${statusFilter === "all" ? "active" : ""}`}
             >
               همه ({assessments.length.toLocaleString("fa-IR")})
             </button>
             <button
+              type="button"
               onClick={() => setStatusFilter("checklist_generated")}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                statusFilter === "checklist_generated"
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "bg-white text-emerald-800 hover:bg-emerald-50 border border-emerald-200"
-              }`}
+              className={`segmented-btn ${statusFilter === "checklist_generated" ? "active" : ""}`}
             >
               صادرشده ({assessments.filter((a) => a.status === "checklist_generated").length.toLocaleString("fa-IR")})
             </button>
             <button
+              type="button"
               onClick={() => setStatusFilter("approved")}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                statusFilter === "approved"
-                  ? "bg-teal-600 text-white shadow-sm"
-                  : "bg-white text-teal-800 hover:bg-teal-50 border border-teal-200"
-              }`}
+              className={`segmented-btn ${statusFilter === "approved" ? "active" : ""}`}
             >
               تأییدشده ({assessments.filter((a) => a.status === "approved").length.toLocaleString("fa-IR")})
             </button>
             <button
+              type="button"
               onClick={() => setStatusFilter("analyzed")}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                statusFilter === "analyzed"
-                  ? "bg-sky-600 text-white shadow-sm"
-                  : "bg-white text-sky-800 hover:bg-sky-50 border border-sky-200"
-              }`}
+              className={`segmented-btn ${statusFilter === "analyzed" ? "active" : ""}`}
             >
               تحلیل‌شده ({assessments.filter((a) => a.status === "analyzed").length.toLocaleString("fa-IR")})
             </button>
             <button
+              type="button"
               onClick={() => setStatusFilter("draft")}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                statusFilter === "draft"
-                  ? "bg-slate-700 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
+              className={`segmented-btn ${statusFilter === "draft" ? "active" : ""}`}
             >
               پیش‌نویس ({assessments.filter((a) => a.status === "draft").length.toLocaleString("fa-IR")})
             </button>
@@ -377,116 +332,117 @@ export const AIAssessmentDashboard: React.FC<AIAssessmentDashboardProps> = ({
 
         {/* Table Content */}
         {filteredAssessments.length === 0 ? (
-          <div className="text-center py-16 px-4">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-500 mx-auto flex items-center justify-center mb-4">
-              <Sparkles className="w-8 h-8" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-800">هیچ ارزیابی‌ای در این وضعیت یافت نشد</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
+          <div className="empty-state-clean">
+            <Sparkles size={36} style={{ color: "var(--text-muted)" }} />
+            <h3>هیچ ارزیابی‌ای در این وضعیت یافت نشد</h3>
+            <p className="muted">
               برای تحلیل دقیق خطرات محیط کار، دریافت ماتریس ریسک و صدور چک‌لیست اختصاصی، اولین ارزیابی خود را ایجاد نمایید.
             </p>
             <button
+              type="button"
               onClick={onNewAssessment}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 mt-5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-md transition-all cursor-pointer"
+              className="btn btn-primary btn-sm"
+              style={{ marginTop: "1rem" }}
             >
-              <Plus className="w-4 h-4" />
+              <Plus size={15} />
               شروع اولین ارزیابی ۹ مرحله‌ای
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-right border-collapse text-xs">
+          <div className="table-responsive">
+            <table className="table">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-bold">
-                  <th className="py-3.5 px-4">عنوان ارزیابی کارگاه</th>
-                  <th className="py-3.5 px-4">واحد کارگاهی</th>
-                  <th className="py-3.5 px-4">وضعیت فرآیند</th>
-                  <th className="py-3.5 px-4 text-center">مخاطرات</th>
-                  <th className="py-3.5 px-4 text-center">بندهای چک‌لیست</th>
-                  <th className="py-3.5 px-4">چک‌لیست صادرشده</th>
-                  <th className="py-3.5 px-4">تاریخ ثبت</th>
-                  <th className="py-3.5 px-4 text-center">عملیات</th>
+                <tr>
+                  <th>عنوان ارزیابی کارگاه</th>
+                  <th>واحد کارگاهی</th>
+                  <th>وضعیت فرآیند</th>
+                  <th style={{ textAlign: "center" }}>مخاطرات</th>
+                  <th style={{ textAlign: "center" }}>بندهای چک‌لیست</th>
+                  <th>چک‌لیست صادرشده</th>
+                  <th>تاریخ ثبت</th>
+                  <th style={{ textAlign: "center" }}>عملیات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {filteredAssessments.map((item) => {
                   const badge = getStatusBadge(item.status, item.status_display);
                   return (
-                    <tr key={item.id} className="hover:bg-indigo-50/40 transition-colors group">
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                    <tr key={item.id}>
+                      <td style={{ fontWeight: 700 }}>
                         <button
+                          type="button"
                           onClick={() => onSelectAssessment(item.id)}
-                          className="hover:text-indigo-600 text-right transition-colors flex items-center gap-2 cursor-pointer"
+                          className="table-link-btn"
                         >
-                          <span className="w-2 h-2 rounded-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <span>{item.title}</span>
+                          {item.title}
                         </button>
                       </td>
-                      <td className="py-3.5 px-4 text-slate-600">
-                        <div className="flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <td style={{ color: "var(--text-secondary)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                          <Building2 size={15} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
                           <span>{item.workplace_name || "کارگاه ثبت‌شده"}</span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${badge.bg}`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                      <td>
+                        <span className={badge.className}>
+                          <span className="badge-dot" />
                           {badge.icon}
                           {badge.label}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className="font-extrabold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+                      <td style={{ textAlign: "center" }}>
+                        <span className="tabular-tag">
                           {(item.hazards_count || 0).toLocaleString("fa-IR")}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className="font-extrabold text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded-md">
+                      <td style={{ textAlign: "center" }}>
+                        <span className="tabular-tag tabular-primary">
                           {(item.checklist_items_count || 0).toLocaleString("fa-IR")}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td>
                         {item.generated_checklist ? (
-                          <div className="inline-flex items-center gap-1.5 text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                          <div className="badge badge-success" style={{ gap: "0.5rem" }}>
+                            <CheckCircle size={14} />
                             <span>چک‌لیست #{item.generated_checklist}</span>
                             {onNavigateToChecklists && (
                               <button
+                                type="button"
                                 onClick={() => onNavigateToChecklists(item.generated_checklist!)}
-                                className="text-indigo-600 hover:text-indigo-800 p-0.5 cursor-pointer"
+                                style={{ color: "var(--primary)", padding: "0.15rem" }}
                                 title="مشاهده در ماژول بازرسی‌ها"
                               >
-                                <ExternalLink className="w-3.5 h-3.5" />
+                                <ExternalLink size={14} />
                               </button>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-400 font-mono text-[11px]">-</span>
+                          <span style={{ color: "var(--text-muted)" }}>-</span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 text-slate-500 text-[11px]">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <td style={{ color: "var(--text-secondary)", fontSize: "0.8rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                          <Calendar size={14} style={{ color: "var(--text-muted)" }} />
                           <span>{new Date(item.created_at).toLocaleDateString("fa-IR")}</span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <div className="inline-flex items-center gap-1">
+                      <td style={{ textAlign: "center" }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
                           <button
+                            type="button"
                             onClick={() => onSelectAssessment(item.id)}
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-100/70 rounded-lg transition-colors cursor-pointer"
+                            className="icon-action-btn"
                             title="مشاهده، تحلیل و ویرایش چک‌لیست"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye size={16} />
                           </button>
                           <button
+                            type="button"
                             onClick={() => onDeleteAssessment(item.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            className="icon-action-btn danger"
                             title="حذف این ارزیابی"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </td>

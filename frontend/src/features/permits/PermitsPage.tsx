@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, FileCheck, Radio, RefreshCw, ShieldAlert, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileCheck, Radio, RefreshCw, ShieldAlert, X, Building2, Search, Clock } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
@@ -327,22 +327,25 @@ export function PermitsPage() {
   return (
     <div className="permits-page" dir="rtl">
       {/* Header */}
-      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-        <div>
-          <h2>مدیریت پروانه‌های کار (PTW) و تحویل شیفت</h2>
-          <p className="muted" style={{ margin: 0 }}>
+      <div className="dash-header">
+        <div className="dash-header-titles">
+          <h2 className="dash-title" style={{ margin: 0 }}>
+            مدیریت پروانه‌های کار (PTW) و تحویل شیفت
+          </h2>
+          <p className="dash-subtitle">
             صدور مجوزهای ایمنی، کنترل میدان، رعایت تفکیک وظایف و ثبت گزارش ایمنی تحویل شیفت
           </p>
         </div>
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-          <label htmlFor="org-select" style={{ fontWeight: 500 }}>
-            سازمان:
+        <div className="dash-tenant-select">
+          <label htmlFor="org-select" className="dash-tenant-label">
+            <Building2 size={16} aria-hidden="true" />
+            <span>سازمان:</span>
           </label>
           <select
             id="org-select"
+            className="form-input dash-org-select"
             value={selectedOrgId || ""}
             onChange={(e) => setSelectedOrgId(Number(e.target.value))}
-            style={{ padding: "0.4rem 0.8rem", borderRadius: "4px" }}
           >
             {organizations.map((org) => (
               <option key={org.id} value={org.id}>
@@ -354,7 +357,7 @@ export function PermitsPage() {
       </div>
 
       {/* Main Tabs */}
-      <div className="tabs-nav">
+      <div className="tabs-nav" style={{ marginBottom: "1.25rem" }}>
         <button
           type="button"
           className={`tab-btn ${activeMainTab === "ptw" ? "active" : ""}`}
@@ -386,42 +389,64 @@ export function PermitsPage() {
       {/* ======================================================== */}
       {activeMainTab === "ptw" && (
         <div className="ptw-content">
-          {/* KPI Cards */}
+          {/* Precision KPI Cards */}
           {stats && (
-            <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-              <div className="card" style={{ padding: "1.25rem", margin: 0, borderRight: "4px solid var(--primary)" }}>
-                <span className="muted" style={{ fontSize: "0.85rem" }}>کل مجوزها</span>
-                <h3 style={{ margin: "0.3rem 0 0", color: "var(--text-primary)" }}>{stats.total_permits}</h3>
+            <div className="dash-kpi-grid">
+              <div className="dash-kpi-card">
+                <div className="dash-kpi-top">
+                  <span className="dash-kpi-label">کل مجوزها</span>
+                  <FileCheck size={18} className="dash-kpi-icon" aria-hidden="true" />
+                </div>
+                <div className="dash-kpi-num">{stats.total_permits}</div>
+                <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                  ثبت‌شده در کلیه کارگاه‌ها
+                </div>
               </div>
-              <div className="card" style={{ padding: "1.25rem", margin: 0, borderRight: "4px solid var(--success)" }}>
-                <span style={{ fontSize: "0.85rem", color: "var(--success)" }}>مجوزهای فعال و در حال اجرا</span>
-                <h3 style={{ margin: "0.3rem 0 0", color: "var(--success)" }}>{stats.active_count}</h3>
+              <div className="dash-kpi-card">
+                <div className="dash-kpi-top">
+                  <span className="dash-kpi-label" style={{ color: "var(--success)" }}>مجوزهای فعال و در حال اجرا</span>
+                  <CheckCircle2 size={18} style={{ color: "var(--success)" }} aria-hidden="true" />
+                </div>
+                <div className="dash-kpi-num" style={{ color: "var(--success)" }}>{stats.active_count}</div>
+                <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                  تحت کنترل و نظارت میدانی
+                </div>
               </div>
-              <div className="card" style={{ padding: "1.25rem", margin: 0, borderRight: "4px solid var(--warning)" }}>
-                <span style={{ fontSize: "0.85rem", color: "var(--warning)" }}>در انتظار بررسی و تأیید</span>
-                <h3 style={{ margin: "0.3rem 0 0", color: "var(--warning)" }}>{stats.requested_count + stats.approved_count}</h3>
+              <div className="dash-kpi-card">
+                <div className="dash-kpi-top">
+                  <span className="dash-kpi-label" style={{ color: "var(--warning)" }}>در انتظار بررسی و تأیید</span>
+                  <Clock size={18} style={{ color: "var(--warning)" }} aria-hidden="true" />
+                </div>
+                <div className="dash-kpi-num" style={{ color: "var(--warning)" }}>{stats.requested_count + stats.approved_count}</div>
+                <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                  درخواست‌شده: {stats.requested_count} | تأییدشده: {stats.approved_count}
+                </div>
               </div>
-              <div className="card" style={{ padding: "1.25rem", margin: 0, borderRight: "4px solid var(--danger)" }}>
-                <span style={{ fontSize: "0.85rem", color: "var(--danger)" }}>معلق‌شده یا منقضی</span>
-                <h3 style={{ margin: "0.3rem 0 0", color: "var(--danger)" }}>{stats.suspended_count + stats.expired_count}</h3>
+              <div className="dash-kpi-card">
+                <div className="dash-kpi-top">
+                  <span className="dash-kpi-label" style={{ color: "var(--danger)" }}>معلق‌شده یا منقضی</span>
+                  <AlertTriangle size={18} style={{ color: "var(--danger)" }} aria-hidden="true" />
+                </div>
+                <div className="dash-kpi-num" style={{ color: "var(--danger)" }}>{stats.suspended_count + stats.expired_count}</div>
+                <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                  معلق: {stats.suspended_count} | منقضی: {stats.expired_count}
+                </div>
               </div>
             </div>
           )}
 
           {/* Action & Filter Bar */}
-          <div className="filter-bar" style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "center", marginBottom: "1.5rem", background: "var(--bg-surface)", padding: "1rem", borderRadius: "8px", border: "1px solid var(--border-default)" }}>
+          <div className="filter-bar">
             <input
               type="text"
               placeholder="جستجو در عنوان، کد رهگیری، تجهیزات..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") reloadPermits(); }}
-              style={{ flex: "1 1 220px", padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-strong)" }}
             />
             <select
               value={filterWorkplace}
               onChange={(e) => setFilterWorkplace(e.target.value)}
-              style={{ padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-strong)" }}
             >
               <option value="">همه کارگاه‌ها</option>
               {workplaces.map((wp) => (
@@ -433,7 +458,6 @@ export function PermitsPage() {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              style={{ padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-strong)" }}
             >
               <option value="">همه انواع مجوز</option>
               {Object.entries(PERMIT_TYPE_LABELS).map(([k, label]) => (
@@ -445,7 +469,6 @@ export function PermitsPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ padding: "0.5rem 0.8rem", borderRadius: "4px", border: "1px solid var(--border-strong)" }}
             >
               <option value="">همه وضعیت‌ها</option>
               {Object.entries(PERMIT_STATUS_LABELS).map(([k, label]) => (
@@ -458,9 +481,10 @@ export function PermitsPage() {
               type="button"
               onClick={reloadPermits}
               className="btn btn-secondary"
-              style={{ padding: "0.5rem 1rem" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
             >
-              🔍 فیلتر
+              <Search size={15} aria-hidden="true" />
+              <span>فیلتر</span>
             </button>
             <button
               type="button"
@@ -469,7 +493,7 @@ export function PermitsPage() {
                 setIsCreateModalOpen(true);
               }}
               className="btn btn-primary"
-              style={{ marginLeft: "auto", padding: "0.5rem 1.2rem", fontWeight: "bold" }}
+              style={{ marginLeft: "auto", fontWeight: "bold" }}
             >
               + درخواست مجوز جدید
             </button>

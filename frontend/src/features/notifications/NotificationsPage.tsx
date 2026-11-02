@@ -103,11 +103,13 @@ export function NotificationsPage() {
               justifyContent: "space-between",
               alignItems: "flex-start",
               backgroundColor: n.is_read ? "var(--bg-surface)" : "var(--primary-subtle)",
-              borderRight: n.is_read ? "3px solid var(--border-default)" : "3px solid var(--primary)",
               padding: "1.15rem",
               borderRadius: "var(--radius-lg)",
-              border: "1px solid var(--border-default)",
-              borderRightWidth: "4px",
+              borderWidth: "1px 4px 1px 1px",
+              borderStyle: "solid",
+              borderColor: n.is_read
+                ? "var(--border-default)"
+                : "var(--border-default) var(--border-default) var(--border-default) var(--primary)",
               boxShadow: "var(--shadow-xs)",
             }}
           >

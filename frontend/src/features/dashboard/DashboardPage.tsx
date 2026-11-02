@@ -109,39 +109,36 @@ export function DashboardPage() {
 
   return (
     <div className="dashboard-page stack" dir="rtl">
-      {/* Header & Tenant Bar */}
-      <div className="card toolbar-card dashboard-hero-card">
-        <div className="toolbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-          <header className="page-header" style={{ margin: 0 }}>
-            <h2 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              داشبورد مدیریتی HSE
-            </h2>
-            <p className="muted" style={{ margin: "0.35rem 0 0 0", fontSize: "0.875rem" }}>
-              مرکز پایش هوشمند ریسک‌ها، مجوزهای کار پرخطر، تجهیزات، بازرسی‌ها و انطباق استانداردها
-            </p>
-          </header>
+      {/* Executive Command Header */}
+      <div className="dash-header">
+        <div className="dash-header-titles">
+          <h2 className="dash-title" style={{ margin: 0 }}>
+            داشبورد مدیریتی HSE
+          </h2>
+          <p className="dash-subtitle">
+            مرکز پایش هوشمند ریسک‌ها، مجوزهای کار پرخطر، تجهیزات، بازرسی‌ها و انطباق استانداردها
+          </p>
+        </div>
 
-          <div className="tenant-selector-wrap" style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-            <label htmlFor="dash-org" style={{ fontWeight: 600, fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-              <Building2 size={16} className="text-muted" aria-hidden="true" />
-              <strong>سازمان:</strong>
-            </label>
-            <select
-              id="dash-org"
-              className="form-input"
-              style={{ minWidth: "220px" }}
-              value={organizationId ?? ""}
-              onChange={(e) => setOrganizationId(Number(e.target.value))}
-              disabled={organizations.length === 0}
-            >
-              {organizations.length === 0 && <option value="">سازمانی یافت نشد</option>}
-              {organizations.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name} ({o.code})
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="dash-tenant-select">
+          <label htmlFor="dash-org" className="dash-tenant-label">
+            <Building2 size={16} aria-hidden="true" />
+            <span>سازمان:</span>
+          </label>
+          <select
+            id="dash-org"
+            className="form-input dash-org-select"
+            value={organizationId ?? ""}
+            onChange={(e) => setOrganizationId(Number(e.target.value))}
+            disabled={organizations.length === 0}
+          >
+            {organizations.length === 0 && <option value="">سازمانی یافت نشد</option>}
+            {organizations.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name} ({o.code})
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -161,28 +158,19 @@ export function DashboardPage() {
 
       {metrics && (
         <>
-          {/* Executive KPI Grid */}
-          <div
-            className="metrics-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-              gap: "1.25rem",
-            }}
-          >
+          {/* Executive Precision KPI Grid */}
+          <div className="dash-kpi-grid">
             {/* Inspections Card */}
-            <div className="card kpi-card">
-              <div className="kpi-header">
-                <div className="kpi-icon-wrap kpi-icon-teal">
-                  <ClipboardCheck size={20} aria-hidden="true" />
-                </div>
-                <h3 className="kpi-title">آمار و وضعیت بازرسی‌ها</h3>
+            <div className="dash-kpi-card">
+              <div className="dash-kpi-top">
+                <span className="dash-kpi-label">آمار و وضعیت بازرسی‌ها</span>
+                <ClipboardCheck size={18} className="dash-kpi-icon" aria-hidden="true" />
               </div>
-              <p className="kpi-value">
+              <div className="dash-kpi-num">
                 {metrics.inspections.total}
-              </p>
+              </div>
               {metrics.inspections.total > 0 && (
-                <div className="distribution-bar" title="نسبت تکمیل بازرسی‌ها">
+                <div className="dash-micro-bar" title="نسبت تکمیل بازرسی‌ها">
                   <div
                     style={{
                       width: `${(metrics.inspections.completed / metrics.inspections.total) * 100}%`,
@@ -197,39 +185,37 @@ export function DashboardPage() {
                   />
                 </div>
               )}
-              <ul className="kpi-list">
-                <li>
+              <div className="dash-kpi-breakdown">
+                <span className="dash-kpi-pill">
                   <span>در حال اجرا:</span>
                   <strong>{metrics.inspections.in_progress}</strong>
-                </li>
-                <li>
+                </span>
+                <span className="dash-kpi-pill">
                   <span>پایان‌یافته:</span>
                   <strong>{metrics.inspections.completed}</strong>
-                </li>
-                <li>
+                </span>
+                <span className="dash-kpi-pill">
                   <span>پیش‌نویس:</span>
                   <strong>{metrics.inspections.draft}</strong>
-                </li>
-                <li>
+                </span>
+                <span className="dash-kpi-pill">
                   <span>لغوشده:</span>
                   <strong>{metrics.inspections.cancelled}</strong>
-                </li>
-              </ul>
+                </span>
+              </div>
             </div>
 
             {/* Risks Card */}
-            <div className="card kpi-card">
-              <div className="kpi-header">
-                <div className="kpi-icon-wrap kpi-icon-orange">
-                  <ShieldAlert size={20} aria-hidden="true" />
-                </div>
-                <h3 className="kpi-title">شاخص‌های ریسک و خطرات</h3>
+            <div className="dash-kpi-card">
+              <div className="dash-kpi-top">
+                <span className="dash-kpi-label">شاخص‌های ریسک و خطرات</span>
+                <ShieldAlert size={18} className="dash-kpi-icon" aria-hidden="true" />
               </div>
-              <p className="kpi-value">
+              <div className="dash-kpi-num">
                 {metrics.risks.total} ارزیابی
-              </p>
+              </div>
               {metrics.risks.total > 0 && (
-                <div className="distribution-bar" title="توزیع سطوح ریسک">
+                <div className="dash-micro-bar" title="توزیع سطوح ریسک">
                   <div
                     style={{
                       width: `${(metrics.risks.critical / metrics.risks.total) * 100}%`,
@@ -245,7 +231,7 @@ export function DashboardPage() {
                   <div
                     style={{
                       width: `${(metrics.risks.medium / metrics.risks.total) * 100}%`,
-                      backgroundColor: "var(--warning)",
+                      backgroundColor: "var(--primary)",
                     }}
                   />
                   <div
@@ -256,42 +242,40 @@ export function DashboardPage() {
                   />
                 </div>
               )}
-              <p className="muted" style={{ fontSize: "0.85rem", margin: "0.25rem 0 0.5rem 0" }}>
+              <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0.1rem 0" }}>
                 خطرات شناسایی‌شده: <strong>{metrics.risks.hazards_count}</strong>
-              </p>
-              <ul className="kpi-list">
-                <li style={{ color: "var(--danger-text)" }}>
+              </div>
+              <div className="dash-kpi-breakdown">
+                <span className="dash-kpi-pill" style={{ color: "var(--danger-text)" }}>
                   <span>بحرانی:</span>
                   <strong>{metrics.risks.critical}</strong>
-                </li>
-                <li style={{ color: "var(--warning-text)" }}>
+                </span>
+                <span className="dash-kpi-pill" style={{ color: "var(--warning-text)" }}>
                   <span>زیاد:</span>
                   <strong>{metrics.risks.high}</strong>
-                </li>
-                <li>
+                </span>
+                <span className="dash-kpi-pill">
                   <span>متوسط:</span>
                   <strong>{metrics.risks.medium}</strong>
-                </li>
-                <li>
+                </span>
+                <span className="dash-kpi-pill">
                   <span>کم:</span>
                   <strong>{metrics.risks.low}</strong>
-                </li>
-              </ul>
+                </span>
+              </div>
             </div>
 
             {/* Non-Conformities Card */}
-            <div className="card kpi-card">
-              <div className="kpi-header">
-                <div className="kpi-icon-wrap kpi-icon-amber">
-                  <AlertTriangle size={20} aria-hidden="true" />
-                </div>
-                <h3 className="kpi-title">شاخص‌های عدم‌انطباق</h3>
+            <div className="dash-kpi-card">
+              <div className="dash-kpi-top">
+                <span className="dash-kpi-label">شاخص‌های عدم‌انطباق</span>
+                <AlertTriangle size={18} className="dash-kpi-icon" aria-hidden="true" />
               </div>
-              <p className="kpi-value">
+              <div className="dash-kpi-num">
                 {metrics.non_conformities.total}
-              </p>
+              </div>
               {metrics.non_conformities.total > 0 && (
-                <div className="distribution-bar" title="وضعیت عدم‌انطباق‌ها">
+                <div className="dash-micro-bar" title="وضعیت عدم‌انطباق‌ها">
                   <div
                     style={{
                       width: `${(metrics.non_conformities.closed / metrics.non_conformities.total) * 100}%`,
@@ -318,39 +302,37 @@ export function DashboardPage() {
                   />
                 </div>
               )}
-              <ul className="kpi-list">
-                <li>
+              <div className="dash-kpi-breakdown">
+                <span className="dash-kpi-pill" style={{ color: "var(--danger-text)" }}>
                   <span>باز:</span>
                   <strong>{metrics.non_conformities.open}</strong>
-                </li>
-                <li>
+                </span>
+                <span className="dash-kpi-pill">
                   <span>در حال پیگیری:</span>
                   <strong>{metrics.non_conformities.in_progress}</strong>
-                </li>
-                <li>
+                </span>
+                <span className="dash-kpi-pill">
                   <span>آماده بررسی:</span>
                   <strong>{metrics.non_conformities.ready_for_review}</strong>
-                </li>
-                <li>
+                </span>
+                <span className="dash-kpi-pill">
                   <span>بسته‌شده:</span>
                   <strong>{metrics.non_conformities.closed}</strong>
-                </li>
-              </ul>
+                </span>
+              </div>
             </div>
 
             {/* Corrective Actions (CAPA) Card */}
-            <div className="card kpi-card">
-              <div className="kpi-header">
-                <div className="kpi-icon-wrap kpi-icon-indigo">
-                  <Target size={20} aria-hidden="true" />
-                </div>
-                <h3 className="kpi-title">اقدامات اصلاحی (CAPA)</h3>
+            <div className="dash-kpi-card">
+              <div className="dash-kpi-top">
+                <span className="dash-kpi-label">اقدامات اصلاحی (CAPA)</span>
+                <Target size={18} className="dash-kpi-icon" aria-hidden="true" />
               </div>
-              <p className="kpi-value">
+              <div className="dash-kpi-num">
                 {metrics.corrective_actions.total}
-              </p>
+              </div>
               {metrics.corrective_actions.total > 0 && (
-                <div className="distribution-bar" title="وضعیت اقدامات اصلاحی">
+                <div className="dash-micro-bar" title="وضعیت اقدامات اصلاحی">
                   <div
                     style={{
                       width: `${(metrics.corrective_actions.completed / metrics.corrective_actions.total) * 100}%`,
@@ -371,43 +353,42 @@ export function DashboardPage() {
                   />
                 </div>
               )}
-              <ul className="kpi-list">
-                <li>
+              <div className="dash-kpi-breakdown">
+                <span className="dash-kpi-pill">
                   <span>اقدامات فعال/باز:</span>
                   <strong>{metrics.corrective_actions.open}</strong>
-                </li>
-                <li>
+                </span>
+                <span className="dash-kpi-pill">
                   <span>اقدامات بسته‌شده:</span>
                   <strong>{metrics.corrective_actions.completed}</strong>
-                </li>
-                <li style={{ color: metrics.corrective_actions.overdue > 0 ? "var(--danger-text)" : "inherit" }}>
+                </span>
+                <span
+                  className="dash-kpi-pill"
+                  style={{
+                    color: metrics.corrective_actions.overdue > 0 ? "var(--danger-text)" : "inherit",
+                    fontWeight: metrics.corrective_actions.overdue > 0 ? 700 : "normal",
+                  }}
+                >
                   <span>سررسیدگذشته:</span>
                   <strong>{metrics.corrective_actions.overdue}</strong>
-                </li>
-              </ul>
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Operational Overview from Phase 7-10 Stats (If Available) */}
+          {/* Operational Telemetry Ribbon */}
           {(permitStats || incidentStats || equipmentStats || workforceStats) && (
-            <div
-              className="operational-stats-grid"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                gap: "1.25rem",
-              }}
-            >
+            <div className="dash-telemetry-grid">
               {permitStats && (
-                <div className="card stat-mini-card">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <h4 style={{ margin: 0, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                      <FileCheck size={18} className="text-info" />
+                <div className="dash-telemetry-card">
+                  <div className="dash-telemetry-header">
+                    <h4 className="dash-telemetry-title">
+                      <FileCheck size={16} className="text-info" aria-hidden="true" />
                       مجوزهای کار (PTW)
                     </h4>
                     <span className="badge badge-info">فعال: {permitStats.active_count}</span>
                   </div>
-                  <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", fontSize: "0.85rem" }}>
+                  <div className="dash-telemetry-metrics">
                     <div>کل: <strong>{permitStats.total_permits}</strong></div>
                     <div>تأییدشده: <strong>{permitStats.approved_count}</strong></div>
                     <div>بسته‌شده: <strong>{permitStats.closed_count}</strong></div>
@@ -416,17 +397,17 @@ export function DashboardPage() {
               )}
 
               {incidentStats && (
-                <div className="card stat-mini-card">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <h4 style={{ margin: 0, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                      <Flame size={18} className="text-danger" />
+                <div className="dash-telemetry-card">
+                  <div className="dash-telemetry-header">
+                    <h4 className="dash-telemetry-title">
+                      <Flame size={16} className="text-danger" aria-hidden="true" />
                       حوادث و شبه‌حوادث
                     </h4>
                     <span className={`badge ${incidentStats.under_investigation_count > 0 ? "badge-danger" : "badge-success"}`}>
                       در دست بررسی: {incidentStats.under_investigation_count}
                     </span>
                   </div>
-                  <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", fontSize: "0.85rem" }}>
+                  <div className="dash-telemetry-metrics">
                     <div>کل: <strong>{incidentStats.total_incidents}</strong></div>
                     <div>شبه‌حوادث: <strong>{incidentStats.near_miss_count}</strong></div>
                     <div>بسته‌شده: <strong>{incidentStats.closed_count}</strong></div>
@@ -435,17 +416,17 @@ export function DashboardPage() {
               )}
 
               {equipmentStats && (
-                <div className="card stat-mini-card">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <h4 style={{ margin: 0, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                      <Wrench size={18} className="text-warning" />
+                <div className="dash-telemetry-card">
+                  <div className="dash-telemetry-header">
+                    <h4 className="dash-telemetry-title">
+                      <Wrench size={16} className="text-warning" aria-hidden="true" />
                       تجهیزات صنعتی
                     </h4>
                     <span className={`badge ${equipmentStats.calibration_expired_count > 0 ? "badge-warning" : "badge-success"}`}>
                       انقضای کالیبراسیون: {equipmentStats.calibration_expired_count}
                     </span>
                   </div>
-                  <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", fontSize: "0.85rem" }}>
+                  <div className="dash-telemetry-metrics">
                     <div>کل: <strong>{equipmentStats.total_equipment}</strong></div>
                     <div>آماده‌به‌کار: <strong>{equipmentStats.ready_count}</strong></div>
                     <div>تعمیرات معوق: <strong>{equipmentStats.maintenance_overdue_count}</strong></div>
@@ -454,17 +435,17 @@ export function DashboardPage() {
               )}
 
               {workforceStats && (
-                <div className="card stat-mini-card">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <h4 style={{ margin: 0, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                      <Users size={18} className="text-primary" />
+                <div className="dash-telemetry-card">
+                  <div className="dash-telemetry-header">
+                    <h4 className="dash-telemetry-title">
+                      <Users size={16} className="text-primary" aria-hidden="true" />
                       کارکنان و آموزش
                     </h4>
                     <span className={`badge ${workforceStats.competency_expiring_soon > 0 ? "badge-warning" : "badge-info"}`}>
                       صلاحیت معتبر: {workforceStats.competency_valid}
                     </span>
                   </div>
-                  <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", fontSize: "0.85rem" }}>
+                  <div className="dash-telemetry-metrics">
                     <div>شاغلین: <strong>{workforceStats.employees_total}</strong></div>
                     <div>انقضا نزدیک: <strong>{workforceStats.competency_expiring_soon}</strong></div>
                     <div>کسری PPE: <strong>{workforceStats.ppe_stock_below_minimum}</strong></div>
@@ -476,11 +457,11 @@ export function DashboardPage() {
 
           {/* Proactive & Leading HSE Indicators Section */}
           {indicatorsData && indicatorsData.indicators && indicatorsData.indicators.length > 0 && (
-            <section className="card" style={{ marginBottom: "1.5rem" }}>
+            <section className="card" style={{ marginBottom: "1.25rem", padding: "1.25rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                  <Activity size={22} className="text-info" aria-hidden="true" />
-                  <h3 style={{ margin: 0 }}>ماتریس شاخص‌های پیشگیرانه و گذشته‌نگر HSE (دوره ۹۰ روزه)</h3>
+                  <Activity size={20} className="text-info" aria-hidden="true" />
+                  <h3 style={{ margin: 0, fontSize: "1.05rem" }}>ماتریس شاخص‌های پیشگیرانه و گذشته‌نگر HSE (دوره ۹۰ روزه)</h3>
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                   <span className="badge badge-info">
@@ -536,46 +517,30 @@ export function DashboardPage() {
           )}
 
           {/* Urgent / Overdue Deadlines Section */}
-          <section className="card urgent-deadlines-section">
+          <section className="card urgent-deadlines-section" style={{ padding: "1.25rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem" }}>
               <Clock size={20} className="text-warning" aria-hidden="true" />
-              <h3 style={{ margin: 0 }}>اقدامات و بازرسی‌های دارای مهلت نزدیک یا گذشته</h3>
+              <h3 style={{ margin: 0, fontSize: "1.05rem" }}>اقدامات و بازرسی‌های دارای مهلت نزدیک یا گذشته</h3>
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-                gap: "1.5rem",
-              }}
-            >
+            <div className="dash-deadlines-container">
               {/* Inspection Deadlines */}
-              <div className="deadline-group">
-                <h4 style={{ fontSize: "1rem", borderBottom: "1px solid var(--border-default)", paddingBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <div className="dash-deadline-panel">
+                <h4 className="dash-deadline-title">
                   <Calendar size={16} className="text-muted" aria-hidden="true" />
                   زمان‌بندی بازرسی‌ها
                 </h4>
                 {metrics.urgent_deadlines.inspections.length === 0 ? (
                   <p className="muted" style={{ padding: "0.5rem 0" }}>هیچ بازرسی با مهلت نزدیک یا گذشته وجود ندارد.</p>
                 ) : (
-                  <ul className="deadline-list" style={{ padding: 0, listStyle: "none" }}>
+                  <ul className="deadline-list" style={{ padding: 0, listStyle: "none", margin: 0 }}>
                     {metrics.urgent_deadlines.inspections.map((i) => (
                       <li
                         key={i.id}
-                        className={`deadline-item ${i.is_overdue ? "overdue" : ""}`}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "0.75rem 1rem",
-                          borderRadius: "var(--radius-sm)",
-                          marginBottom: "0.5rem",
-                          backgroundColor: i.is_overdue ? "var(--danger-subtle)" : "var(--bg-subtle)",
-                          border: `1px solid ${i.is_overdue ? "var(--danger-border)" : "var(--border-default)"}`,
-                        }}
+                        className={`dash-deadline-item ${i.is_overdue ? "overdue" : ""}`}
                       >
                         <div>
-                          <strong style={{ fontSize: "0.95rem" }}>{i.title}</strong>
+                          <strong style={{ fontSize: "0.95rem", color: "var(--text-primary)" }}>{i.title}</strong>
                           <div className="muted" style={{ fontSize: "0.8rem", marginTop: "0.25rem" }}>
                             تاریخ: {i.scheduled_at?.split("T")[0] || "بی‌تاریخ"}
                           </div>
@@ -597,32 +562,22 @@ export function DashboardPage() {
               </div>
 
               {/* CAPA Deadlines */}
-              <div className="deadline-group">
-                <h4 style={{ fontSize: "1rem", borderBottom: "1px solid var(--border-default)", paddingBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <div className="dash-deadline-panel">
+                <h4 className="dash-deadline-title">
                   <Target size={16} className="text-muted" aria-hidden="true" />
                   مهلت اقدامات اصلاحی
                 </h4>
                 {metrics.urgent_deadlines.actions.length === 0 ? (
                   <p className="muted" style={{ padding: "0.5rem 0" }}>هیچ اقدام اصلاحی با مهلت نزدیک یا گذشته وجود ندارد.</p>
                 ) : (
-                  <ul className="deadline-list" style={{ padding: 0, listStyle: "none" }}>
+                  <ul className="deadline-list" style={{ padding: 0, listStyle: "none", margin: 0 }}>
                     {metrics.urgent_deadlines.actions.map((a) => (
                       <li
                         key={a.id}
-                        className={`deadline-item ${a.is_overdue ? "overdue" : ""}`}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "0.75rem 1rem",
-                          borderRadius: "var(--radius-sm)",
-                          marginBottom: "0.5rem",
-                          backgroundColor: a.is_overdue ? "var(--danger-subtle)" : "var(--bg-subtle)",
-                          border: `1px solid ${a.is_overdue ? "var(--danger-border)" : "var(--border-default)"}`,
-                        }}
+                        className={`dash-deadline-item ${a.is_overdue ? "overdue" : ""}`}
                       >
                         <div>
-                          <strong style={{ fontSize: "0.95rem" }}>{a.description}</strong>
+                          <strong style={{ fontSize: "0.95rem", color: "var(--text-primary)" }}>{a.description}</strong>
                           <div className="muted" style={{ fontSize: "0.8rem", marginTop: "0.25rem" }}>
                             سررسید: {a.due_date || "بی‌تاریخ"}
                           </div>
