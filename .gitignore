@@ -1,16 +1,16 @@
 # Python
-__pycache__/
-*.py[cod]
+# __pycache__/
+# *.py[cod]
 .venv/
 venv/
-*.sqlite3
-db.sqlite3
-backend/media/
-backend/staticfiles/
+# *.sqlite3
+# db.sqlite3
+# backend/media/
+# backend/staticfiles/
 
 # Environment
-.env
-.env.local
+# .env
+# .env.local
 
 # Node
 node_modules/
