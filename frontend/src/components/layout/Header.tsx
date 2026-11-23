@@ -14,6 +14,7 @@ interface HeaderProps {
 
 const TAB_TITLES: Record<NavTab, string> = {
   all: "نمای یکپارچه سامانه",
+  landing: "معرفی سیستم و ماتریس ۲۰ ماژول",
   dashboard: "صفحه اصلی و داشبورد مدیریتی",
   workspace: "میز کار شخصی و وظایف من",
   chat: "پیام‌رسان و ارتباطات درون‌سازمانی",
@@ -30,6 +31,7 @@ const TAB_TITLES: Record<NavTab, string> = {
   assets: "تجهیزات صنعتی، نگهداری و کالیبراسیون",
   incidents: "ثبت، تحقیق و تحلیل حوادث و شبه‌حوادث",
   risks: "شناسایی خطرات و ارزیابی ماتریس ریسک",
+  moc: "مدیریت یکپارچه تغییرات (Management of Change - MOC)",
   inspections: "طرح‌های بازرسی، چک‌لیست‌ها و اقدامات اصلاحی",
   knowledge: "پایگاه دانش، قوانین و آیین‌نامه‌های ملی",
   environment: "مدیریت محیط زیست، بهداشت حرفه‌ای و پسماند",

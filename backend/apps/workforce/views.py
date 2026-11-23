@@ -23,6 +23,8 @@ from apps.organizations.models import Organization
 from apps.permits.models import PermitTypeCompetencyRequirement
 
 from .models import (
+    MedicalRecordConfidential,
+    OccupationalHealthFitRecord,
     PPE_REPLACEMENT_DUE_SOON_DAYS,
     AttendanceRecord,
     Competency,
@@ -42,6 +44,8 @@ from .models import (
     TrainingSession,
 )
 from .serializers import (
+    MedicalRecordConfidentialSerializer,
+    OccupationalHealthFitSerializer,
     CompetencyCreateSerializer,
     CompetencySerializer,
     CompetencyUpdateSerializer,
@@ -1554,3 +1558,64 @@ class AttendanceRosterView(APIView):
             "contractor_worker_count": contractor_count,
         })
 
+
+
+# ==============================================================================
+# Phase 4: Occupational Health Views with Strict Medical Confidentiality
+# ==============================================================================
+
+class OccupationalHealthFitListCreateView(generics.ListCreateAPIView):
+    """
+    سوابق مجاز تناسب شغلی (Fit Status) - قابل مشاهده برای سرپرستان کارگاه و صدور مجوز PTW
+    فاقد هرگونه تشخیص پزشکی بالینی
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = OccupationalHealthFitSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        queryset = OccupationalHealthFitRecord.objects.filter(
+            employee__organization_id__in=org_ids
+        ).select_related("employee")
+        org_id = self.request.query_params.get("organization")
+        if org_id:
+            queryset = queryset.filter(employee__organization_id=org_id)
+        fit_status = self.request.query_params.get("fit_status")
+        if fit_status:
+            queryset = queryset.filter(fit_status=fit_status)
+        employee_id = self.request.query_params.get("employee")
+        if employee_id:
+            queryset = queryset.filter(employee_id=employee_id)
+        return queryset
+
+
+class MedicalRecordConfidentialView(generics.ListCreateAPIView):
+    """
+    پرونده‌های محرمانه پزشکی (Clinical Diagnosis)
+    گیت‌کیپر امنیتی سخت‌گیرانه: تنها پزشک معتمد و سوپریوزر مجاز به دسترسی هستند.
+    هرگونه دسترسی سایر کاربران و ماژول‌ها بلاک (403) می‌شود.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = MedicalRecordConfidentialSerializer
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        user = request.user
+        is_medical = (
+            getattr(user, "role", "") == "medical_officer"
+            or user.is_superuser
+            or (hasattr(user, "memberships") and user.memberships.filter(role="medical_officer").exists())
+            or user.groups.filter(name="MedicalOfficers").exists()
+        )
+        if not is_medical:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied({
+                "code": "medical_confidentiality_blocked",
+                "message": "دسترسی به پرونده‌های بالینی و تشخیص‌های پزشکی محرمانه طبق ضوابط قانون حفاظت داده‌های سلامت تنها در صلاحیت پزشک معتمد سازمان است."
+            })
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        return MedicalRecordConfidential.objects.filter(
+            employee__organization_id__in=org_ids
+        ).select_related("employee")

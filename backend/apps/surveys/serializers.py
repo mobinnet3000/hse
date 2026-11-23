@@ -115,3 +115,47 @@ class SurveySubmissionSerializer(serializers.ModelSerializer):
         if obj.survey.is_anonymous or not obj.respondent:
             return "پاسخ‌دهنده ناشناس"
         return obj.respondent.get_full_name() or obj.respondent.username
+
+from .models import BehaviorObservation, SafetyCultureScore
+
+
+class BehaviorObservationSerializer(serializers.ModelSerializer):
+    observation_type_display = serializers.CharField(source="get_observation_type_display", read_only=True)
+    category_display = serializers.CharField(source="get_category_display", read_only=True)
+    observer_name = serializers.CharField(source="observer.get_full_name", read_only=True)
+
+    class Meta:
+        model = BehaviorObservation
+        fields = [
+            "id",
+            "organization",
+            "observer",
+            "observer_name",
+            "observation_date",
+            "observation_type",
+            "observation_type_display",
+            "category",
+            "category_display",
+            "description",
+            "immediate_coaching",
+            "traceability_chain_id",
+            "created_at",
+        ]
+        read_only_fields = ["id", "traceability_chain_id", "created_at"]
+
+
+class SafetyCultureScoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SafetyCultureScore
+        fields = [
+            "id",
+            "organization",
+            "period",
+            "overall_score",
+            "participation_rate",
+            "safe_behavior_ratio",
+            "strengths",
+            "improvement_plan",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]

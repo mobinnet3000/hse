@@ -17,6 +17,10 @@ from apps.core.access import (
     can_manage_equipment,
     can_view_organization,
 )
+from apps.core.events import HSEEventRegistry, event_bus
+from apps.core.traceability import TraceabilityNode
+from apps.checklists.models import Checklist
+from apps.inspections.models import Inspection, InspectionResponse
 from apps.core.views_utils import resolve_organization
 from apps.organizations.models import Organization
 
@@ -557,4 +561,91 @@ class CalibrationDetailView(APIView):
             return Response(NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
         return Response(
             CalibrationRecordSerializer(record, context={"request": request}).data
+        )
+
+
+class EquipmentTriggerInspectionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        equipment = get_equipment_or_404(pk, request.user)
+        if equipment is None:
+            return Response(NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+        if not can_manage_equipment(request.user, equipment.organization_id) and not can_conduct_asset_work(request.user, equipment.organization_id):
+            return Response(FORBIDDEN, status=status.HTTP_403_FORBIDDEN)
+
+        checklist_id = request.data.get("checklist_id")
+        checklist = None
+        if checklist_id:
+            checklist = Checklist.objects.filter(pk=checklist_id, organization_id=equipment.organization_id).first()
+        if not checklist:
+            checklist = Checklist.objects.filter(organization_id=equipment.organization_id, is_active=True).first()
+
+        title = request.data.get("title") or f"بازرسی فنی تجهیز {equipment.name} ({equipment.code})"
+        notes = request.data.get("notes", "")
+
+        inspection = Inspection.objects.create(
+            organization=equipment.organization,
+            workplace=equipment.workplace,
+            equipment=equipment,
+            checklist=checklist,
+            title=title,
+            inspector=request.user,
+            status=Inspection.Status.DRAFT,
+            scheduled_at=timezone.now(),
+            notes=notes,
+            project_name=equipment.project_name or "",
+            area=equipment.area or "",
+            site_location=equipment.site_location or "",
+        )
+
+        if checklist:
+            for item in checklist.items.all():
+                InspectionResponse.objects.create(
+                    inspection=inspection,
+                    item=item,
+                    item_text=item.text,
+                    is_required=item.is_required,
+                    order=item.order,
+                )
+
+        # Update equipment status to pending_inspection
+        equipment.operating_permit_status = "pending_inspection"
+        equipment.save(update_fields=["operating_permit_status", "updated_at"])
+
+        # Link traceability node
+        if equipment.traceability_chain_id:
+            from apps.core.traceability import TraceabilityChain
+            chain = TraceabilityChain.objects.filter(tracking_code=equipment.traceability_chain_id).first()
+            if chain:
+                TraceabilityNode.objects.create(
+                    chain=chain,
+                    from_module="assets",
+                    from_id=equipment.code,
+                    to_module="inspections",
+                    to_id=inspection.inspection_code or f"INS-{inspection.pk}",
+                    relation_type="maintenance_trigger",
+                    description=f"درخواست بازرسی فنی جهت ارزیابی سلامت تجهیز {equipment.code}",
+                    actor=request.user,
+                )
+
+        event_bus.publish(
+            HSEEventRegistry.EQUIPMENT_INSPECTION_TRIGGERED,
+            {
+                "equipment_id": equipment.pk,
+                "equipment_code": equipment.code,
+                "inspection_id": inspection.pk,
+                "inspection_code": inspection.inspection_code,
+            },
+        )
+
+        return Response(
+            {
+                "message": "بازرسی فنی با موفقیت زمان‌بندی شد.",
+                "inspection_id": inspection.pk,
+                "inspection_code": inspection.inspection_code,
+                "equipment_id": equipment.pk,
+                "operating_permit_status": equipment.operating_permit_status,
+            },
+            status=status.HTTP_201_CREATED,
         )

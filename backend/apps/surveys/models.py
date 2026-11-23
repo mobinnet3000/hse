@@ -109,3 +109,129 @@ class SurveyAnswer(models.Model):
 
     def __str__(self):
         return f"Answer to {self.question_id}"
+
+
+from apps.core.mixins import EnterpriseContextMixin
+from apps.core.traceability import TraceabilityChain, TraceabilityNode
+
+class BehaviorObservation(EnterpriseContextMixin, models.Model):
+    """
+    ماژول فرهنگ ایمنی: سیستم پایش و مربی‌گری رفتار ایمن (BBS - Behavior-Based Safety)
+    ثبت رفتارهای ایمن، رفتارهای پرخطر، گفت‌وگوی انگیزشی و مربی‌گری در میدان
+    """
+    class ObservationType(models.TextChoices):
+        SAFE = "safe", "رفتار ایمن و تحسین‌شده"
+        AT_RISK = "at_risk", "رفتار پرخطر / ناایمن"
+
+    class Category(models.TextChoices):
+        PPE = "ppe", "کاربرد صحیح تجهیزات حفاظت فردی"
+        BODY_POSITION = "body_position", "ارگونومی، خط آتش و موقعیت بدنی"
+        TOOLS = "tools", "استفاده صحیح از ابزار و ماشین‌آلات"
+        PROCEDURES = "procedures", "پیروی از دستورالعمل‌ها و مجوز کار (PTW)"
+        HOUSEKEEPING = "housekeeping", "نظم، انضباط و ۵S کارگاهی"
+        COMMUNICATION = "communication", "ارتباطات گروهی و هشیاری موقعیتی"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="behavior_observations",
+        verbose_name="سازمان",
+    )
+    workplace = models.ForeignKey(
+        "workplaces.Workplace",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="behavior_observations",
+        verbose_name="محل مشاهده",
+    )
+    observer = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="observations_logged",
+        verbose_name="مشاهده‌گر / مربی",
+    )
+    observation_date = models.DateField(verbose_name="تاریخ مشاهده")
+    observation_type = models.CharField(
+        max_length=32,
+        choices=ObservationType.choices,
+        default=ObservationType.SAFE,
+        verbose_name="نوع رفتار",
+    )
+    category = models.CharField(
+        max_length=32,
+        choices=Category.choices,
+        default=Category.PPE,
+        verbose_name="دسته رفتاری",
+    )
+    description = models.TextField(verbose_name="شرح رفتار مشاهده‌شده")
+    immediate_coaching = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="بازخورد آنی و گفت‌وگوی مربی‌گری ارائه شده",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-observation_date", "-created_at"]
+        verbose_name = "مشاهده رفتاری ایمنی (BBS)"
+        verbose_name_plural = "مشاهدات رفتاری ایمنی (BBS)"
+
+    def __str__(self):
+        return f"[{self.get_observation_type_display()}] {self.get_category_display()} ({self.observation_date})"
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if not self.traceability_chain_id:
+            tracking_code = f"TRC-BBS-{self.pk:04d}"
+            chain, _ = TraceabilityChain.objects.get_or_create(
+                organization=self.organization,
+                tracking_code=tracking_code,
+                defaults={
+                    "title": f"پایش رفتار ایمن BBS: {self.get_category_display()}",
+                    "origin_module": "safety_culture",
+                    "origin_object_id": str(self.pk),
+                },
+            )
+            self.traceability_chain_id = tracking_code
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="organizations",
+                from_id=str(self.organization_id),
+                to_module="safety_culture",
+                to_id=str(self.pk),
+                relation_type="direct",
+                description=f"ثبت مشاهده رفتار ({self.get_observation_type_display()} - {self.get_category_display()})",
+            )
+            super().save(update_fields=["traceability_chain_id"])
+
+
+class SafetyCultureScore(models.Model):
+    """
+    شاخص دوره‌ای فرهنگ ایمنی سازمان (Safety Culture Index)
+    تجمیع مشارکت در نظرسنجی، نرخ رفتارهای ایمن، گزارش‌دهی ناهنجاری و آموزش‌ها
+    """
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="culture_scores",
+        verbose_name="سازمان",
+    )
+    period = models.CharField(max_length=32, verbose_name="دوره سنجش (فصلی/سالانه)")
+    overall_score = models.DecimalField(max_digits=5, decimal_places=2, default=75.0, verbose_name="شاخص کل فرهنگ ایمنی (از ۱۰۰)")
+    participation_rate = models.DecimalField(max_digits=5, decimal_places=2, default=80.0, verbose_name="درصد مشارکت کارکنان")
+    safe_behavior_ratio = models.DecimalField(max_digits=5, decimal_places=2, default=85.0, verbose_name="نسبت رفتارهای ایمن به کل")
+    strengths = models.TextField(blank=True, verbose_name="نقاط قوت فرهنگ ایمنی")
+    improvement_plan = models.TextField(blank=True, verbose_name="برنامه بهبود و ارتقای فرهنگ")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "شاخص فرهنگ ایمنی"
+        verbose_name_plural = "سنجش‌های فرهنگ ایمنی"
+
+    def __str__(self):
+        return f"فرهنگ ایمنی {self.period}: {self.overall_score}%"

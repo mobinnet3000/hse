@@ -25,8 +25,11 @@ import { SurveysPage } from "../features/surveys/SurveysPage";
 import { ChatPage } from "../features/chat/ChatPage";
 import { FleetEnergyPage } from "../features/fleet_energy/FleetEnergyPage";
 import { AnomaliesPage } from "../features/anomalies/AnomaliesPage";
+import { MocPage } from "../features/moc/MocPage";
 import { MyWorkspacePage } from "../features/workspace/MyWorkspacePage";
 import { SubscriptionsPage } from "../features/subscriptions/SubscriptionsPage";
+import { LandingPage } from "../features/landing/LandingPage";
+import { SharedMasterProvider } from "../core/store/sharedMasterStore";
 import { fetchNotifications } from "../services/api";
 
 function AppContent() {
@@ -78,6 +81,12 @@ function AppContent() {
       unreadNotificationsCount={unreadCount}
     >
       <HealthStatus />
+
+      {activeTab === "landing" && (
+        <section id="landing" className="section-container" style={{ marginBottom: "2rem" }}>
+          <LandingPage onNavigateToTab={(t) => handleTabChange(t as NavTab)} />
+        </section>
+      )}
 
       {(activeTab === "all" || activeTab === "ai") && (
         <section id="ai" className="section-container" style={{ marginBottom: "2rem" }}>
@@ -199,6 +208,12 @@ function AppContent() {
         </section>
       )}
 
+      {(activeTab === "all" || activeTab === "moc") && (
+        <section id="moc" className="section-container" style={{ marginBottom: "2rem" }}>
+          <MocPage />
+        </section>
+      )}
+
       {(activeTab === "all" || activeTab === "inspections") && (
         <section id="inspections" className="section-container" style={{ marginBottom: "2rem" }}>
           <InspectionsPage />
@@ -236,7 +251,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <SharedMasterProvider>
+          <AppContent />
+        </SharedMasterProvider>
       </AuthProvider>
     </ThemeProvider>
   );

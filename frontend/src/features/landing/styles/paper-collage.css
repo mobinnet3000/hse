@@ -1,0 +1,144 @@
+/* ==========================================================================
+   HSE Guard — Industrial Paper Collage Design System & Motion Styles
+   کلاژ کاغذی لایه‌لایه، نقشه مهندسی و خطوط پردازش صنعتی
+   ========================================================================== */
+
+:root {
+  /* Paper Palette */
+  --paper-bg-warm: #0c0f14;
+  --paper-kraft: #1c222d;
+  --paper-blueprint: #0f1c30;
+  --paper-blueprint-grid: rgba(56, 189, 248, 0.08);
+  --paper-crease: rgba(255, 255, 255, 0.07);
+  --paper-shadow-soft: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+  --paper-shadow-layered: 0 20px 40px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --paper-shadow-lifted: 0 25px 50px -12px rgba(14, 165, 233, 0.25);
+  
+  /* Industrial Accents */
+  --industrial-amber: #f59e0b;
+  --industrial-amber-glow: rgba(245, 158, 11, 0.2);
+  --industrial-safety-red: #ef4444;
+  --industrial-signal-green: #10b981;
+  --industrial-pipe-blue: #0284c7;
+  --industrial-steel: #64748b;
+}
+
+/* Background Engineering Grid Pattern */
+.bg-blueprint-grid {
+  background-color: var(--paper-bg-warm);
+  background-image: 
+    linear-gradient(to right, var(--paper-blueprint-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--paper-blueprint-grid) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Layered Paper Sheet Effect */
+.paper-sheet {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--paper-shadow-layered);
+  position: relative;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
+  will-change: transform;
+}
+
+.paper-sheet:hover {
+  transform: translateY(-4px) scale(1.005);
+  box-shadow: 0 25px 45px -10px rgba(0, 0, 0, 0.9), 0 0 20px rgba(56, 189, 248, 0.15);
+}
+
+/* Paper Cutout & Corner Tag */
+.paper-tag-corner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-bottom-right-radius: 12px;
+  background: rgba(14, 165, 233, 0.15);
+  border-right: 1px solid rgba(56, 189, 248, 0.3);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 4px 10px;
+  font-family: monospace;
+  font-size: 10px;
+  color: #38bdf8;
+}
+
+/* Industrial Process Pipe (خطوط لوله‌کشی و پردازش کارخانه) */
+.process-pipe-h {
+  height: 4px;
+  background: linear-gradient(90deg, #0284c7, #38bdf8, #0284c7);
+  background-size: 200% 100%;
+  animation: pipeFlow 6s linear infinite;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+.process-pipe-v {
+  width: 4px;
+  background: linear-gradient(180deg, #0284c7, #38bdf8, #0284c7);
+  background-size: 100% 200%;
+  animation: pipeFlowV 6s linear infinite;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+@keyframes pipeFlow {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes pipeFlowV {
+  0% { background-position: 0 200%; }
+  100% { background-position: 0 -200%; }
+}
+
+/* Factory Gear Rotation */
+.factory-gear {
+  transform-origin: center;
+  animation: gearSpin 20s linear infinite;
+  will-change: transform;
+}
+
+.factory-gear-reverse {
+  transform-origin: center;
+  animation: gearSpinRev 25s linear infinite;
+  will-change: transform;
+}
+
+@keyframes gearSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes gearSpinRev {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+/* Hardware Accelerated Floating Layers */
+.floating-layer-1 {
+  animation: floatLayer 7s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.floating-layer-2 {
+  animation: floatLayer 9s ease-in-out infinite alternate-reverse;
+  will-change: transform;
+}
+
+@keyframes floatLayer {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(0, -12px, 0); }
+}
+
+/* Reduced Motion Override for Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .paper-sheet,
+  .process-pipe-h,
+  .process-pipe-v,
+  .factory-gear,
+  .factory-gear-reverse,
+  .floating-layer-1,
+  .floating-layer-2 {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

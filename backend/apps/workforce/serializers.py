@@ -12,6 +12,8 @@ from apps.permits.models import Permit, PermitTypeCompetencyRequirement
 from apps.workplaces.models import Workplace
 
 from .models import (
+    MedicalRecordConfidential,
+    OccupationalHealthFitRecord,
     COMPETENCY_DUE_SOON_DAYS,
     PPE_REPLACEMENT_DUE_SOON_DAYS,
     AttendanceRecord,
@@ -1030,6 +1032,9 @@ class ContractorCompanySerializer(serializers.ModelSerializer):
             "contract_end",
             "status",
             "status_display",
+            "contractor_code",
+            "qualification_status",
+            "traceability_chain_id",
             "safety_score",
             "notes",
             "workers_count",
@@ -1203,3 +1208,57 @@ class AttendanceRecordSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"check_out": "زمان خروج نمی‌تواند قبل از زمان ورود باشد."})
         return attrs
 
+
+
+class OccupationalHealthFitSerializer(serializers.ModelSerializer):
+    """
+    اطلاعات عملیاتی تناسب شغلی (کاملاً بدون نشت داده‌های تشخیصی پزشکی)
+    """
+    employee_name = serializers.CharField(source="employee.full_name", read_only=True)
+    fit_status_display = serializers.CharField(source="get_fit_status_display", read_only=True)
+
+    class Meta:
+        model = OccupationalHealthFitRecord
+        fields = [
+            "id",
+            "employee",
+            "employee_name",
+            "evaluation_date",
+            "fit_status",
+            "fit_status_display",
+            "work_restrictions",
+            "restriction_notes",
+            "valid_until",
+            "next_checkup_due",
+            "related_risk_register",
+            "traceability_chain_id",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "traceability_chain_id", "created_at", "updated_at"]
+
+
+class MedicalRecordConfidentialSerializer(serializers.ModelSerializer):
+    """
+    پرونده فوق‌محرمانه پزشکی (فقط برای پزشک معتمد و پزشک قانونی)
+    """
+    employee_name = serializers.CharField(source="employee.full_name", read_only=True)
+
+    class Meta:
+        model = MedicalRecordConfidential
+        fields = [
+            "id",
+            "employee",
+            "employee_name",
+            "examination_date",
+            "clinical_diagnosis",
+            "audiogram_data",
+            "spirometry_data",
+            "blood_test_data",
+            "physician_notes",
+            "physician_name",
+            "doctor_license_no",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]

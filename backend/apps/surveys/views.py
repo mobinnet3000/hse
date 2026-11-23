@@ -101,3 +101,71 @@ class SurveySubmissionViewSet(viewsets.ReadOnlyModelViewSet):
         if survey_id:
             queryset = queryset.filter(survey_id=survey_id)
         return queryset
+
+from rest_framework.views import APIView
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+from .models import BehaviorObservation, SafetyCultureScore
+from .serializers import BehaviorObservationSerializer, SafetyCultureScoreSerializer
+from apps.core.events import EventBus, Events
+from apps.core.access import accessible_organization_ids
+
+
+class BehaviorObservationListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        org_ids = accessible_organization_ids(request.user)
+        queryset = BehaviorObservation.objects.filter(organization_id__in=org_ids)
+        org_param = request.query_params.get("organization")
+        if org_param and org_param.isdigit():
+            queryset = queryset.filter(organization_id=int(org_param))
+        serializer = BehaviorObservationSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        org_ids = accessible_organization_ids(request.user)
+        org_id = request.data.get("organization")
+        if not org_id or int(org_id) not in org_ids:
+            if len(org_ids) == 1:
+                org_id = list(org_ids)[0]
+            else:
+                return Response({"error": "شناسه سازمان معتبر نیست."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = BehaviorObservationSerializer(data=request.data)
+        if serializer.is_valid():
+            obs = serializer.save(organization_id=org_id, observer=request.user)
+            EventBus.publish(Events.SAFETY_BEHAVIOR_LOGGED, {
+                "observation_id": obs.id,
+                "type": obs.observation_type,
+                "category": obs.category,
+                "coaching": bool(obs.immediate_coaching),
+            }, user_id=request.user.id)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SafetyCultureScoreListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        org_ids = accessible_organization_ids(request.user)
+        queryset = SafetyCultureScore.objects.filter(organization_id__in=org_ids)
+        org_param = request.query_params.get("organization")
+        if org_param and org_param.isdigit():
+            queryset = queryset.filter(organization_id=int(org_param))
+        serializer = SafetyCultureScoreSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        org_ids = accessible_organization_ids(request.user)
+        org_id = request.data.get("organization")
+        if not org_id or int(org_id) not in org_ids:
+            if len(org_ids) == 1:
+                org_id = list(org_ids)[0]
+            else:
+                return Response({"error": "شناسه سازمان معتبر نیست."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = SafetyCultureScoreSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(organization_id=org_id)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -6,6 +6,11 @@ from .models import (
     OccupationalHygieneRecord,
     WasteRecord,
     WastewaterEmissionRecord,
+    ChemicalItem,
+    EmergencyScenario,
+    EmergencyDrill,
+    EmergencyResource,
+    ResourceConsumptionRecord,
 )
 
 
@@ -168,3 +173,134 @@ class OccupationalHygieneRecordSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "standard_limit", "is_exceedance", "assessment_result", "non_conformity", "created_at", "updated_at"]
+
+
+class ChemicalItemSerializer(serializers.ModelSerializer):
+    workplace_name = serializers.CharField(source="workplace.name", read_only=True)
+    hazard_classification_display = serializers.CharField(source="get_hazard_classification_display", read_only=True)
+
+    class Meta:
+        model = ChemicalItem
+        fields = [
+            "id",
+            "organization",
+            "workplace",
+            "workplace_name",
+            "name",
+            "cas_number",
+            "un_number",
+            "hazard_classification",
+            "hazard_classification_display",
+            "ghs_symbols",
+            "storage_location",
+            "current_stock",
+            "unit",
+            "compatibility_group",
+            "sds_document_url",
+            "ppe_requirements",
+            "exposure_limit_oel",
+            "fire_extinguishing_method",
+            "spill_response_procedure",
+            "is_active",
+            "traceability_chain_id",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "traceability_chain_id", "created_at", "updated_at"]
+
+
+class EmergencyScenarioSerializer(serializers.ModelSerializer):
+    workplace_name = serializers.CharField(source="workplace.name", read_only=True)
+    severity_tier_display = serializers.CharField(source="get_severity_tier_display", read_only=True)
+    commander_name = serializers.CharField(source="emergency_commander.get_full_name", read_only=True)
+
+    class Meta:
+        model = EmergencyScenario
+        fields = [
+            "id",
+            "organization",
+            "workplace",
+            "workplace_name",
+            "title",
+            "severity_tier",
+            "severity_tier_display",
+            "muster_point",
+            "evacuation_route",
+            "erp_summary",
+            "emergency_commander",
+            "commander_name",
+            "is_active",
+            "traceability_chain_id",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "traceability_chain_id", "created_at", "updated_at"]
+
+
+class EmergencyDrillSerializer(serializers.ModelSerializer):
+    scenario_title = serializers.CharField(source="scenario.title", read_only=True)
+    success_rating_display = serializers.CharField(source="get_success_rating_display", read_only=True)
+
+    class Meta:
+        model = EmergencyDrill
+        fields = [
+            "id",
+            "organization",
+            "scenario",
+            "scenario_title",
+            "drill_date",
+            "response_time_minutes",
+            "target_response_time_minutes",
+            "participants_count",
+            "success_rating",
+            "success_rating_display",
+            "identified_gaps",
+            "lessons_learned",
+            "related_capa",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class EmergencyResourceSerializer(serializers.ModelSerializer):
+    resource_type_display = serializers.CharField(source="get_resource_type_display", read_only=True)
+    readiness_status_display = serializers.CharField(source="get_readiness_status_display", read_only=True)
+
+    class Meta:
+        model = EmergencyResource
+        fields = [
+            "id",
+            "organization",
+            "resource_type",
+            "resource_type_display",
+            "title",
+            "quantity",
+            "location",
+            "readiness_status",
+            "readiness_status_display",
+            "notes",
+        ]
+        read_only_fields = ["id"]
+
+
+class ResourceConsumptionSerializer(serializers.ModelSerializer):
+    workplace_name = serializers.CharField(source="workplace.name", read_only=True)
+    resource_type_display = serializers.CharField(source="get_resource_type_display", read_only=True)
+
+    class Meta:
+        model = ResourceConsumptionRecord
+        fields = [
+            "id",
+            "organization",
+            "workplace",
+            "workplace_name",
+            "record_date",
+            "resource_type",
+            "resource_type_display",
+            "quantity",
+            "carbon_equivalent_kg",
+            "notes",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]

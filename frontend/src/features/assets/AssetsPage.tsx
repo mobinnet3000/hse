@@ -24,6 +24,7 @@ import {
   startMaintenanceWorkOrder,
   updateEquipment,
   updateMaintenancePlan,
+  triggerEquipmentInspection,
   type CalibrationRecord,
   type EquipmentDetail,
   type EquipmentListItem,
@@ -585,6 +586,17 @@ export function AssetsPage() {
     setTab("calibrations");
   }
 
+  async function handleTriggerInspection(equipmentId: number) {
+    try {
+      const res = await triggerEquipmentInspection(equipmentId);
+      alert(`بازرسی فنی برای این تجهیز با شناسه بازرسی ${res.inspection_code || res.inspection_id} ثبت و وضعیت تجهیز به در انتظار بازرسی تغییر یافت.`);
+      if (organizationId !== null) void loadEquipment(organizationId);
+      if (detail && detail.id === equipmentId) void openDetail(equipmentId);
+    } catch (err) {
+      alert(errorMessage(err));
+    }
+  }
+
   return (
     <div className="stack" dir="rtl">
       <header className="page-header">
@@ -1037,6 +1049,10 @@ export function AssetsPage() {
               <p>تاریخ نصب: {detail.installation_date || "—"}</p>
               <p>کالیبراسیون: <span style={{ color: statusColor(detail.calibration_status) }}>{detail.calibration_status_display}</span></p>
               {detail.calibration_due_on && <p>سررسید کالیبراسیون: {detail.calibration_due_on}</p>}
+              <p>وضعیت مجوز کاربری تجهیز: <strong style={{ color: detail.operating_permit_status === 'suspended' ? 'var(--danger-fg)' : 'var(--success-fg)' }}>{detail.operating_permit_status || 'معتبر'}</strong></p>
+              <p>صلاحیت فنی: <strong style={{ color: detail.technical_clearance === 'blocked' ? 'var(--danger-fg)' : 'inherit' }}>{detail.technical_clearance || 'تأییدشده'}</strong></p>
+              {detail.health_notes && <p className="muted" style={{ fontSize: '0.85rem' }}>یادداشت سلامت تجهیز: {detail.health_notes}</p>}
+              {detail.traceability_chain_id && <p className="muted" style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>زنجیره ردیابی: {detail.traceability_chain_id}</p>}
             </div>
             <div>
               <h4>اقدام‌های مجاز</h4>
@@ -1071,6 +1087,11 @@ export function AssetsPage() {
                   )}
                   {canCalibrate && (
                     <button type="button" onClick={() => beginCalibrationFor(detail.id)}>ثبت کالیبراسیون</button>
+                  )}
+                  {canConduct && (
+                    <button type="button" style={{ backgroundColor: "#047857", color: "#fff" }} onClick={() => handleTriggerInspection(detail.id)}>
+                      درخواست بازرسی فنی (Trigger Inspection)
+                    </button>
                   )}
                 </div>
               </div>

@@ -8,6 +8,8 @@ from .views import (
     IncidentReopenView,
     IncidentReviewView,
     IncidentSummaryStatsView,
+    IncidentRCAView,
+    IncidentLinkRiskView,
 )
 
 urlpatterns = [
@@ -17,6 +19,8 @@ urlpatterns = [
     path("<int:pk>/", IncidentDetailView.as_view(), name="incident-detail"),
     path("<int:pk>/review/", IncidentReviewView.as_view(), name="incident-review"),
     path("<int:pk>/investigate/", IncidentInvestigateView.as_view(), name="incident-investigate"),
+    path("<int:pk>/rca/", IncidentRCAView.as_view(), name="incident-rca"),
+    path("<int:pk>/link-risk/", IncidentLinkRiskView.as_view(), name="incident-link-risk"),
     path("<int:pk>/link-capa/", IncidentLinkCapaView.as_view(), name="incident-link-capa"),
     path("<int:pk>/close/", IncidentCloseView.as_view(), name="incident-close"),
     path("<int:pk>/reopen/", IncidentReopenView.as_view(), name="incident-reopen"),

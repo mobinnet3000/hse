@@ -1,12 +1,28 @@
 from django.db import models
+from django.utils import timezone
+from apps.core.mixins import EnterpriseContextMixin
 
 
-class Inspection(models.Model):
+class Inspection(EnterpriseContextMixin, models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "پیش‌نویس"
         IN_PROGRESS = "in_progress", "در حال اجرا"
         COMPLETED = "completed", "تکمیل‌شده"
         CANCELLED = "cancelled", "لغوشده"
+
+    class ResultChoice(models.TextChoices):
+        PASS = "pass", "تأیید کامل (انطباق)"
+        CONDITIONAL = "conditional", "مشروط به رفع نقص"
+        FAIL = "fail", "رد شده (دارای نقص بحرانی)"
+
+    inspection_code = models.CharField(max_length=64, blank=True, db_index=True, verbose_name="کد یکتای بازرسی")
+    overall_result = models.CharField(
+        max_length=20,
+        choices=ResultChoice.choices,
+        default=ResultChoice.PASS,
+        verbose_name="نتیجه کلی بازرسی",
+    )
+    defects_count = models.PositiveIntegerField(default=0, verbose_name="تعداد عدم انطباق‌ها و نقایص")
 
     organization = models.ForeignKey(
         "organizations.Organization",
@@ -71,6 +87,45 @@ class Inspection(models.Model):
             raise ValidationError({"equipment": "تجهیز مرتبط باید متعلق به همان سازمان باشد."})
         if self.workplace_id and self.workplace.organization_id != self.organization_id:
             raise ValidationError({"workplace": "محل کار باید متعلق به همان سازمان باشد."})
+
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        now = timezone.now()
+        if not self.inspection_code:
+            count = Inspection.objects.filter(created_at__year=now.year).count() + 1
+            self.inspection_code = f"INS-{now.year}-{count:04d}"
+
+        if not self.title:
+            self.title = f"بازرسی {self.inspection_code}"
+
+        if not self.traceability_chain_id:
+            self.traceability_chain_id = f"TRC-{self.inspection_code}"
+
+        super().save(*args, **kwargs)
+
+        if is_new:
+            try:
+                from apps.core.traceability import TraceabilityChain, TraceabilityNode
+                chain, _ = TraceabilityChain.objects.get_or_create(
+                    organization=self.organization,
+                    tracking_code=self.traceability_chain_id,
+                    defaults={
+                        "title": f"زنجیره ردیابی بازرسی: {self.title}",
+                        "origin_module": "inspections",
+                        "origin_object_id": str(self.inspection_code),
+                    }
+                )
+                TraceabilityNode.objects.create(
+                    chain=chain,
+                    from_module="inspections",
+                    from_id=str(self.inspection_code),
+                    to_module="inspections",
+                    to_id=str(self.inspection_code),
+                    relation_type="direct",
+                    description=f"برنامه‌ریزی و ثبت بازرسی {self.inspection_code}",
+                )
+            except Exception:
+                pass
 
 
 class InspectionResponse(models.Model):

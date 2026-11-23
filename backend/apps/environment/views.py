@@ -17,6 +17,11 @@ from .models import (
     OccupationalHygieneRecord,
     WasteRecord,
     WastewaterEmissionRecord,
+    ChemicalItem,
+    EmergencyScenario,
+    EmergencyDrill,
+    EmergencyResource,
+    ResourceConsumptionRecord,
 )
 from .serializers import (
     EnvironmentalAspectSerializer,
@@ -24,6 +29,11 @@ from .serializers import (
     OccupationalHygieneRecordSerializer,
     WasteRecordSerializer,
     WastewaterEmissionRecordSerializer,
+    ChemicalItemSerializer,
+    EmergencyScenarioSerializer,
+    EmergencyDrillSerializer,
+    EmergencyResourceSerializer,
+    ResourceConsumptionSerializer,
 )
 from .services import (
     evaluate_and_record_hygiene_survey,
@@ -238,3 +248,77 @@ class WasteExportCSVView(APIView):
         response = HttpResponse(csv_data, content_type="text/csv; charset=utf-8-sig")
         response["Content-Disposition"] = f'attachment; filename="waste_manifest_{org.code}.csv"'
         return response
+
+
+class ChemicalItemViewSet(EnvironmentBaseViewSet):
+    queryset = ChemicalItem.objects.all()
+    serializer_class = ChemicalItemSerializer
+
+    def perform_create(self, serializer):
+        org = self._resolve_org()
+        serializer.save(organization=org)
+
+
+class EmergencyScenarioViewSet(EnvironmentBaseViewSet):
+    queryset = EmergencyScenario.objects.all()
+    serializer_class = EmergencyScenarioSerializer
+
+    def perform_create(self, serializer):
+        org = self._resolve_org()
+        serializer.save(organization=org)
+
+
+class EmergencyDrillViewSet(EnvironmentBaseViewSet):
+    queryset = EmergencyDrill.objects.all()
+    serializer_class = EmergencyDrillSerializer
+
+    def perform_create(self, serializer):
+        org = self._resolve_org()
+        instance = serializer.save(organization=org)
+        from apps.core.events import EventBus, Events
+        EventBus.publish(Events.EMERGENCY_DRILL_COMPLETED, {
+            "drill_id": instance.id,
+            "scenario": instance.scenario.title,
+            "rating": instance.success_rating,
+            "response_time": instance.response_time_minutes,
+        }, user_id=self.request.user.id)
+
+
+class EmergencyResourceViewSet(EnvironmentBaseViewSet):
+    queryset = EmergencyResource.objects.all()
+    serializer_class = EmergencyResourceSerializer
+
+    def perform_create(self, serializer):
+        org = self._resolve_org()
+        serializer.save(organization=org)
+
+
+class ResourceConsumptionViewSet(EnvironmentBaseViewSet):
+    queryset = ResourceConsumptionRecord.objects.all()
+    serializer_class = ResourceConsumptionSerializer
+
+    def perform_create(self, serializer):
+        org = self._resolve_org()
+        serializer.save(organization=org)
+
+
+class EmergencyActivateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        scenario = get_object_or_404(EmergencyScenario, pk=pk)
+        from apps.core.events import EventBus, Events
+        EventBus.publish(Events.EMERGENCY_ACTIVATED, {
+            "scenario_id": scenario.id,
+            "scenario_title": scenario.title,
+            "severity_tier": scenario.severity_tier,
+            "muster_point": scenario.muster_point,
+            "activated_by": request.user.username,
+        }, user_id=request.user.id)
+        return Response({
+            "message": f"وضعیت اضطراری برای سناریوی {scenario.title} در سامانه فعال شد.",
+            "scenario_id": scenario.id,
+            "severity_tier": scenario.severity_tier,
+            "muster_point": scenario.muster_point,
+            "status": "activated",
+        }, status=status.HTTP_200_OK)

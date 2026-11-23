@@ -30,6 +30,7 @@ import {
   Truck,
   HelpCircle,
   CreditCard,
+  RefreshCw,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -56,6 +57,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     groupTitle: "صفحه اصلی",
     items: [
+      { id: "landing", label: "معرفی و ماتریس ۲۰ ماژول", icon: <Layers size={18} /> },
       { id: "dashboard", label: "صفحه اصلی و داشبورد", icon: <LayoutDashboard size={18} /> },
       { id: "workspace", label: "کارتابل وظایف من", icon: <UserCheck size={18} /> },
       { id: "chat", label: "پیام‌رسان سازمانی", icon: <MessageSquare size={18} /> },
@@ -88,6 +90,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "surveys", label: "آزمون‌ها و سنجش فرهنگ", icon: <HelpCircle size={18} /> },
       { id: "workforce", label: "کارکنان، آموزش و PPE", icon: <Users size={18} /> },
       { id: "assets", label: "تجهیزات و کالیبراسیون", icon: <Wrench size={18} /> },
+      { id: "moc", label: "مدیریت تغییرات (MOC)", icon: <RefreshCw size={18} /> },
       { id: "risks", label: "مدیریت ریسک و پاپیونی", icon: <ShieldAlert size={18} /> },
     ],
   },

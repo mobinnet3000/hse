@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "apps.surveys",
     "apps.chat",
     "apps.fleet_energy",
+    "apps.moc",
 ]
 
 MIDDLEWARE = [

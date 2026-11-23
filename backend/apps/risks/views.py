@@ -675,3 +675,234 @@ class RiskDashboardSummaryView(APIView):
             "pending_review_controls": pending_review_controls,
         })
 
+
+
+# =====================================================================
+# Enterprise Risk Register (10-Step) ViewSets & Endpoints
+# =====================================================================
+
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from .models import (
+    RiskRegister,
+    RiskActivityTask,
+    HazardSource,
+    RiskScenario,
+    RiskControl,
+    DimensionScoreSet,
+    RiskTreatmentAction,
+)
+from .serializers import (
+    RiskRegisterSerializer,
+    RiskRegisterDetailSerializer,
+    FullRiskRegisterCreateSerializer,
+    RiskActivityTaskSerializer,
+    HazardSourceSerializer,
+    RiskScenarioSerializer,
+    RiskControlSerializer,
+    DimensionScoreSetSerializer,
+    RiskTreatmentActionSerializer,
+)
+from .services import RiskMatrixCalculator, RiskManagementEngineService
+from apps.core.events import dispatch_hse_event, HSEEventRegistry
+import uuid
+
+
+class RiskRegisterViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset = RiskRegister.objects.all().select_related("organization", "created_by", "approved_by")
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return RiskRegisterDetailSerializer
+        return RiskRegisterSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        org_ids = accessible_organization_ids(user)
+        qs = super().get_queryset().filter(organization_id__in=org_ids)
+        org_param = self.request.query_params.get("organization")
+        if org_param:
+            qs = qs.filter(organization_id=org_param)
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        search = self.request.query_params.get("search")
+        if search:
+            qs = qs.filter(title__icontains=search) | qs.filter(register_code__icontains=search)
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        serializer.save(created_by=user)
+
+    @action(detail=False, methods=["post"], url_path="full-create")
+    def full_create(self, request):
+        serializer = FullRiskRegisterCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        context = serializer.validated_data.get("context", {})
+        org_id = context.get("organization") or request.query_params.get("organization")
+        if not org_id:
+            org_ids = list(accessible_organization_ids(request.user))
+            if len(org_ids) == 1:
+                org_id = org_ids[0]
+            else:
+                return Response(
+                    {"error": "تعیین شناسه سازمان الزامی است."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            register = RiskManagementEngineService.create_full_11_step_register(
+                organization_id=int(org_id),
+                user=request.user,
+                data=serializer.validated_data
+            )
+            return Response(
+                RiskRegisterDetailSerializer(register).data,
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["post"], url_path="sync-legacy")
+    def sync_legacy(self, request):
+        org_id = request.data.get("organization") or request.query_params.get("organization")
+        org_id = int(org_id) if org_id else None
+        res = RiskManagementEngineService.sync_legacy_risks_to_registers(organization_id=org_id)
+        return Response({
+            "message": "همگام‌سازی و مهاجرت رکوردهای قدیمی با موفقیت انجام شد.",
+            **res
+        })
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        register = self.get_object()
+        register.status = RiskRegister.RegisterStatus.APPROVED
+        register.approved_by = request.user
+        register.risk_acceptance_status = request.data.get("risk_acceptance_status", "acceptable")
+        register.acceptance_authority = request.data.get("acceptance_authority", request.user.get_full_name() or request.user.username)
+        register.approval_notes = request.data.get("approval_notes", "")
+        if not register.audit_trail_code:
+            register.audit_trail_code = f"AUD-RR-{register.register_code.replace('RR-', '')}-{uuid.uuid4().hex[:6].upper()}"
+        register.save()
+
+        # انتشار رویداد تأیید ارزیابی ریسک در Event Bus
+        dispatch_hse_event(
+            event_name=HSEEventRegistry.RISK_ASSESSMENT_APPROVED,
+            sender_module="risks",
+            payload={
+                "register_id": str(register.id),
+                "register_code": register.register_code,
+                "title": register.title,
+                "acceptance_status": register.risk_acceptance_status,
+                "acceptance_authority": register.acceptance_authority,
+                "audit_trail_code": register.audit_trail_code,
+            },
+            organization_id=register.organization_id,
+            actor=request.user
+        )
+
+        return Response({
+            "message": "ارزیابی ریسک با موفقیت تصویب و چرخه عمر آن فعال شد.",
+            "status": register.status,
+            "approved_by": request.user.get_full_name() or request.user.username,
+            "audit_trail_code": register.audit_trail_code
+        })
+
+
+class RiskActivityTaskViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset = RiskActivityTask.objects.all()
+    serializer_class = RiskActivityTaskSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        return super().get_queryset().filter(register__organization_id__in=org_ids)
+
+
+class HazardSourceViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset = HazardSource.objects.all()
+    serializer_class = HazardSourceSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        return super().get_queryset().filter(activity_task__register__organization_id__in=org_ids)
+
+
+class RiskScenarioViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset = RiskScenario.objects.all().prefetch_related("existing_controls", "scores", "treatments")
+    serializer_class = RiskScenarioSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        return super().get_queryset().filter(hazard__activity_task__register__organization_id__in=org_ids)
+
+    @action(detail=True, methods=["post"])
+    def evaluate(self, request, pk=None):
+        scenario = self.get_object()
+        phase = request.data.get("phase", "current")
+        scores_data = request.data.get("scores", [])
+        if not scores_data:
+            return Response({"error": "فهرست نمرات ابعاد چهارگانه الزامی است."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            saved_scores = RiskMatrixCalculator.evaluate_scenario_scores(scenario, phase, scores_data)
+            return Response({
+                "message": f"ارزیابی ریسک فاز {phase} با موفقیت ثبت شد.",
+                "scores": DimensionScoreSetSerializer(saved_scores, many=True).data,
+                "overall": RiskMatrixCalculator.calculate_overall_scenario_risk(scenario, phase=phase)
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RiskControlViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset = RiskControl.objects.all()
+    serializer_class = RiskControlSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        return super().get_queryset().filter(scenario__hazard__activity_task__register__organization_id__in=org_ids)
+
+
+class DimensionScoreSetViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset = DimensionScoreSet.objects.all()
+    serializer_class = DimensionScoreSetSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        return super().get_queryset().filter(scenario__hazard__activity_task__register__organization_id__in=org_ids)
+
+
+class RiskTreatmentActionViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset = RiskTreatmentAction.objects.all()
+    serializer_class = RiskTreatmentActionSerializer
+
+    def get_queryset(self):
+        org_ids = accessible_organization_ids(self.request.user)
+        return super().get_queryset().filter(scenario__hazard__activity_task__register__organization_id__in=org_ids)
+
+
+class RiskMatrix5x5SummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        organization_id, error = resolve_organization(request, edit=False)
+        if error:
+            return error
+
+        dimension = request.query_params.get("dimension", "all")
+        phase = request.query_params.get("phase", "current")
+        summary = RiskMatrixCalculator.get_matrix_5x5_summary(
+            organization_id=organization_id,
+            dimension=dimension,
+            phase=phase
+        )
+        return Response(summary)

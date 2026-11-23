@@ -1,3 +1,5 @@
+from apps.core.mixins import EnterpriseContextMixin
+from apps.core.traceability import TraceabilityChain, TraceabilityNode
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -312,3 +314,327 @@ class OccupationalHygieneRecord(models.Model):
             raise ValidationError({"workplace": "کارگاه باید متعلق به همان سازمان باشد."})
         if self.threshold_id and self.threshold.organization_id != self.organization_id:
             raise ValidationError({"threshold": "حد آستانه باید متعلق به همان سازمان باشد."})
+
+
+# ==============================================================================
+# Phase 4: Chemical Management & Emergency Management
+# ==============================================================================
+
+class ChemicalItem(EnterpriseContextMixin, models.Model):
+    """
+    ماژول مدیریت مواد شیمیایی (Chemical Management)
+    ثبت فهرست، کد بین‌المللی، طبقه خطر GHS، شرایط سازگاری، برگه SDS و حدود مواجهه شغلی
+    """
+    class HazardClassification(models.TextChoices):
+        FLAMMABLE = "flammable", "مایع یا گاز قابل اشتعال"
+        TOXIC = "toxic", "سمی و کشنده"
+        CORROSIVE = "corrosive", "خورنده اسیدی/قلیایی"
+        OXIDIZER = "oxidizer", "اکسیدکننده قوی"
+        EXPLOSIVE = "explosive", "انفجاری / ناپایدار"
+        ENVIRONMENTAL = "environmental", "خطرناک برای محیط زیست و آبزیان"
+        IRRITANT = "irritant", "تحریک‌کننده و حساسیت‌زا"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="chemicals",
+        verbose_name="سازمان",
+    )
+    workplace = models.ForeignKey(
+        "workplaces.Workplace",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="chemicals",
+        verbose_name="محل استقرار / انبار",
+    )
+    name = models.CharField(max_length=200, verbose_name="نام تجاری / شیمیایی ماده")
+    cas_number = models.CharField(max_length=64, blank=True, verbose_name="شماره CAS")
+    un_number = models.CharField(max_length=64, blank=True, verbose_name="کد بین‌المللی UN")
+    hazard_classification = models.CharField(
+        max_length=32,
+        choices=HazardClassification.choices,
+        default=HazardClassification.FLAMMABLE,
+        verbose_name="طبقه‌بندی خطر",
+    )
+    ghs_symbols = models.JSONField(default=list, blank=True, verbose_name="پیکتوگرام‌های GHS")
+    storage_location = models.CharField(max_length=200, blank=True, verbose_name="موقعیت دقیق نگهداری")
+    current_stock = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="موجودی فعلی")
+    unit = models.CharField(max_length=32, default="kg", verbose_name="واحد سنجش")
+    compatibility_group = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="گروه سازگاری برای جلوگیری از اختلاط و نگهداری در کنار مواد ناسازگار",
+        verbose_name="گروه سازگاری مواد",
+    )
+    sds_document_url = models.CharField(max_length=500, blank=True, verbose_name="لینک برگه اطلاعات ایمنی SDS")
+    ppe_requirements = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="مثال: {'gloves': 'دستکش نیتریل ضدحلال', 'respirator': 'ماسک نیم‌صورت با فیلتر بخارات آلی'}",
+        verbose_name="الزامات حفاظت فردی اختصاصی",
+    )
+    exposure_limit_oel = models.CharField(max_length=120, blank=True, verbose_name="حد مجاز مواجهه شغلی (OEL / TLV)")
+    fire_extinguishing_method = models.TextField(blank=True, verbose_name="روش اطفای حریق اختصاصی")
+    spill_response_procedure = models.TextField(blank=True, verbose_name="دستورالعمل مقابله با نشت یا پاشش")
+    is_active = models.BooleanField(default=True, verbose_name="فعال در مصرف")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "ماده شیمیایی"
+        verbose_name_plural = "فهرست مواد شیمیایی"
+
+    def __str__(self):
+        return f"{self.name} ({self.get_hazard_classification_display()}) — {self.current_stock} {self.unit}"
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if not self.traceability_chain_id:
+            tracking_code = f"TRC-CHM-{self.pk:04d}"
+            chain, _ = TraceabilityChain.objects.get_or_create(
+                organization=self.organization,
+                tracking_code=tracking_code,
+                defaults={
+                    "title": f"شناسنامه ماده شیمیایی: {self.name}",
+                    "origin_module": "chemicals",
+                    "origin_object_id": str(self.pk),
+                },
+            )
+            self.traceability_chain_id = tracking_code
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="organizations",
+                from_id=str(self.organization_id),
+                to_module="chemicals",
+                to_id=str(self.pk),
+                relation_type="direct",
+                description=f"ثبت ماده شیمیایی خطرناک {self.name} (CAS: {self.cas_number or 'ثبت‌نشده'})",
+            )
+            super().save(update_fields=["traceability_chain_id"])
+
+
+class EmergencyScenario(EnterpriseContextMixin, models.Model):
+    """
+    ماژول مدیریت شرایط اضطراری (Emergency Management)
+    تعریف سناریوهای حوادث فاجعه‌بار، سطوح واکنش و پیوند با خطرات و مواد شیمیایی
+    """
+    class SeverityTier(models.TextChoices):
+        TIER_1 = "tier_1", "سطح ۱ - محلی و کارگاهی (Local)"
+        TIER_2 = "tier_2", "سطح ۲ - سایت و مجتمع (Site-Wide)"
+        TIER_3 = "tier_3", "سطح ۳ - بحران فراسازمانی و شهری (Disaster)"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="emergency_scenarios",
+        verbose_name="سازمان",
+    )
+    workplace = models.ForeignKey(
+        "workplaces.Workplace",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="emergency_scenarios",
+        verbose_name="محل وقوع محتمل",
+    )
+    title = models.CharField(max_length=255, verbose_name="عنوان سناریوی بحران")
+    severity_tier = models.CharField(
+        max_length=32,
+        choices=SeverityTier.choices,
+        default=SeverityTier.TIER_1,
+        verbose_name="سطح بحران (Tier)",
+    )
+    muster_point = models.CharField(max_length=200, blank=True, verbose_name="محل تجمع ایمن (Muster Point)")
+    evacuation_route = models.CharField(max_length=255, blank=True, verbose_name="مسیر خروج اضطراری")
+    erp_summary = models.TextField(blank=True, verbose_name="خلاصه طرح واکنش در شرایط اضطراری (ERP)")
+    emergency_commander = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commanded_scenarios",
+        verbose_name="فرمانده صحنه / مسئول بحران",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["severity_tier", "title"]
+        verbose_name = "سناریوی اضطراری"
+        verbose_name_plural = "سناریوهای اضطراری"
+
+    def __str__(self):
+        return f"[{self.get_severity_tier_display()}] {self.title}"
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if not self.traceability_chain_id:
+            tracking_code = f"TRC-EMG-{self.pk:04d}"
+            chain, _ = TraceabilityChain.objects.get_or_create(
+                organization=self.organization,
+                tracking_code=tracking_code,
+                defaults={
+                    "title": f"سناریوی واکنش اضطراری: {self.title}",
+                    "origin_module": "emergency",
+                    "origin_object_id": str(self.pk),
+                },
+            )
+            self.traceability_chain_id = tracking_code
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="organizations",
+                from_id=str(self.organization_id),
+                to_module="emergency",
+                to_id=str(self.pk),
+                relation_type="direct",
+                description=f"تدوین سناریوی اضطراری {self.title} با سطح {self.get_severity_tier_display()}",
+            )
+            super().save(update_fields=["traceability_chain_id"])
+
+
+class EmergencyDrill(EnterpriseContextMixin, models.Model):
+    """
+    ثبت مانورهای واکنش اضطراری، زمان واکنش، ارزیابی موفقیت و ثبت درس‌آموخته‌ها
+    """
+    class SuccessRating(models.TextChoices):
+        EXCELLENT = "excellent", "عالی (کمتر از زمان هدف)"
+        SATISFACTORY = "satisfactory", "رضایت‌بخش (منطبق با زمان هدف)"
+        NEEDS_IMPROVEMENT = "needs_improvement", "نیازمند بهبود (فراتر از زمان هدف)"
+        FAILED = "failed", "ناموفق (عدم دستیابی به اهداف مانور)"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="emergency_drills",
+        verbose_name="سازمان",
+    )
+    scenario = models.ForeignKey(
+        EmergencyScenario,
+        on_delete=models.CASCADE,
+        related_name="drills",
+        verbose_name="سناریوی مانور",
+    )
+    drill_date = models.DateField(verbose_name="تاریخ برگزاری مانور")
+    response_time_minutes = models.PositiveIntegerField(default=5, verbose_name="زمان واکنش ثبت‌شده (دقیقه)")
+    target_response_time_minutes = models.PositiveIntegerField(default=5, verbose_name="زمان هدف استاندارد (دقیقه)")
+    participants_count = models.PositiveIntegerField(default=10, verbose_name="تعداد نیروهای شرکت‌کننده")
+    success_rating = models.CharField(
+        max_length=32,
+        choices=SuccessRating.choices,
+        default=SuccessRating.SATISFACTORY,
+        verbose_name="درجه موفقیت مانور",
+    )
+    identified_gaps = models.TextField(blank=True, verbose_name="نقاط ضعف و کمبودهای تجهیزاتی/عملیاتی")
+    lessons_learned = models.TextField(blank=True, verbose_name="درس‌آموخته‌ها و تجارب کسب‌شده")
+    related_capa = models.ForeignKey(
+        "capa.CorrectiveAction",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="drills",
+        verbose_name="اقدام اصلاحی رفع نقص مانور",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-drill_date"]
+        verbose_name = "مانور واکنش اضطراری"
+        verbose_name_plural = "مانورهای واکنش اضطراری"
+
+    def __str__(self):
+        return f"مانور {self.scenario.title} ({self.drill_date}) — {self.get_success_rating_display()}"
+
+
+class EmergencyResource(models.Model):
+    """
+    تجهیزات و منابع حیاتی واکنش در شرایط اضطراری
+    """
+    class ResourceType(models.TextChoices):
+        FIRE_TRUCK = "fire_truck", "خودروی آتش‌نشانی"
+        FOAM_CONCENTRATE = "foam_concentrate", "فوم اطفای حریق"
+        SCBA = "scba", "دستگاه تنفسی هوارسان SCBA"
+        AMBULANCE = "ambulance", "آمبولانس"
+        SPILL_KIT = "spill_kit", "کیت مقابله با نشت مواد شیمیایی"
+        FIRST_AID = "first_aid", "پست و جعبه کمک‌های اولیه"
+
+    class ReadinessStatus(models.TextChoices):
+        READY = "ready", "آماده‌به‌کار ۱۰۰٪"
+        MAINTENANCE = "maintenance", "تحت تعمیر و سرویس"
+        DEPLETED = "depleted", "کسری / نیازمند شارژ مجدد"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="emergency_resources",
+        verbose_name="سازمان",
+    )
+    resource_type = models.CharField(max_length=32, choices=ResourceType.choices, verbose_name="نوع منبع")
+    title = models.CharField(max_length=200, verbose_name="عنوان و شناسه منبع")
+    quantity = models.PositiveIntegerField(default=1, verbose_name="تعداد / حجم")
+    location = models.CharField(max_length=200, blank=True, verbose_name="محل استقرار")
+    readiness_status = models.CharField(
+        max_length=32,
+        choices=ReadinessStatus.choices,
+        default=ReadinessStatus.READY,
+        verbose_name="وضعیت آمادگی",
+    )
+    notes = models.TextField(blank=True, verbose_name="توضیحات و مشخصات فنی")
+
+    class Meta:
+        ordering = ["resource_type", "title"]
+        verbose_name = "منبع واکنش اضطراری"
+        verbose_name_plural = "منابع واکنش اضطراری"
+
+    def __str__(self):
+        return f"{self.title} ({self.quantity} واحد) — {self.get_readiness_status_display()}"
+
+
+class ResourceConsumptionRecord(EnterpriseContextMixin, models.Model):
+    """
+    پایش مصرف آب و انرژی و انتشار کربن (Environmental Sustainability)
+    """
+    class ResourceType(models.TextChoices):
+        ELECTRICITY = "electricity", "برق مصرفی (kWh)"
+        WATER = "water", "آب صنعتی / بهداشتی (m3)"
+        GAS = "natural_gas", "گاز طبیعی (m3)"
+        FUEL = "fuel", "سوخت گازوئیل / بنزین (Liter)"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="resource_consumptions",
+        verbose_name="سازمان",
+    )
+    workplace = models.ForeignKey(
+        "workplaces.Workplace",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resource_consumptions",
+        verbose_name="واحد مصرف‌کننده",
+    )
+    record_date = models.DateField(verbose_name="تاریخ ثبت مصرف")
+    resource_type = models.CharField(max_length=32, choices=ResourceType.choices, verbose_name="نوع منبع انرژی/آب")
+    quantity = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="مقدار مصرف")
+    carbon_equivalent_kg = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        verbose_name="معادل انتشار کربن (kg CO2e)",
+    )
+    notes = models.CharField(max_length=255, blank=True, verbose_name="توضیحات")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-record_date"]
+        verbose_name = "ثبت مصرف انرژی و منابع"
+        verbose_name_plural = "سوابق مصرف انرژی و منابع"
+
+    def __str__(self):
+        return f"{self.get_resource_type_display()}: {self.quantity} ({self.record_date})"

@@ -23,4 +23,14 @@ urlpatterns = [
         views.NonConformityEvidenceUploadView.as_view(),
         name="nonconformity-evidence",
     ),
+    path(
+        "<int:pk>/escalate-incident/",
+        views.NonConformityEscalateIncidentView.as_view(),
+        name="nonconformity-escalate-incident",
+    ),
+    path(
+        "<int:pk>/escalate-risk/",
+        views.NonConformityEscalateRiskView.as_view(),
+        name="nonconformity-escalate-risk",
+    ),
 ]

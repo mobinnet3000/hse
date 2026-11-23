@@ -44,11 +44,15 @@ class IncidentListSerializer(serializers.ModelSerializer):
     reported_by_name = serializers.SerializerMethodField()
     assigned_investigator_name = serializers.SerializerMethodField()
     capa_count = serializers.IntegerField(source="related_corrective_actions.count", read_only=True)
+    related_risk_register_code = serializers.CharField(source="related_risk_register.register_code", read_only=True, default=None)
+    related_permit_code = serializers.CharField(source="related_permit.reference_code", read_only=True, default=None)
+    related_anomaly_code = serializers.CharField(source="related_anomaly.reference_number", read_only=True, default=None)
 
     class Meta:
         model = Incident
         fields = [
             "id",
+            "incident_code",
             "organization",
             "organization_name",
             "workplace",
@@ -70,6 +74,21 @@ class IncidentListSerializer(serializers.ModelSerializer):
             "injury_count",
             "lost_time_days",
             "property_damage_cost",
+            "rca_method",
+            "direct_causes",
+            "root_cause",
+            "lessons_learned",
+            "related_risk_register",
+            "related_risk_register_code",
+            "related_permit",
+            "related_permit_code",
+            "related_anomaly",
+            "related_anomaly_code",
+            "traceability_chain_id",
+            "project_name",
+            "site_location",
+            "area",
+            "department",
             "capa_count",
             "is_synthetic",
             "created_at",
@@ -90,12 +109,16 @@ class IncidentDetailSerializer(serializers.ModelSerializer):
     incident_type_display = serializers.CharField(source="get_incident_type_display", read_only=True)
     severity_display = serializers.CharField(source="get_severity_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    rca_method_display = serializers.CharField(source="get_rca_method_display", read_only=True)
     organization_name = serializers.CharField(source="organization.name", read_only=True)
     workplace_name = serializers.CharField(source="workplace.name", read_only=True, default=None)
     equipment_name = serializers.CharField(source="equipment.name", read_only=True, default=None)
     reported_by_name = serializers.SerializerMethodField()
     assigned_investigator_name = serializers.SerializerMethodField()
     related_hazard_title = serializers.CharField(source="related_hazard.title", read_only=True, default=None)
+    related_risk_register_code = serializers.CharField(source="related_risk_register.register_code", read_only=True, default=None)
+    related_permit_code = serializers.CharField(source="related_permit.reference_code", read_only=True, default=None)
+    related_anomaly_code = serializers.CharField(source="related_anomaly.reference_number", read_only=True, default=None)
     related_corrective_actions = CorrectiveActionSerializer(many=True, read_only=True)
     attachments = IncidentAttachmentSerializer(many=True, read_only=True)
 
@@ -107,6 +130,7 @@ class IncidentDetailSerializer(serializers.ModelSerializer):
         model = Incident
         fields = [
             "id",
+            "incident_code",
             "organization",
             "organization_name",
             "workplace",
@@ -133,14 +157,35 @@ class IncidentDetailSerializer(serializers.ModelSerializer):
             "lost_time_days",
             "environmental_impact",
             "property_damage_cost",
+            "rca_method",
+            "rca_method_display",
+            "direct_causes",
             "root_cause",
             "contributing_factors",
+            "five_whys_data",
+            "lessons_learned",
+            "emergency_alert_dispatched",
             "investigation_completed_at",
             "review_notes",
             "closure_notes",
             "reopen_reason",
             "related_hazard",
             "related_hazard_title",
+            "related_risk_register",
+            "related_risk_register_code",
+            "related_permit",
+            "related_permit_code",
+            "related_anomaly",
+            "related_anomaly_code",
+            "traceability_chain_id",
+            "project_name",
+            "site_location",
+            "area",
+            "department",
+            "project_phase",
+            "operation_type",
+            "client_name",
+            "contractor_name",
             "related_corrective_actions",
             "attachments",
             "is_synthetic",
@@ -254,6 +299,15 @@ class IncidentInvestigationActionSerializer(serializers.Serializer):
     root_cause = serializers.CharField(required=True, allow_blank=False)
     contributing_factors = serializers.CharField(required=False, allow_blank=True, default="")
     immediate_actions_taken = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class IncidentRCASerializer(serializers.Serializer):
+    rca_method = serializers.ChoiceField(choices=Incident.RCAMethod.choices, default=Incident.RCAMethod.FIVE_WHYS)
+    direct_causes = serializers.CharField(required=False, allow_blank=True, default="")
+    root_cause = serializers.CharField(required=True, allow_blank=False)
+    contributing_factors = serializers.CharField(required=False, allow_blank=True, default="")
+    five_whys_data = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+    lessons_learned = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class IncidentLinkCapaActionSerializer(serializers.Serializer):

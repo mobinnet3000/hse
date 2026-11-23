@@ -13,10 +13,14 @@ class NonConformitySerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     source_display = serializers.CharField(source="get_source_display", read_only=True)
     anomaly_type_display = serializers.CharField(source="get_anomaly_type_display", read_only=True)
+    category_flag_display = serializers.CharField(source="get_category_flag_display", read_only=True)
     priority_display = serializers.CharField(source="get_priority_display", read_only=True)
     equipment_name = serializers.CharField(source="equipment.name", read_only=True, default=None)
     workplace_name = serializers.CharField(source="workplace.name", read_only=True, default=None)
     responsible_name = serializers.CharField(source="responsible.get_full_name", read_only=True, default=None)
+    related_risk_register_code = serializers.CharField(source="related_risk_register.register_code", read_only=True, default=None)
+    related_incident_code = serializers.CharField(source="related_incident.incident_code", read_only=True, default=None)
+    contractor_title = serializers.CharField(source="contractor.company_name", read_only=True, default=None)
     corrective_action_count = serializers.SerializerMethodField()
     is_overdue = serializers.BooleanField(read_only=True)
     evidences = AnomalyEvidenceSerializer(many=True, read_only=True)
@@ -36,6 +40,8 @@ class NonConformitySerializer(serializers.ModelSerializer):
             "description",
             "anomaly_type",
             "anomaly_type_display",
+            "category_flag",
+            "category_flag_display",
             "severity",
             "severity_display",
             "priority",
@@ -45,12 +51,31 @@ class NonConformitySerializer(serializers.ModelSerializer):
             "reporter_name",
             "location_details",
             "department",
+            "potential_likelihood",
+            "potential_severity",
             "risk_score",
             "immediate_containment",
             "target_deadline",
             "is_overdue",
             "responsible",
             "responsible_name",
+            "contractor",
+            "contractor_title",
+            "contractor_name",
+            "related_risk_register",
+            "related_risk_register_code",
+            "related_incident",
+            "related_incident_code",
+            "escalated_to_incident",
+            "escalated_to_risk",
+            "closure_notes",
+            "traceability_chain_id",
+            "project_name",
+            "site_location",
+            "area",
+            "project_phase",
+            "operation_type",
+            "client_name",
             "status",
             "status_display",
             "evidence_text",

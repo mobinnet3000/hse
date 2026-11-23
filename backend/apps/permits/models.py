@@ -1,9 +1,10 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from apps.core.mixins import EnterpriseContextMixin
 
 
-class Permit(models.Model):
+class Permit(EnterpriseContextMixin, models.Model):
     class PermitType(models.TextChoices):
         HOT_WORK = "hot_work", "کار گرم (شعله، جوشکاری و برش)"
         WORK_AT_HEIGHT = "work_at_height", "کار در ارتفاع"
@@ -187,6 +188,39 @@ class Permit(models.Model):
     resumption_notes = models.TextField(blank=True, help_text="توضیحات و رفع موانع حین ازسرگیری مجدد")
     closure_summary = models.TextField(blank=True)
 
+    # اتصالات ماتریس ۲۰ ماژول و اتصال مستقیم Risk -> PTW
+    related_risk_register = models.ForeignKey(
+        "risks.RiskRegister",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="permits",
+        help_text="اتصال مستقیم ریسک به مجوز کار (Direct: Risk -> PTW)"
+    )
+    jsa_document_ref = models.CharField(
+        max_length=200, blank=True, help_text="شماره یا مرجع سند تجزیه و تحلیل ایمنی شغلی (JSA)"
+    )
+    operational_constraints = models.TextField(
+        blank=True, help_text="محدودیت‌ها و شرایط ایمن الزامی حین اجرای عملیات"
+    )
+    cancellation_reason = models.TextField(blank=True, help_text="دلیل ابطال یا لغو مجوز کار")
+    suspended_at = models.DateTimeField(null=True, blank=True)
+    suspended_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        related_name="permits_suspended",
+        null=True,
+        blank=True,
+    )
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        related_name="permits_cancelled",
+        null=True,
+        blank=True,
+    )
+
     # SIMOPS Override Authorization
     simops_override_approved = models.BooleanField(
         default=False,
@@ -263,6 +297,75 @@ class Permit(models.Model):
 
         if self.scaffold_id and self.scaffold.organization_id != self.organization_id:
             raise ValidationError({"scaffold": "داربست باید متعلق به همان سازمان باشد."})
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+
+        if not self.traceability_chain_id:
+            from apps.core.traceability import TraceabilityChain, TraceabilityNode
+            parent_chain_id = None
+            if self.related_risk_register and self.related_risk_register.traceability_chain_id:
+                parent_chain_id = self.related_risk_register.traceability_chain_id
+
+            if parent_chain_id:
+                chain = TraceabilityChain.objects.filter(tracking_code=parent_chain_id).first()
+                if chain:
+                    TraceabilityNode.objects.get_or_create(
+                        chain=chain,
+                        from_module="risks",
+                        from_id=str(self.related_risk_register.register_code),
+                        to_module="permits",
+                        to_id=str(self.reference_code),
+                        defaults={
+                            "relation_type": "direct",
+                            "description": f"صدور مجوز کار مرتبط با رجیستر ریسک {self.related_risk_register.register_code}",
+                        }
+                    )
+                    self.traceability_chain_id = chain.tracking_code
+                    Permit.objects.filter(pk=self.pk).update(traceability_chain_id=chain.tracking_code)
+
+            if not self.traceability_chain_id:
+                chain_code = f"TRC-{self.reference_code}"
+                chain, _ = TraceabilityChain.objects.get_or_create(
+                    tracking_code=chain_code,
+                    defaults={
+                        "organization": self.organization,
+                        "title": f"مجوز کار: {self.title[:45]}",
+                        "origin_module": "permits",
+                        "origin_object_id": str(self.pk),
+                        "status": "active",
+                    }
+                )
+                TraceabilityNode.objects.get_or_create(
+                    chain=chain,
+                    from_module="work_request",
+                    from_id=str(self.requester_id or "requester"),
+                    to_module="permits",
+                    to_id=str(self.reference_code),
+                    defaults={
+                        "relation_type": "direct",
+                        "description": f"درخواست صدور مجوز کار با کد {self.reference_code}",
+                    }
+                )
+                self.traceability_chain_id = chain.tracking_code
+                Permit.objects.filter(pk=self.pk).update(traceability_chain_id=chain.tracking_code)
+
+        if is_new:
+            from apps.core.events import dispatch_hse_event, HSEEventRegistry
+            dispatch_hse_event(
+                event_name=HSEEventRegistry.PTW_REQUESTED,
+                sender_module="permits",
+                payload={
+                    "permit_id": self.id,
+                    "reference_code": self.reference_code,
+                    "permit_type": self.permit_type,
+                    "title": self.title,
+                    "traceability_chain_id": self.traceability_chain_id,
+                },
+                organization_id=self.organization_id,
+                actor=self.requester,
+            )
 
 
 class PermitTypeCompetencyRequirement(models.Model):

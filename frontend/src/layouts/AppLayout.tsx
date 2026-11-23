@@ -6,6 +6,7 @@ import { Sidebar } from "../components/layout/Sidebar";
 
 export type NavTab =
   | "all"
+  | "landing"
   | "dashboard"
   | "workspace"
   | "chat"
@@ -22,6 +23,7 @@ export type NavTab =
   | "assets"
   | "incidents"
   | "risks"
+  | "moc"
   | "inspections"
   | "reports"
   | "notifications"

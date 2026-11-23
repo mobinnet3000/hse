@@ -290,3 +290,234 @@ class RiskAssessmentTemplateSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
 
+
+
+# =====================================================================
+# Enterprise Risk Register (10-Step) Serializers
+# =====================================================================
+
+from .models import (
+    RiskRegister,
+    RiskActivityTask,
+    HazardSource,
+    RiskScenario,
+    RiskControl,
+    DimensionScoreSet,
+    RiskTreatmentAction,
+)
+from .services import RiskMatrixCalculator
+
+
+class DimensionScoreSetSerializer(serializers.ModelSerializer):
+    phase_display = serializers.CharField(source="get_phase_display", read_only=True)
+    dimension_display = serializers.CharField(source="get_dimension_display", read_only=True)
+
+    class Meta:
+        model = DimensionScoreSet
+        fields = [
+            "id",
+            "scenario",
+            "phase",
+            "phase_display",
+            "dimension",
+            "dimension_display",
+            "likelihood",
+            "severity",
+            "rpn",
+            "risk_level",
+            "target_rpn",
+            "created_at",
+        ]
+        read_only_fields = ["id", "rpn", "risk_level", "created_at"]
+
+
+class RiskControlSerializer(serializers.ModelSerializer):
+    hierarchy_display = serializers.CharField(source="get_hierarchy_display", read_only=True)
+
+    class Meta:
+        model = RiskControl
+        fields = [
+            "id",
+            "scenario",
+            "description",
+            "hierarchy",
+            "hierarchy_display",
+            "control_type",
+            "control_owner",
+            "inspection_frequency",
+            "is_effective",
+            "effectiveness_evidence",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class RiskTreatmentActionSerializer(serializers.ModelSerializer):
+    hierarchy_display = serializers.CharField(source="get_hierarchy_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    priority_display = serializers.CharField(source="get_priority_display", read_only=True)
+
+    class Meta:
+        model = RiskTreatmentAction
+        fields = [
+            "id",
+            "scenario",
+            "action_description",
+            "hierarchy",
+            "hierarchy_display",
+            "priority",
+            "priority_display",
+            "action_owner",
+            "due_date",
+            "status",
+            "status_display",
+            "completion_evidence",
+            "verification_result",
+            "verified_by",
+            "traceability_node_id",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class RiskScenarioSerializer(serializers.ModelSerializer):
+    existing_controls = RiskControlSerializer(many=True, read_only=True)
+    scores = DimensionScoreSetSerializer(many=True, read_only=True)
+    treatments = RiskTreatmentActionSerializer(many=True, read_only=True)
+    overall_current_risk = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RiskScenario
+        fields = [
+            "id",
+            "hazard",
+            "scenario_title",
+            "undesired_event",
+            "initiating_event",
+            "direct_causes",
+            "root_causes",
+            "escalation_factors",
+            "event_sequence",
+            "scenario_conditions",
+            "exposure_pathway",
+            "existing_controls",
+            "scores",
+            "treatments",
+            "overall_current_risk",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def get_overall_current_risk(self, obj):
+        return RiskMatrixCalculator.calculate_overall_scenario_risk(obj, phase="current")
+
+
+class HazardSourceSerializer(serializers.ModelSerializer):
+    domain_display = serializers.CharField(source="get_domain_display", read_only=True)
+    scenarios = RiskScenarioSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = HazardSource
+        fields = [
+            "id",
+            "activity_task",
+            "domain",
+            "domain_display",
+            "category",
+            "description",
+            "scenarios",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class RiskActivityTaskSerializer(serializers.ModelSerializer):
+    hazards = HazardSourceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = RiskActivityTask
+        fields = [
+            "id",
+            "register",
+            "activity_title",
+            "activity_description",
+            "task_name",
+            "job_steps",
+            "work_method",
+            "equipment",
+            "materials",
+            "personnel_count",
+            "competency",
+            "duration_frequency",
+            "simops",
+            "operating_conditions",
+            "hazards",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class RiskRegisterSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    created_by_name = serializers.CharField(source="created_by.get_full_name", read_only=True)
+    approved_by_name = serializers.CharField(source="approved_by.get_full_name", read_only=True)
+    activities_count = serializers.IntegerField(source="activities.count", read_only=True)
+
+    class Meta:
+        model = RiskRegister
+        fields = [
+            "id",
+            "organization",
+            "register_code",
+            "title",
+            "revision",
+            "status",
+            "status_display",
+            "assessment_date",
+            "next_review_date",
+            "project_name",
+            "department",
+            "site_location",
+            "area",
+            "project_phase",
+            "operation_type",
+            "client_name",
+            "contractor_name",
+            "traceability_chain_id",
+            "risk_acceptance_status",
+            "acceptance_authority",
+            "audit_trail_code",
+            "approval_notes",
+            "created_by",
+            "created_by_name",
+            "approved_by",
+            "approved_by_name",
+            "activities_count",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class FullRiskRegisterCreateSerializer(serializers.Serializer):
+    """
+    سریالایزر ساخت اتمیک پرونده ۱۱ مرحله‌ای
+    """
+    context = serializers.DictField()
+    activity = serializers.DictField(required=False, default=dict)
+    hazard = serializers.DictField(required=False, default=dict)
+    scenario = serializers.DictField(required=False, default=dict)
+    controls = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+    initial_scores = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+    current_scores = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+    residual_scores = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+    treatments = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+    governance = serializers.DictField(required=False, default=dict)
+
+
+class RiskRegisterDetailSerializer(RiskRegisterSerializer):
+    activities = RiskActivityTaskSerializer(many=True, read_only=True)
+
+    class Meta(RiskRegisterSerializer.Meta):
+        fields = RiskRegisterSerializer.Meta.fields + ["activities"]

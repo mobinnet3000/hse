@@ -148,6 +148,116 @@ def link_corrective_action_to_incident(*, incident: Incident, actor, corrective_
     return incident
 
 
+def record_rca_analysis(
+    *,
+    incident: Incident,
+    investigator,
+    rca_method: str = "5_whys",
+    direct_causes: str = "",
+    root_cause: str,
+    contributing_factors: str = "",
+    five_whys_data: list = None,
+    lessons_learned: str = "",
+):
+    """ثبت جامع تحلیل ریشه‌ای حادثه (RCA) و درس‌آموخته‌های ایمنی بر پایه ماتریس ارتباطات"""
+    if not can_investigate_incident(investigator, incident):
+        raise ValidationError("شما مجوز ثبت نتایج بررسی و علت‌یابی این حادثه را ندارید.")
+
+    if incident.status in {Incident.Status.CLOSED}:
+        raise ValidationError("امکان ویرایش بررسی حادثه مختومه‌شده وجود ندارد.")
+
+    if not root_cause.strip():
+        raise ValidationError("ثبت علت اصلی و ریشه‌ای حادثه (Root Cause) الزامی است.")
+
+    incident.rca_method = rca_method
+    incident.direct_causes = direct_causes.strip()
+    incident.root_cause = root_cause.strip()
+    incident.contributing_factors = contributing_factors.strip()
+    incident.five_whys_data = five_whys_data or []
+    incident.lessons_learned = lessons_learned.strip()
+    incident.investigation_completed_at = timezone.now()
+
+    if incident.status in {Incident.Status.REPORTED, Incident.Status.UNDER_REVIEW, Incident.Status.UNDER_INVESTIGATION}:
+        incident.status = Incident.Status.ACTION_REQUIRED
+
+    incident.save()
+
+    # ثبت گره ردیابی تحلیلی (Analytical Matrix Wiring)
+    if incident.traceability_chain_id:
+        from apps.core.traceability import TraceabilityChain, TraceabilityNode
+        chain = TraceabilityChain.objects.filter(tracking_code=incident.traceability_chain_id).first()
+        if chain:
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="incidents",
+                from_id=incident.incident_code,
+                to_module="rca_investigation",
+                to_id=f"RCA-{incident.incident_code}",
+                relation_type="analytical",
+                description=f"تحلیل علل ریشه‌ای حادثه به روش {incident.get_rca_method_display()} و استخراج درس‌آموخته‌ها",
+                actor=investigator,
+            )
+
+    from apps.core.events import dispatch_hse_event, HSEEventRegistry
+    dispatch_hse_event(
+        event_name=HSEEventRegistry.INCIDENT_RCA_COMPLETED,
+        sender_module="incidents",
+        payload={
+            "incident_id": incident.id,
+            "incident_code": incident.incident_code,
+            "rca_method": incident.rca_method,
+            "root_cause": incident.root_cause,
+            "lessons_learned": incident.lessons_learned,
+            "traceability_chain_id": incident.traceability_chain_id,
+        },
+        organization_id=incident.organization_id,
+        actor=investigator,
+    )
+
+    log_event(
+        organization=incident.organization,
+        actor=investigator,
+        action="incident.rca_completed",
+        entity_type="Incident",
+        entity_id=incident.id,
+        details={"rca_method": rca_method, "has_lessons": bool(incident.lessons_learned)},
+    )
+    return incident
+
+
+def link_risk_to_incident(*, incident: Incident, actor, risk_register):
+    if risk_register.organization_id != incident.organization_id:
+        raise ValidationError("رجیستر ریسک باید متعلق به همان سازمان حادثه باشد.")
+
+    incident.related_risk_register = risk_register
+    incident.save(update_fields=["related_risk_register", "updated_at"])
+
+    if incident.traceability_chain_id:
+        from apps.core.traceability import TraceabilityChain, TraceabilityNode
+        chain = TraceabilityChain.objects.filter(tracking_code=incident.traceability_chain_id).first()
+        if chain:
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="incidents",
+                from_id=incident.incident_code,
+                to_module="risks",
+                to_id=risk_register.register_code,
+                relation_type="direct",
+                description=f"اتصال مستقیم حادثه به رجیستر ریسک {risk_register.register_code} جهت بازنگری",
+                actor=actor,
+            )
+
+    log_event(
+        organization=incident.organization,
+        actor=actor,
+        action="incident.risk_linked",
+        entity_type="Incident",
+        entity_id=incident.id,
+        details={"risk_register_id": str(risk_register.id)},
+    )
+    return incident
+
+
 def close_incident(*, incident: Incident, user, closure_notes: str):
     """Closes an incident after verifying prerequisites."""
     if not can_manage_incidents(user, incident.organization_id):

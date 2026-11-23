@@ -7,6 +7,7 @@ urlpatterns = [
     path("equipment/stats/", views.EquipmentStatsView.as_view(), name="equipment-stats"),
     path("equipment/<int:pk>/", views.EquipmentDetailView.as_view(), name="equipment-detail"),
     path("equipment/<int:pk>/status/", views.EquipmentStatusView.as_view(), name="equipment-status"),
+    path("equipment/<int:pk>/trigger-inspection/", views.EquipmentTriggerInspectionView.as_view(), name="equipment-trigger-inspection"),
     path("maintenance-plans/", views.MaintenancePlanListCreateView.as_view(), name="maintenance-plan-list"),
     path("maintenance-plans/<int:pk>/", views.MaintenancePlanDetailView.as_view(), name="maintenance-plan-detail"),
     path("maintenance-work-orders/", views.MaintenanceWorkOrderListCreateView.as_view(), name="maintenance-work-order-list"),

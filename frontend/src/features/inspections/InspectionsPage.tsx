@@ -239,7 +239,9 @@ export function InspectionsPage() {
     setSaving(true);
     setFormError(null);
     try {
-      const updated = await completeInspection(selectedInspection.id);
+      const hasDefect = selectedInspection.responses?.some((r) => r.result === 'nonconform');
+      const overall = hasDefect ? 'fail' : 'pass';
+      const updated = await completeInspection(selectedInspection.id, { overall_result: overall });
       setSelectedInspection(updated);
       setInspections((items) => items.map((item) => (item.id === updated.id ? updated : item)));
     } catch (err) {
@@ -552,19 +554,31 @@ export function InspectionsPage() {
               <table className="data-table">
                 <thead>
                   <tr>
+                    <th>کد بازرسی</th>
                     <th>عنوان</th>
                     <th>وضعیت</th>
+                    <th>نتیجه کلی</th>
                     <th>پاسخ‌ها</th>
+                    <th>ردیابی</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
                   {inspections.map((inspection) => (
                     <tr key={inspection.id}>
+                      <td><code style={{ fontSize: "0.8rem", fontWeight: 700 }}>{inspection.inspection_code || `INS-${inspection.id}`}</code></td>
                       <td>{inspection.title}</td>
                       <td>{inspection.status_display}</td>
                       <td>
+                        <span style={{ color: inspection.overall_result === 'fail' ? 'var(--danger-fg)' : 'var(--success-fg)', fontWeight: 600 }}>
+                          {inspection.overall_result === 'fail' ? 'مردود / دارای نقص' : inspection.overall_result === 'conditional' ? 'مشروط' : 'تأیید کامل'}
+                        </span>
+                      </td>
+                      <td>
                         {inspection.answered_responses}/{inspection.total_responses}
+                      </td>
+                      <td>
+                        <code style={{ fontSize: "0.75rem" }}>{inspection.traceability_chain_id || "—"}</code>
                       </td>
                       <td>
                         <button

@@ -15,6 +15,7 @@ import {
   type ProactiveIndicatorsResponse,
   fetchOrganizations,
 } from "../../services/api";
+import { ExecutiveEcosystemSection } from "./ExecutiveEcosystemSection";
 import type { NavTab } from "../../layouts/AppLayout";
 import {
   ClipboardCheck,
@@ -415,6 +416,12 @@ export function DashboardPage({ onNavigate }: DashboardPageProps = {}) {
           </select>
         </div>
       </div>
+
+      {/* Phase 6: Executive 20-Module Ecosystem Monitor & KPI Engine */}
+      <ExecutiveEcosystemSection
+        organizationId={organizationId}
+        onNavigate={handleNavigate}
+      />
 
       {/* System Sections Navigation Hub / Launchpad */}
       <section className="dash-hub-section card" aria-label="درگاه بخش‌های سامانه">

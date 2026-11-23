@@ -101,6 +101,12 @@ def request_permit(organization: Organization, requester, data: dict) -> Permit:
         gas_testing_results=data.get("gas_testing_results", ""),
         isolation_loto_required=data.get("isolation_loto_required", False),
         isolation_loto_details=data.get("isolation_loto_details", ""),
+        related_risk_register=data.get("related_risk_register"),
+        jsa_document_ref=data.get("jsa_document_ref", ""),
+        operational_constraints=data.get("operational_constraints", ""),
+        project_name=data.get("project_name", ""),
+        site_location=data.get("site_location", ""),
+        area=data.get("area", ""),
         status=Permit.Status.REQUESTED,
         is_synthetic=data.get("is_synthetic", False),
     )
@@ -172,6 +178,37 @@ def approve_permit(permit: Permit, user, notes: str = "") -> Permit:
     if notes:
         permit.review_notes = (permit.review_notes + "\n" + notes).strip()
     permit.save(update_fields=["status", "approver", "review_notes", "updated_at"])
+
+    # ثبت گره ردیابی و انتشار رویداد
+    if permit.traceability_chain_id:
+        from apps.core.traceability import TraceabilityChain, TraceabilityNode
+        chain = TraceabilityChain.objects.filter(tracking_code=permit.traceability_chain_id).first()
+        if chain:
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="permits",
+                from_id=permit.reference_code,
+                to_module="permits",
+                to_id=f"{permit.reference_code}-APPROVED",
+                relation_type="approval_based",
+                description=f"تأیید و صدور مجوز کار توسط {user.username}",
+                actor=user,
+            )
+
+    from apps.core.events import dispatch_hse_event, HSEEventRegistry
+    dispatch_hse_event(
+        event_name=HSEEventRegistry.PTW_ISSUED,
+        sender_module="permits",
+        payload={
+            "permit_id": permit.id,
+            "reference_code": permit.reference_code,
+            "permit_type": permit.permit_type,
+            "approver": user.username,
+            "traceability_chain_id": permit.traceability_chain_id,
+        },
+        organization_id=permit.organization_id,
+        actor=user,
+    )
 
     log_event(
         organization=permit.organization,
@@ -462,6 +499,35 @@ def verify_controls_and_activate(permit: Permit, user, gas_results: str = "", lo
 
     permit.save()
 
+    # ثبت گره ردیابی و انتشار رویداد فعال‌سازی
+    if permit.traceability_chain_id:
+        from apps.core.traceability import TraceabilityChain, TraceabilityNode
+        chain = TraceabilityChain.objects.filter(tracking_code=permit.traceability_chain_id).first()
+        if chain:
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="permits",
+                from_id=permit.reference_code,
+                to_module="permits",
+                to_id=f"{permit.reference_code}-ACTIVE",
+                relation_type="direct",
+                description=f"فعال‌سازی مجوز کار و آغاز عملیات توسط {user.username}",
+                actor=user,
+            )
+
+    from apps.core.events import dispatch_hse_event, HSEEventRegistry
+    dispatch_hse_event(
+        event_name=HSEEventRegistry.PTW_ACTIVATED,
+        sender_module="permits",
+        payload={
+            "permit_id": permit.id,
+            "reference_code": permit.reference_code,
+            "traceability_chain_id": permit.traceability_chain_id,
+        },
+        organization_id=permit.organization_id,
+        actor=user,
+    )
+
     comp_status = gatekeeper.get("competency", {}).get("status")
     comp_compliant = (comp_status == "ok") or (comp_status is None)
     log_event(
@@ -494,7 +560,39 @@ def suspend_permit(permit: Permit, user, reason: str) -> Permit:
 
     permit.status = Permit.Status.SUSPENDED
     permit.suspension_reason = reason.strip()
-    permit.save(update_fields=["status", "suspension_reason", "updated_at"])
+    permit.suspended_at = timezone.now()
+    permit.suspended_by = user
+    permit.save(update_fields=["status", "suspension_reason", "suspended_at", "suspended_by", "updated_at"])
+
+    # ثبت گره ردیابی تعلیق (Event-Based)
+    if permit.traceability_chain_id:
+        from apps.core.traceability import TraceabilityChain, TraceabilityNode
+        chain = TraceabilityChain.objects.filter(tracking_code=permit.traceability_chain_id).first()
+        if chain:
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="permits",
+                from_id=permit.reference_code,
+                to_module="permits",
+                to_id=f"{permit.reference_code}-SUSPENDED",
+                relation_type="event_based",
+                description=f"تعلیق مجوز کار توسط {user.username}: {reason}",
+                actor=user,
+            )
+
+    from apps.core.events import dispatch_hse_event, HSEEventRegistry
+    dispatch_hse_event(
+        event_name=HSEEventRegistry.PTW_SUSPENDED,
+        sender_module="permits",
+        payload={
+            "permit_id": permit.id,
+            "reference_code": permit.reference_code,
+            "reason": reason,
+            "traceability_chain_id": permit.traceability_chain_id,
+        },
+        organization_id=permit.organization_id,
+        actor=user,
+    )
 
     log_event(
         organization=permit.organization,
@@ -525,7 +623,24 @@ def resume_permit(permit: Permit, user, resumption_notes: str = "") -> Permit:
         raise ValidationError(f"عدم امکان ازسرگیری به دلیل موانع ایمنی: {'; '.join(gatekeeper['blockers'])}")
 
     permit.status = Permit.Status.ACTIVE
-    permit.save(update_fields=["status", "resumption_notes", "updated_at"])
+    permit.suspended_at = None
+    permit.suspended_by = None
+    permit.save(update_fields=["status", "resumption_notes", "suspended_at", "suspended_by", "updated_at"])
+
+    # انتشار رویداد ازسرگیری
+    from apps.core.events import dispatch_hse_event, HSEEventRegistry
+    dispatch_hse_event(
+        event_name=HSEEventRegistry.PTW_ACTIVATED,
+        sender_module="permits",
+        payload={
+            "permit_id": permit.id,
+            "reference_code": permit.reference_code,
+            "resumed": True,
+            "traceability_chain_id": permit.traceability_chain_id,
+        },
+        organization_id=permit.organization_id,
+        actor=user,
+    )
 
     log_event(
         organization=permit.organization,
@@ -623,6 +738,35 @@ def close_permit(permit: Permit, user, closure_summary: str = "") -> Permit:
     permit.closure_summary = closure_summary or "کار پایان یافته، محوطه پاکسازی و خط تحویل گردید."
     permit.save(update_fields=["status", "closed_by", "closed_at", "closure_summary", "updated_at"])
 
+    # ثبت گره ردیابی و رویداد مختومه‌سازی
+    if permit.traceability_chain_id:
+        from apps.core.traceability import TraceabilityChain, TraceabilityNode
+        chain = TraceabilityChain.objects.filter(tracking_code=permit.traceability_chain_id).first()
+        if chain:
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="permits",
+                from_id=permit.reference_code,
+                to_module="permits",
+                to_id=f"{permit.reference_code}-CLOSED",
+                relation_type="approval_based",
+                description=f"مختومه‌سازی و تحویل کار تحت مجوز {permit.reference_code}",
+                actor=user,
+            )
+
+    from apps.core.events import dispatch_hse_event, HSEEventRegistry
+    dispatch_hse_event(
+        event_name=HSEEventRegistry.PTW_CLOSED,
+        sender_module="permits",
+        payload={
+            "permit_id": permit.id,
+            "reference_code": permit.reference_code,
+            "traceability_chain_id": permit.traceability_chain_id,
+        },
+        organization_id=permit.organization_id,
+        actor=user,
+    )
+
     log_event(
         organization=permit.organization,
         actor=user,
@@ -684,9 +828,42 @@ def cancel_permit(permit: Permit, user, reason: str = "") -> Permit:
         raise ValidationError("پس از فعال‌شدن کار، لغو مجوز فقط توسط کنترل‌کننده میدانی مجاز است.")
 
     permit.status = Permit.Status.CANCELLED
+    permit.cancellation_reason = reason.strip()
+    permit.cancelled_at = timezone.now()
+    permit.cancelled_by = user
     if reason:
         permit.review_notes = (permit.review_notes + f"\nدلیل لغو: {reason}").strip()
-    permit.save(update_fields=["status", "review_notes", "updated_at"])
+    permit.save(update_fields=["status", "cancellation_reason", "cancelled_at", "cancelled_by", "review_notes", "updated_at"])
+
+    # ثبت گره ردیابی ابطال و انتشار رویداد
+    if permit.traceability_chain_id:
+        from apps.core.traceability import TraceabilityChain, TraceabilityNode
+        chain = TraceabilityChain.objects.filter(tracking_code=permit.traceability_chain_id).first()
+        if chain:
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="permits",
+                from_id=permit.reference_code,
+                to_module="permits",
+                to_id=f"{permit.reference_code}-CANCELLED",
+                relation_type="event_based",
+                description=f"ابطال یا لغو مجوز کار توسط {user.username}: {reason}",
+                actor=user,
+            )
+
+    from apps.core.events import dispatch_hse_event, HSEEventRegistry
+    dispatch_hse_event(
+        event_name=HSEEventRegistry.PTW_CANCELLED,
+        sender_module="permits",
+        payload={
+            "permit_id": permit.id,
+            "reference_code": permit.reference_code,
+            "reason": reason,
+            "traceability_chain_id": permit.traceability_chain_id,
+        },
+        organization_id=permit.organization_id,
+        actor=user,
+    )
 
     log_event(
         organization=permit.organization,

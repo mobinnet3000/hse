@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/v1/checklists/", include("apps.checklists.urls")),
     path("api/v1/inspections/", include("apps.inspections.urls")),
     path("api/v1/non-conformities/", include("apps.findings.urls")),
+    path("api/v1/findings/", include("apps.findings.urls")),
     path("api/v1/findings/non-conformities/", include("apps.findings.urls")),
     path("api/v1/corrective-actions/", include("apps.capa.urls")),
     path("api/v1/notifications/", include("apps.notifications.urls")),
@@ -32,6 +33,7 @@ urlpatterns = [
     path("api/v1/surveys/", include("apps.surveys.urls")),
     path("api/v1/chat/", include("apps.chat.urls")),
     path("api/v1/fleet-energy/", include("apps.fleet_energy.urls")),
+    path("api/v1/moc/", include("apps.moc.urls")),
     path("api/v1/", include("apps.core.urls")),
 ]
 

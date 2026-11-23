@@ -6,6 +6,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from apps.core.mixins import EnterpriseContextMixin
+from apps.core.models import TraceabilityChain, TraceabilityNode
 
 
 COMPETENCY_DUE_SOON_DAYS = 30
@@ -351,7 +353,7 @@ class TrainingAttendance(models.Model):
         return self.assessment_result == self.AssessmentResult.PASSED
 
 
-class Competency(models.Model):
+class Competency(EnterpriseContextMixin, models.Model):
     organization = models.ForeignKey(
         "organizations.Organization",
         on_delete=models.CASCADE,
@@ -359,6 +361,14 @@ class Competency(models.Model):
     )
     code = models.CharField(max_length=64)
     name = models.CharField(max_length=200)
+    related_risk_register = models.ForeignKey(
+        "risks.RiskRegister",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="required_competencies",
+        verbose_name="رجیستر ریسک مرتبط با الزام صلاحیت",
+    )
     description = models.TextField(blank=True)
     allowed_activities = models.TextField(
         blank=True, help_text="فعالیت‌های مجاز یا انواع کاری که این صلاحیت پوشش می‌دهد."
@@ -400,6 +410,11 @@ class Competency(models.Model):
 
     def __str__(self):
         return f"{self.code} — {self.name}"
+
+    def save(self, *args, **kwargs):
+        if not self.traceability_chain_id:
+            self.traceability_chain_id = f"TRC-COMP-{self.code}"
+        super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         raise ValidationError(
@@ -644,7 +659,7 @@ class PPEStock(models.Model):
         return self.quantity_on_hand < self.quantity_minimum
 
 
-class PPEAssignment(models.Model):
+class PPEAssignment(EnterpriseContextMixin, models.Model):
     class Status(models.TextChoices):
         ACTIVE = "active", "در استفاده"
         RETURNED = "returned", "برگشت‌داده‌شده"
@@ -655,6 +670,24 @@ class PPEAssignment(models.Model):
         "organizations.Organization",
         on_delete=models.CASCADE,
         related_name="ppe_assignments",
+    )
+    related_risk_register = models.ForeignKey(
+        "risks.RiskRegister",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ppe_assignments",
+        verbose_name="رجیستر ریسک مبنای الزام PPE",
+    )
+    effectiveness_rating = models.CharField(
+        max_length=20,
+        default="effective",
+        choices=[
+            ("effective", "مؤثر و مناسب"),
+            ("needs_review", "نیازمند بازنگری ارگونومیک"),
+            ("inadequate", "ناکافی یا آسیب‌دیده"),
+        ],
+        verbose_name="ارزیابی اثربخشی در شرایط عملیاتی",
     )
     employee = models.ForeignKey(
         Employee, on_delete=models.PROTECT, related_name="ppe_assignments"
@@ -715,6 +748,7 @@ class PPEAssignment(models.Model):
         )
 
     def save(self, *args, **kwargs):
+        is_new = self._state.adding
         if (
             self.replacement_due_on is None
             and self.item_id
@@ -724,7 +758,37 @@ class PPEAssignment(models.Model):
             self.replacement_due_on = self.issued_on + timedelta(
                 days=self.item.replacement_interval_days
             )
+
+        if not self.traceability_chain_id:
+            now = timezone.now()
+            count = PPEAssignment.objects.filter(created_at__year=now.year).count() + 1
+            self.traceability_chain_id = f"TRC-PPE-{now.year}-{count:04d}"
+
         super().save(*args, **kwargs)
+
+        if is_new:
+            try:
+                from apps.core.traceability import TraceabilityChain, TraceabilityNode
+                chain, _ = TraceabilityChain.objects.get_or_create(
+                    organization=self.organization,
+                    tracking_code=self.traceability_chain_id,
+                    defaults={
+                        "title": f"ردیابی تخصیص PPE: {self.item.name} برای {self.employee.first_name} {self.employee.last_name}",
+                        "origin_module": "ppe",
+                        "origin_object_id": str(self.id),
+                    }
+                )
+                TraceabilityNode.objects.create(
+                    chain=chain,
+                    from_module="ppe",
+                    from_id=str(self.id),
+                    to_module="ppe",
+                    to_id=str(self.id),
+                    relation_type="direct",
+                    description=f"تحویل تجهیز حفاظت فردی {self.item.name}",
+                )
+            except Exception:
+                pass
 
     def clean(self):
         if self.employee_id and self.employee.organization_id != self.organization_id:
@@ -914,19 +978,31 @@ class EmployeeJobAssignment(models.Model):
             raise ValidationError({"end_date": "تاریخ پایان نمی‌تواند قبل از تاریخ شروع باشد."})
 
 
-class ContractorCompany(models.Model):
+class ContractorCompany(EnterpriseContextMixin, models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "در انتظار تایید"
         APPROVED = "approved", "تایید شده"
         SUSPENDED = "suspended", "تعلیق شده"
         BLACKLISTED = "blacklisted", "لیست سیاه"
 
+    class QualificationStatus(models.TextChoices):
+        QUALIFIED = "qualified", "واجد صلاحیت کامل"
+        CONDITIONAL = "conditional", "صلاحیت مشروط"
+        DISQUALIFIED = "disqualified", "عدم احراز صلاحیت"
+
     organization = models.ForeignKey(
         "organizations.Organization",
         on_delete=models.CASCADE,
         related_name="contractors",
     )
+    contractor_code = models.CharField(max_length=64, blank=True, db_index=True, verbose_name="کد پیمانکار")
     name = models.CharField(max_length=200)
+    qualification_status = models.CharField(
+        max_length=32,
+        choices=QualificationStatus.choices,
+        default=QualificationStatus.QUALIFIED,
+        verbose_name="وضعیت صلاحیت HSE",
+    )
     registration_no = models.CharField(max_length=64, blank=True)
     economic_code = models.CharField(max_length=64, blank=True)
     contact_person = models.CharField(max_length=120, blank=True)
@@ -964,6 +1040,34 @@ class ContractorCompany(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if not self.contractor_code:
+            self.contractor_code = f"CON-{self.pk:04d}"
+        if not self.traceability_chain_id:
+            tracking_code = f"TRC-CON-{self.pk:04d}"
+            chain, _ = TraceabilityChain.objects.get_or_create(
+                organization=self.organization,
+                tracking_code=tracking_code,
+                defaults={
+                    "title": f"زنجیره ردیابی پیمانکار: {self.name}",
+                    "origin_module": "contractors",
+                    "origin_object_id": str(self.pk),
+                },
+            )
+            self.traceability_chain_id = tracking_code
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="organizations",
+                from_id=str(self.organization_id),
+                to_module="contractors",
+                to_id=self.contractor_code,
+                relation_type="direct",
+                description=f"ثبت و ارزیابی صلاحیت پیمانکار: {self.name}",
+            )
+            super().save(update_fields=["contractor_code", "traceability_chain_id"])
 
 
 class ContractorDocument(models.Model):
@@ -1246,3 +1350,121 @@ class AttendanceRecord(models.Model):
         if self.check_out and self.check_out < self.check_in:
             raise ValidationError({"check_out": "زمان خروج نمی‌تواند قبل از زمان ورود باشد."})
 
+
+
+# ==============================================================================
+# Phase 4: Occupational Health & Confidential Medical Isolation
+# ==============================================================================
+
+class MedicalRecordConfidential(models.Model):
+    """
+    پرونده محرمانه پزشکی و طب کار (Strict Medical Isolation)
+    طبق ضوابط اخلاق پزشکی و امنیت داده‌های سلامت، دسترسی به این جدول تنها برای پزشک معتمد مجاز است.
+    """
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="confidential_medical_records",
+        verbose_name="کارمند",
+    )
+    examination_date = models.DateField(verbose_name="تاریخ معاینات طب کار")
+    clinical_diagnosis = models.TextField(blank=True, verbose_name="تشخیص بالینی و پزشکی (محرمانه)")
+    audiogram_data = models.JSONField(default=dict, blank=True, verbose_name="نتایج ادیومتری شنوایی‌سنجی")
+    spirometry_data = models.JSONField(default=dict, blank=True, verbose_name="نتایج اسپیرومتری تنفسی")
+    blood_test_data = models.JSONField(default=dict, blank=True, verbose_name="نتایج آزمایش خون و بیوشیمی")
+    physician_notes = models.TextField(blank=True, verbose_name="توصیه‌های محرمانه پزشک معاینه‌کننده")
+    physician_name = models.CharField(max_length=150, blank=True, verbose_name="نام پزشک طب کار")
+    doctor_license_no = models.CharField(max_length=64, blank=True, verbose_name="شماره نظام پزشکی")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-examination_date"]
+        verbose_name = "پرونده محرمانه پزشکی"
+        verbose_name_plural = "پرونده‌های محرمانه پزشکی"
+
+    def __str__(self):
+        return f"پرونده محرمانه #{self.pk} — {self.employee.full_name} ({self.examination_date})"
+
+
+class OccupationalHealthFitRecord(EnterpriseContextMixin, models.Model):
+    """
+    شناسنامه تناسب شغلی و محدودیت کاری (Operational Fit Record)
+    این مدل حاوی هیچ‌گونه داده تشخیصی پزشکی نیست و برای استفاده ماژول‌های PTW، PPE، Training و Risk کاملاً ایمن است.
+    """
+    class FitStatus(models.TextChoices):
+        FIT = "fit", "مناسب برای کار بدون محدودیت (Fit)"
+        FIT_WITH_RESTRICTION = "fit_with_restriction", "مناسب با اعمال محدودیت کاری (Fit with Restriction)"
+        TEMPORARILY_UNFIT = "temporarily_unfit", "عدم تناسب موقت / تحت درمان (Temporarily Unfit)"
+        PERMANENTLY_UNFIT = "permanently_unfit", "عدم تناسب دائم با شغل فعلی (Permanently Unfit)"
+
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="health_fit_records",
+        verbose_name="کارمند",
+    )
+    evaluation_date = models.DateField(default=timezone.localdate, verbose_name="تاریخ ارزیابی تناسب شغلی")
+    fit_status = models.CharField(
+        max_length=32,
+        choices=FitStatus.choices,
+        default=FitStatus.FIT,
+        verbose_name="وضعیت تناسب شغلی",
+    )
+    work_restrictions = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="محدودیت‌های کاری مجاز، مثال: {'no_height_work': true, 'no_heavy_lifting': true, 'no_confined_space': false}",
+        verbose_name="فهرست محدودیت‌های مجاز عملیاتی",
+    )
+    restriction_notes = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="توضیح محدودیت کاری به سرپرست کارگاه",
+    )
+    valid_until = models.DateField(null=True, blank=True, verbose_name="اعتبار تا تاریخ")
+    next_checkup_due = models.DateField(null=True, blank=True, verbose_name="سررسید پایش بعدی")
+    related_risk_register = models.ForeignKey(
+        "risks.RiskRegister",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="health_fit_records",
+        verbose_name="رجیستر ریسک متصل",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-evaluation_date"]
+        verbose_name = "شناسنامه تناسب شغلی"
+        verbose_name_plural = "شناسنامه‌های تناسب شغلی"
+
+    def __str__(self):
+        return f"{self.employee.full_name}: {self.get_fit_status_display()}"
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if not self.traceability_chain_id:
+            tracking_code = f"TRC-HLT-{self.pk:04d}"
+            chain, _ = TraceabilityChain.objects.get_or_create(
+                organization=self.employee.organization,
+                tracking_code=tracking_code,
+                defaults={
+                    "title": f"پایش سلامت و تناسب شغلی: {self.employee.full_name}",
+                    "origin_module": "occupational_health",
+                    "origin_object_id": str(self.pk),
+                },
+            )
+            self.traceability_chain_id = tracking_code
+            TraceabilityNode.objects.create(
+                chain=chain,
+                from_module="workforce",
+                from_id=str(self.employee_id),
+                to_module="occupational_health",
+                to_id=str(self.pk),
+                relation_type="direct",
+                description=f"ثبت تناسب شغلی ({self.get_fit_status_display()}) برای {self.employee.full_name}",
+            )
+            super().save(update_fields=["traceability_chain_id"])

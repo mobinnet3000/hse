@@ -4,13 +4,14 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
+from apps.core.mixins import EnterpriseContextMixin
 
 
 CALIBRATION_DUE_SOON_DAYS = 30
 MAINTENANCE_DUE_SOON_DAYS = 7
 
 
-class Equipment(models.Model):
+class Equipment(EnterpriseContextMixin, models.Model):
     class Category(models.TextChoices):
         FIRE_EXTINGUISHER = "fire_extinguisher", "خاموش‌کننده حریق"
         PPE = "ppe", "تجهیزات حفاظت فردی قابل ردیابی"
@@ -25,6 +26,32 @@ class Equipment(models.Model):
         UNDER_MAINTENANCE = "under_maintenance", "در حال سرویس/تعمیر"
         OUT_OF_SERVICE = "out_of_service", "خارج از سرویس"
         RETIRED = "retired", "بازنشسته"
+
+    class OperatingPermitStatus(models.TextChoices):
+        VALID = "valid", "دارای مجوز بهره‌برداری معتبر"
+        EXPIRED = "expired", "مجوز بهره‌برداری منقضی‌شده"
+        PENDING_INSPECTION = "pending_inspection", "در انتظار بازرسی فنی"
+        SUSPENDED = "suspended", "مجوز معلق‌شده"
+
+    class TechnicalClearance(models.TextChoices):
+        CLEARED = "cleared", "تأییدیه فنی کامل (بی‌خطر)"
+        CONDITIONAL = "conditional", "مشروط به رفع نقص جزیی"
+        BLOCKED = "blocked", "مسدودکننده عملیات (عدم تأیید فنی)"
+
+    operating_permit_status = models.CharField(
+        max_length=32,
+        choices=OperatingPermitStatus.choices,
+        default=OperatingPermitStatus.VALID,
+        verbose_name="وضعیت پروانه بهره‌برداری تجهیز",
+    )
+    technical_clearance = models.CharField(
+        max_length=32,
+        choices=TechnicalClearance.choices,
+        default=TechnicalClearance.CLEARED,
+        verbose_name="وضعیت ترخیص و تأییدیه فنی",
+    )
+    operating_permit_expires_on = models.DateField(null=True, blank=True, verbose_name="تاریخ انقضای مجوز بهره‌برداری")
+    health_notes = models.TextField(blank=True, verbose_name="یادداشت‌های پایش وضعیت سلامت تجهیز")
 
     organization = models.ForeignKey(
         "organizations.Organization",
@@ -101,6 +128,37 @@ class Equipment(models.Model):
                 raise ValidationError(
                     {"installation_date": "تاریخ نصب نمی‌تواند قبل از تاریخ خرید باشد."}
                 )
+
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        if not self.traceability_chain_id:
+            self.traceability_chain_id = f"TRC-EQP-{self.code}"
+
+        super().save(*args, **kwargs)
+
+        if is_new:
+            try:
+                from apps.core.traceability import TraceabilityChain, TraceabilityNode
+                chain, _ = TraceabilityChain.objects.get_or_create(
+                    organization=self.organization,
+                    tracking_code=self.traceability_chain_id,
+                    defaults={
+                        "title": f"شناسنامه و ردپای فنی تجهیز: {self.name} ({self.code})",
+                        "origin_module": "assets",
+                        "origin_object_id": str(self.code),
+                    }
+                )
+                TraceabilityNode.objects.create(
+                    chain=chain,
+                    from_module="assets",
+                    from_id=str(self.code),
+                    to_module="assets",
+                    to_id=str(self.code),
+                    relation_type="direct",
+                    description=f"ثبت و تعریف شناسنامه تجهیز {self.code}",
+                )
+            except Exception:
+                pass
 
     @property
     def latest_calibration(self):

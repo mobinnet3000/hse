@@ -21,6 +21,7 @@ import {
   fetchShiftSafetySummary,
   fetchSIMOPSRadar,
   fetchWorkplaces,
+  fetchRiskRegisters,
   overrideSIMOPSConflict,
   rejectPermit,
   resumePermit,
@@ -35,6 +36,7 @@ import {
   type PermitStatus,
   type PermitSummaryStats,
   type PermitType,
+  type RiskRegisterItem,
   type ShiftHandoverItem,
   type ShiftSafetySummary,
   type ShiftType,
@@ -1031,6 +1033,42 @@ export function PermitsPage() {
               <p style={{ margin: "0.3rem 0 0" }}>{selectedPermit.description}</p>
             </div>
 
+            {/* Cross-Module Integration: Risk & Traceability */}
+            <div style={{ background: "var(--bg-subtle)", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "0.75rem", marginBottom: "1rem", fontSize: "0.85rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                <strong style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  🔗 اتصال به زنجیره ردیابی و ارزیابی ریسک (Direct: Risk ➔ PTW)
+                </strong>
+                {selectedPermit.traceability_chain_id && (
+                  <span className="badge" style={{ background: "var(--primary-subtle)", color: "var(--primary-fg)", direction: "ltr", fontFamily: "monospace", fontSize: "0.8rem" }}>
+                    {selectedPermit.traceability_chain_id}
+                  </span>
+                )}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <div>
+                  <span className="muted">رجیستر ریسک مرجع:</span>{" "}
+                  {selectedPermit.related_risk_register_code ? (
+                    <span style={{ fontWeight: "bold", color: "var(--primary-fg)" }}>
+                      [{selectedPermit.related_risk_register_code}] {selectedPermit.related_risk_register ? `(شناسه: ${selectedPermit.related_risk_register})` : ""}
+                    </span>
+                  ) : (
+                    <span className="muted">مستقیماً به رجیستر ریسک متصل نشده است</span>
+                  )}
+                </div>
+                <div>
+                  <span className="muted">شماره / ارجاع سند JSA:</span>{" "}
+                  <strong>{selectedPermit.jsa_document_ref || "—"}</strong>
+                </div>
+              </div>
+              {selectedPermit.operational_constraints && (
+                <div style={{ marginTop: "0.5rem", borderTop: "1px dashed var(--border-default)", paddingTop: "0.4rem" }}>
+                  <span className="muted">محدودیت‌ها و شروط عملیاتی الزامی:</span>
+                  <p style={{ margin: "0.2rem 0 0", color: "var(--warning-fg)", fontWeight: "500" }}>{selectedPermit.operational_constraints}</p>
+                </div>
+              )}
+            </div>
+
             {/* Pre-Job Gatekeeper Safety Panel (Phase 13) */}
             <div style={{ border: "2px solid", borderColor: gatekeeperResult ? (gatekeeperResult.is_ready_for_activation ? "var(--success-border)" : "var(--danger-border)") : "var(--border-default)", borderRadius: "8px", padding: "1rem", marginBottom: "1rem", background: gatekeeperResult ? (gatekeeperResult.is_ready_for_activation ? "var(--success-subtle)" : "var(--danger-subtle)") : "var(--bg-subtle)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
@@ -1999,6 +2037,16 @@ interface CreatePermitModalProps {
 function CreatePermitModal({ organizationId, workplaces, contractors, onClose, onSuccess }: CreatePermitModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [riskRegisters, setRiskRegisters] = useState<RiskRegisterItem[]>([]);
+  const [riskLoading, setRiskLoading] = useState(false);
+
+  useEffect(() => {
+    setRiskLoading(true);
+    fetchRiskRegisters(organizationId)
+      .then(setRiskRegisters)
+      .catch(() => setRiskRegisters([]))
+      .finally(() => setRiskLoading(false));
+  }, [organizationId]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -2010,6 +2058,9 @@ function CreatePermitModal({ organizationId, workplaces, contractors, onClose, o
       organization: organizationId,
       workplace: fd.get("workplace") ? Number(fd.get("workplace")) : null,
       contractor: fd.get("contractor") ? Number(fd.get("contractor")) : null,
+      related_risk_register: fd.get("related_risk_register") ? Number(fd.get("related_risk_register")) : null,
+      jsa_document_ref: (fd.get("jsa_document_ref") as string) || "",
+      operational_constraints: (fd.get("operational_constraints") as string) || "",
       permit_type: fd.get("permit_type"),
       title: fd.get("title"),
       description: fd.get("description"),
@@ -2081,6 +2132,45 @@ function CreatePermitModal({ organizationId, workplaces, contractors, onClose, o
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Direct Risk & JSA Integration (Phase 2) */}
+          <div style={{ background: "var(--bg-subtle)", border: "1px solid var(--border-default)", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>
+            <div style={{ fontWeight: "bold", fontSize: "0.85rem", marginBottom: "0.5rem", color: "var(--primary-fg)" }}>
+              🔗 اتصال مستقیم به ارزیابی ریسک و تحلیل ایمنی شغل (Direct: Risk ➔ PTW)
+            </div>
+            <div style={{ marginBottom: "0.6rem" }}>
+              <label htmlFor="permit-risk-register" style={{ fontSize: "0.8rem" }}>رجیستر ریسک مرتبط (پایه صدور پروانه):</label>
+              <select id="permit-risk-register" name="related_risk_register" style={{ width: "100%", padding: "0.45rem", fontSize: "0.85rem" }}>
+                <option value="">(اختیاری) بدون اتصال مستقیم به رجیستر ریسک</option>
+                {riskRegisters.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    [{r.register_code}] {r.title} ({r.status_display})
+                  </option>
+                ))}
+              </select>
+              {riskLoading && <span className="muted" style={{ fontSize: "0.75rem" }}>در حال دریافت رجیسترهای ریسک...</span>}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+              <div>
+                <label style={{ fontSize: "0.8rem" }}>شماره / کد سند JSA:</label>
+                <input
+                  type="text"
+                  name="jsa_document_ref"
+                  placeholder="مثال: JSA-2026-HOT-008"
+                  style={{ width: "100%", padding: "0.4rem", fontSize: "0.85rem" }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: "0.8rem" }}>محدودیت‌ها و شرایط ایمن عملیاتی:</label>
+                <input
+                  type="text"
+                  name="operational_constraints"
+                  placeholder="مثال: تهویه دائم، عدم حضور افراد متفرقه..."
+                  style={{ width: "100%", padding: "0.4rem", fontSize: "0.85rem" }}
+                />
+              </div>
+            </div>
           </div>
 
           <div style={{ marginBottom: "1rem" }}>

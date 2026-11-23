@@ -1,8 +1,19 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 
 from . import views
 
+router = DefaultRouter()
+router.register(r"registers", views.RiskRegisterViewSet, basename="risk-register")
+router.register(r"activities", views.RiskActivityTaskViewSet, basename="risk-activity")
+router.register(r"hazard-sources", views.HazardSourceViewSet, basename="hazard-source")
+router.register(r"scenarios", views.RiskScenarioViewSet, basename="risk-scenario")
+router.register(r"controls", views.RiskControlViewSet, basename="risk-control")
+router.register(r"scores", views.DimensionScoreSetViewSet, basename="dimension-score")
+router.register(r"treatments", views.RiskTreatmentActionViewSet, basename="risk-treatment")
+
 urlpatterns = [
+    # Legacy routes
     path("", views.HazardListCreateView.as_view(), name="hazard-list"),
     path("<int:pk>/", views.HazardDetailView.as_view(), name="hazard-detail"),
     path(
@@ -27,4 +38,8 @@ urlpatterns = [
     path("hcms/<int:pk>/", views.HCMSControlMatrixDetailView.as_view(), name="hcms-detail"),
     path("templates/", views.RiskTemplateListView.as_view(), name="risk-template-list"),
     path("dashboard/summary/", views.RiskDashboardSummaryView.as_view(), name="risk-dashboard-summary"),
+
+    # Enterprise 10-Step Risk Register & 5x5 Matrix routes
+    path("matrix-5x5/", views.RiskMatrix5x5SummaryView.as_view(), name="risk-matrix-5x5"),
+    path("", include(router.urls)),
 ]

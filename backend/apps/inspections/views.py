@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from apps.auditlog.services import log_event
 from apps.checklists.models import Checklist
+from apps.core.events import HSEEventRegistry, event_bus
 from apps.core.access import (
     accessible_organization_ids,
     can_conduct_inspections,
@@ -353,9 +354,71 @@ class InspectionCompleteView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        failed_count = inspection.responses.filter(result="fail").count()
+        overall_result = None
+        if request.content_type:
+            try:
+                overall_result = request.data.get("overall_result")
+            except Exception:
+                overall_result = None
+        if not overall_result:
+            overall_result = "fail" if failed_count > 0 else "pass"
+
         inspection.status = Inspection.Status.COMPLETED
+        inspection.overall_result = overall_result
+        inspection.defects_count = failed_count
         inspection.completed_at = timezone.now()
-        inspection.save(update_fields=["status", "completed_at", "updated_at"])
+        inspection.save(update_fields=["status", "overall_result", "defects_count", "completed_at", "updated_at"])
+
+        # Bidirectional Equipment health/clearance update
+        if inspection.equipment:
+            eq = inspection.equipment
+            if overall_result == "fail":
+                eq.technical_clearance = "blocked"
+                eq.operating_permit_status = "suspended"
+                eq.health_notes = f"تعلیق مجوز به علت مردودی در بازرسی {inspection.inspection_code or inspection.pk}. نقص‌ها: {failed_count}"
+            elif overall_result == "conditional":
+                eq.technical_clearance = "conditional"
+                eq.operating_permit_status = "pending_inspection"
+                eq.health_notes = f"تایید مشروط در بازرسی {inspection.inspection_code or inspection.pk}"
+            else:
+                eq.technical_clearance = "cleared"
+                eq.operating_permit_status = "valid"
+                eq.health_notes = f"تایید صلاحیت فنی در بازرسی {inspection.inspection_code or inspection.pk}"
+            eq.save(update_fields=["technical_clearance", "operating_permit_status", "health_notes", "updated_at"])
+
+            event_bus.publish(
+                HSEEventRegistry.EQUIPMENT_STATUS_CHANGED,
+                {
+                    "equipment_id": eq.pk,
+                    "code": eq.code,
+                    "technical_clearance": eq.technical_clearance,
+                    "operating_permit_status": eq.operating_permit_status,
+                    "inspection_id": inspection.pk,
+                },
+            )
+
+        if failed_count > 0:
+            event_bus.publish(
+                HSEEventRegistry.INSPECTION_DEFECT_FOUND,
+                {
+                    "inspection_id": inspection.pk,
+                    "inspection_code": inspection.inspection_code,
+                    "equipment_id": inspection.equipment_id,
+                    "defects_count": failed_count,
+                },
+            )
+
+        event_bus.publish(
+            HSEEventRegistry.INSPECTION_COMPLETED,
+            {
+                "inspection_id": inspection.pk,
+                "inspection_code": inspection.inspection_code,
+                "overall_result": overall_result,
+                "defects_count": failed_count,
+            },
+        )
+
         log_event(
             organization=inspection.organization,
             actor=request.user,

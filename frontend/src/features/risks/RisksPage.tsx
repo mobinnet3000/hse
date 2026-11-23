@@ -1,3 +1,13 @@
+import { RiskMatrix5x5 } from "./components/RiskMatrix5x5";
+import { RiskWizardModal } from "./components/RiskWizardModal";
+import { RiskRegisterDetailDrawer } from "./components/RiskRegisterDetailDrawer";
+import {
+  fetchRiskRegisters,
+  fetchRiskMatrix5x5,
+  syncLegacyRisks,
+  type RiskRegisterItem,
+  type RiskMatrix5x5Summary,
+} from "../../services/api";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   ShieldAlert,
@@ -85,7 +95,16 @@ export function RisksPage() {
   const [hcmsControls, setHcmsControls] = useState<HCMSControl[]>([]);
   const [riskSummary, setRiskSummary] = useState<RiskDashboardSummary | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"matrix" | "bowtie" | "hcms" | "summary">("matrix");
+  const [activeTab, setActiveTab] = useState<"matrix" | "register" | "bowtie" | "hcms" | "summary">("matrix");
+  const [riskRegisters, setRiskRegisters] = useState<RiskRegisterItem[]>([]);
+  const [matrix5x5Data, setMatrix5x5Data] = useState<RiskMatrix5x5Summary | null>(null);
+  const [selectedDimension, setSelectedDimension] = useState<string>("all");
+  const [showWizardModal, setShowWizardModal] = useState<boolean>(false);
+  const [selectedRegisterId, setSelectedRegisterId] = useState<string | null>(null);
+  const [registerSearch, setRegisterSearch] = useState<string>("");
+  const [registerStatusFilter, setRegisterStatusFilter] = useState<string>("all");
+  const [syncingLegacy, setSyncingLegacy] = useState<boolean>(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({ category: "", level: "" });
@@ -170,6 +189,10 @@ export function RisksPage() {
 
     fetchHCMSControls(orgId, {}, signal)
       .then((items) => setHcmsControls(items || []))
+      .catch(() => {});
+
+    fetchRiskRegisters(orgId)
+      .then((items) => setRiskRegisters(items || []))
       .catch(() => {});
 
     fetchRiskDashboardSummary(orgId, signal)
@@ -450,6 +473,12 @@ export function RisksPage() {
       {/* Tabs */}
       <div className="tabs-nav" style={{ marginBottom: "1.5rem" }}>
         <button
+          className={`tab-btn ${activeTab === "register" ? "active" : ""}`}
+          onClick={() => setActiveTab("register")}
+        >
+          <ShieldAlert size={16} /> رجیستر ۱۱ مرحله‌ای ریسک (Risk Register HAER)
+        </button>
+        <button
           className={`tab-btn ${activeTab === "matrix" ? "active" : ""}`}
           onClick={() => setActiveTab("matrix")}
         >
@@ -477,6 +506,235 @@ export function RisksPage() {
 
       {loading && <p className="loading">در حال بارگذاری…</p>}
       {error && <p className="alert alert-error">{error}</p>}
+
+      {/* TAB 0: Enterprise 10-Step Risk Register & 5x5 Heatmap */}
+      {activeTab === "register" && organizationId !== null && (
+        <div className="space-y-6 rtl">
+          {/* Top Actions & KPI */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+            <div>
+              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-amber-400" />
+                <span>کارتابل جامع شناسایی و ارزیابی ریسک (Risk Register ۱۱ مرحله‌ای)</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                ثبت و ارزیابی سناریوهای ریسک طبق فرآیند استاندارد ۱۱ مرحله‌ای، ماتریس HAER و زنجیره ردیابی
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={syncingLegacy}
+                onClick={async () => {
+                  if (!organizationId) return;
+                  setSyncingLegacy(true);
+                  setSyncMessage(null);
+                  try {
+                    const res = await syncLegacyRisks(organizationId);
+                    setSyncMessage(`مهاجرت موفق: ${res.migrated_count} رکورد قدیمی به مدل ۱۱ مرحله‌ای منتقل شدند.`);
+                    fetchRiskRegisters(organizationId).then((data) => setRiskRegisters(data));
+                  } catch (err: unknown) {
+                    setSyncMessage(err instanceof Error ? err.message : "خطا در همگام‌سازی سوابق قدیمی");
+                  } finally {
+                    setSyncingLegacy(false);
+                  }
+                }}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 transition disabled:opacity-50"
+              >
+                {syncingLegacy ? "در حال همگام‌سازی..." : "همگام‌سازی سوابق قدیمی (Legacy Sync)"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowWizardModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-md shadow-amber-900/30 transition"
+              >
+                <Plus className="w-4 h-4" />
+                <span>تدوین ارزیابی ریسک جدید (ویزارد ۱۱ مرحله‌ای)</span>
+              </button>
+            </div>
+          </div>
+
+          {syncMessage && (
+            <div className="p-3 bg-emerald-950/60 border border-emerald-800 rounded-xl text-emerald-300 text-xs flex items-center justify-between">
+              <span>{syncMessage}</span>
+              <button onClick={() => setSyncMessage(null)} className="text-emerald-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Filter Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-900/60 border border-slate-800 rounded-2xl text-xs">
+            <div className="flex items-center gap-2 flex-1 max-w-md">
+              <input
+                type="text"
+                placeholder="جستجو بر اساس عنوان، کد ارزیابی، ناحیه یا واحد..."
+                value={registerSearch}
+                onChange={(e) => setRegisterSearch(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-slate-200"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400">وضعیت:</span>
+                <select
+                  value={registerStatusFilter}
+                  onChange={(e) => setRegisterStatusFilter(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-200"
+                >
+                  <option value="all">همه وضعیت‌ها</option>
+                  <option value="draft">پیش‌نویس</option>
+                  <option value="approved">تأییدشده</option>
+                  <option value="under_review">در حال بررسی</option>
+                </select>
+              </div>
+
+              <span className="text-slate-500 font-mono text-[11px]">
+                {riskRegisters.filter((r) => {
+                  const mSearch =
+                    !registerSearch ||
+                    r.title.toLowerCase().includes(registerSearch.toLowerCase()) ||
+                    r.register_code.toLowerCase().includes(registerSearch.toLowerCase()) ||
+                    (r.area && r.area.toLowerCase().includes(registerSearch.toLowerCase())) ||
+                    (r.department && r.department.toLowerCase().includes(registerSearch.toLowerCase()));
+                  const mStatus = registerStatusFilter === "all" || r.status === registerStatusFilter;
+                  return mSearch && mStatus;
+                }).length} مورد یافت شد
+              </span>
+            </div>
+          </div>
+
+          {/* 5x5 Matrix Component */}
+          <RiskMatrix5x5
+            data={matrix5x5Data}
+            loading={loading}
+            selectedDimension={selectedDimension}
+            onDimensionChange={(dim) => {
+              setSelectedDimension(dim);
+              if (organizationId) {
+                fetchRiskMatrix5x5(organizationId, dim).then((d) => setMatrix5x5Data(d));
+              }
+            }}
+          />
+
+          {/* Risk Registers Table */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+              <h3 className="text-sm font-bold text-slate-200">
+                پرونده‌های فعال ارزیابی ریسک ({riskRegisters.length})
+              </h3>
+              <span className="text-xs text-slate-400">
+                ایزولاسیون کامل سازمانی و زنجیره ردیابی فعال
+              </span>
+            </div>
+
+            {riskRegisters.length === 0 ? (
+              <div className="text-center py-12 text-slate-500 text-xs">
+                هنوز پرونده ارزیابی ریسکی برای این سازمان ثبت نشده است. روی دکمه «تدوین ارزیابی ریسک جدید» کلیک کنید.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th className="py-3 px-4 font-semibold">شناسه / کد</th>
+                      <th className="py-3 px-4 font-semibold">عنوان ارزیابی</th>
+                      <th className="py-3 px-4 font-semibold">پروژه / واحد</th>
+                      <th className="py-3 px-4 font-semibold">تعداد وظایف</th>
+                      <th className="py-3 px-4 font-semibold">زنجیره ردیابی</th>
+                      <th className="py-3 px-4 font-semibold">وضعیت چرخه عمر</th>
+                      <th className="py-3 px-4 font-semibold">تاریخ ارزیابی</th>
+                      <th className="py-3 px-4 font-semibold text-center">عملیات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {riskRegisters
+                      .filter((r) => {
+                        const mSearch =
+                          !registerSearch ||
+                          r.title.toLowerCase().includes(registerSearch.toLowerCase()) ||
+                          r.register_code.toLowerCase().includes(registerSearch.toLowerCase()) ||
+                          (r.area && r.area.toLowerCase().includes(registerSearch.toLowerCase())) ||
+                          (r.department && r.department.toLowerCase().includes(registerSearch.toLowerCase()));
+                        const mStatus = registerStatusFilter === "all" || r.status === registerStatusFilter;
+                        return mSearch && mStatus;
+                      })
+                      .map((reg) => (
+                      <tr key={reg.id} className="hover:bg-slate-800/40 transition">
+                        <td className="py-3 px-4 font-mono font-bold text-amber-400">
+                          {reg.register_code}
+                        </td>
+                        <td className="py-3 px-4 font-medium text-slate-200">
+                          {reg.title}
+                          <span className="mr-2 text-[10px] text-slate-500">v{reg.revision}</span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-300">
+                          {reg.project_name || "-"} / {reg.department || "-"}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-slate-300">
+                          {reg.activities_count} فعالیت
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[11px] text-blue-300">
+                          {reg.traceability_chain_id || `TRC-RSK-${reg.register_code.replace("RR-", "")}`}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                              reg.status === "approved"
+                                ? "bg-emerald-950/60 text-emerald-300 border-emerald-800"
+                                : "bg-amber-950/60 text-amber-300 border-amber-800"
+                            }`}
+                          >
+                            {reg.status_display}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-400 font-mono">
+                          {reg.assessment_date}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRegisterId(reg.id)}
+                            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium transition"
+                          >
+                            مشاهده ساختار ۱۱ مرحله‌ای
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Wizard Modal */}
+          <RiskWizardModal
+            organizationId={organizationId}
+            isOpen={showWizardModal}
+            onClose={() => setShowWizardModal(false)}
+            onSuccess={() => {
+              if (organizationId) {
+                fetchRiskRegisters(organizationId).then((items) => setRiskRegisters(items || []));
+                fetchRiskMatrix5x5(organizationId, selectedDimension).then((d) => setMatrix5x5Data(d));
+              }
+            }}
+          />
+
+          {/* Detail Drawer */}
+          <RiskRegisterDetailDrawer
+            registerId={selectedRegisterId}
+            onClose={() => setSelectedRegisterId(null)}
+            onApproveSuccess={() => {
+              if (organizationId) {
+                fetchRiskRegisters(organizationId).then((items) => setRiskRegisters(items || []));
+              }
+            }}
+          />
+        </div>
+      )}
 
       {/* TAB 1: Traditional Hazard Registry & Risk Matrix */}
       {activeTab === "matrix" && (

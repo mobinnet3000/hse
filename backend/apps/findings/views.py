@@ -473,3 +473,140 @@ class NonConformityEvidenceUploadView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
+
+class NonConformityEscalateIncidentView(APIView):
+    """
+    تبدیل و تشدید مستقیم ناهنجاری به پرونده حادثه / شبه‌حادثه (Automatic Matrix Wiring)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from apps.incidents.models import Incident
+        from apps.core.traceability import TraceabilityChain, TraceabilityNode
+        from apps.core.events import dispatch_hse_event, HSEEventRegistry
+
+        nc = NonConformity.objects.filter(pk=pk).first()
+        if nc is None or not can_view_organization(request.user, nc.organization_id):
+            return Response(NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+
+        if not can_conduct_inspections(request.user, nc.organization_id):
+            return Response(FORBIDDEN, status=status.HTTP_403_FORBIDDEN)
+
+        title = request.data.get("title") or f"حادثه ناشی از ناهنجاری {nc.reference_number}"
+        incident_type = request.data.get("incident_type") or (
+            Incident.IncidentType.NEAR_MISS if nc.anomaly_type == NonConformity.AnomalyType.NEAR_MISS else Incident.IncidentType.INCIDENT
+        )
+        severity = request.data.get("severity") or nc.severity
+
+        incident = Incident.objects.create(
+            organization=nc.organization,
+            workplace=nc.workplace,
+            equipment=nc.equipment,
+            title=title,
+            description=f"ارجاع خودکار از ناهنجاری {nc.reference_number}:\n{nc.description}",
+            incident_type=incident_type,
+            severity=severity,
+            occurred_at=timezone.now(),
+            reported_by=request.user,
+            location_details=nc.location_details,
+            department=nc.department,
+            project_name=nc.project_name,
+            site_location=nc.site_location,
+            area=nc.area,
+            related_anomaly=nc,
+            traceability_chain_id=nc.traceability_chain_id,
+        )
+
+        nc.escalated_to_incident = True
+        nc.related_incident = incident
+        nc.save()
+
+        # ثبت گره ردیابی با تبادل خودکار (Automatic)
+        if nc.traceability_chain_id:
+            chain = TraceabilityChain.objects.filter(tracking_code=nc.traceability_chain_id).first()
+            if chain:
+                TraceabilityNode.objects.create(
+                    chain=chain,
+                    from_module="anomalies",
+                    from_id=nc.reference_number,
+                    to_module="incidents",
+                    to_id=incident.incident_code,
+                    relation_type="automatic",
+                    description=f"تشدید ناهنجاری به حادثه رسمی {incident.incident_code}",
+                    actor=request.user,
+                )
+
+        dispatch_hse_event(
+            event_name=HSEEventRegistry.ANOMALY_ESCALATED_INCIDENT,
+            sender_module="findings",
+            payload={
+                "anomaly_id": nc.id,
+                "incident_id": incident.id,
+                "incident_code": incident.incident_code,
+                "traceability_chain_id": nc.traceability_chain_id,
+            },
+            organization_id=nc.organization_id,
+            actor=request.user,
+        )
+
+        from apps.incidents.serializers import IncidentDetailSerializer
+        return Response(IncidentDetailSerializer(incident).data, status=status.HTTP_201_CREATED)
+
+
+class NonConformityEscalateRiskView(APIView):
+    """
+    اتصال و ارجاع تحلیلی ناهنجاری به ماژول مدیریت ریسک (Analytical Matrix Wiring)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from apps.risks.models import RiskRegister, Hazard
+        from apps.core.traceability import TraceabilityChain, TraceabilityNode
+        from apps.core.events import dispatch_hse_event, HSEEventRegistry
+
+        nc = NonConformity.objects.filter(pk=pk).first()
+        if nc is None or not can_view_organization(request.user, nc.organization_id):
+            return Response(NOT_FOUND, status=status.HTTP_404_NOT_FOUND)
+
+        if not can_conduct_inspections(request.user, nc.organization_id):
+            return Response(FORBIDDEN, status=status.HTTP_403_FORBIDDEN)
+
+        risk_register_id = request.data.get("risk_register_id")
+        risk_register = None
+        if risk_register_id:
+            risk_register = RiskRegister.objects.filter(pk=risk_register_id, organization=nc.organization).first()
+
+        nc.escalated_to_risk = True
+        if risk_register:
+            nc.related_risk_register = risk_register
+        nc.save()
+
+        # ثبت گره ردیابی با تبادل تحلیلی (Analytical)
+        if nc.traceability_chain_id and risk_register:
+            chain = TraceabilityChain.objects.filter(tracking_code=nc.traceability_chain_id).first()
+            if chain:
+                TraceabilityNode.objects.create(
+                    chain=chain,
+                    from_module="anomalies",
+                    from_id=nc.reference_number,
+                    to_module="risks",
+                    to_id=risk_register.register_code,
+                    relation_type="analytical",
+                    description=f"ارجاع تحلیلی به رجیستر ریسک {risk_register.register_code}",
+                    actor=request.user,
+                )
+
+        dispatch_hse_event(
+            event_name=HSEEventRegistry.ANOMALY_LINKED_RISK,
+            sender_module="findings",
+            payload={
+                "anomaly_id": nc.id,
+                "risk_register_id": risk_register.id if risk_register else None,
+                "traceability_chain_id": nc.traceability_chain_id,
+            },
+            organization_id=nc.organization_id,
+            actor=request.user,
+        )
+
+        return Response(NonConformitySerializer(nc).data)
+

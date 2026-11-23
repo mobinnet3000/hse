@@ -270,6 +270,70 @@ class IncidentReopenView(APIView):
         return Response(IncidentDetailSerializer(updated, context={"request": request}).data)
 
 
+class IncidentRCAView(APIView):
+    """
+    ثبت جامع تحلیل ریشه‌ای (RCA - 5Whys / Fishbone) و درس‌آموخته‌های ایمنی
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from .serializers import IncidentRCASerializer
+        from .services import record_rca_analysis
+        user = request.user
+        incident = get_accessible_incident_or_404(pk, user)
+
+        serializer = IncidentRCASerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            updated = record_rca_analysis(
+                incident=incident,
+                investigator=user,
+                rca_method=serializer.validated_data.get("rca_method", "5_whys"),
+                direct_causes=serializer.validated_data.get("direct_causes", ""),
+                root_cause=serializer.validated_data["root_cause"],
+                contributing_factors=serializer.validated_data.get("contributing_factors", ""),
+                five_whys_data=serializer.validated_data.get("five_whys_data", []),
+                lessons_learned=serializer.validated_data.get("lessons_learned", ""),
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message if hasattr(exc, "message") else exc.messages)
+
+        return Response(IncidentDetailSerializer(updated, context={"request": request}).data)
+
+
+class IncidentLinkRiskView(APIView):
+    """
+    اتصال مستقیم حادثه به رجیستر ریسک جهت بازنگری ارزیابی ریسک (Direct / Event-Based)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from apps.risks.models import RiskRegister
+        from .services import link_risk_to_incident
+        user = request.user
+        incident = get_accessible_incident_or_404(pk, user)
+
+        risk_register_id = request.data.get("risk_register_id")
+        if not risk_register_id:
+            raise ValidationError({"risk_register_id": "شناسه رجیستر ریسک الزامی است."})
+
+        risk_register = RiskRegister.objects.filter(pk=risk_register_id, organization_id=incident.organization_id).first()
+        if not risk_register:
+            raise ValidationError({"risk_register_id": "رجیستر ریسک در این سازمان یافت نشد."})
+
+        try:
+            updated = link_risk_to_incident(
+                incident=incident,
+                actor=user,
+                risk_register=risk_register,
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message if hasattr(exc, "message") else exc.messages)
+
+        return Response(IncidentDetailSerializer(updated, context={"request": request}).data)
+
+
 class IncidentSummaryStatsView(APIView):
     permission_classes = [IsAuthenticated]
 

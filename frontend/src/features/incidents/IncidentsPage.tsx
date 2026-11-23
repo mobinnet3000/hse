@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, ArrowUpRight, BookOpen, Lightbulb, Link2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   ApiRequestError,
@@ -10,9 +10,11 @@ import {
   fetchIncidents,
   fetchIncidentStats,
   fetchOrganizations,
+  fetchRiskRegisters,
   fetchWorkplaces,
-  investigateIncident,
   linkIncidentCapa,
+  linkIncidentToRisk,
+  recordIncidentRCA,
   reopenIncident,
   reviewIncident,
   type CorrectiveAction,
@@ -25,6 +27,7 @@ import {
   type IncidentSummaryStats,
   type IncidentType,
   type Organization,
+  type RiskRegisterItem,
   type Workplace,
 } from "../../services/api";
 
@@ -94,8 +97,11 @@ export function IncidentsPage() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isInvestigateModalOpen, setIsInvestigateModalOpen] = useState(false);
   const [isLinkCapaModalOpen, setIsLinkCapaModalOpen] = useState(false);
+  const [isLinkRiskModalOpen, setIsLinkRiskModalOpen] = useState(false);
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   const [isReopenModalOpen, setIsReopenModalOpen] = useState(false);
+  const [riskRegisters, setRiskRegisters] = useState<RiskRegisterItem[]>([]);
+  const [selectedRiskRegisterId, setSelectedRiskRegisterId] = useState("");
 
   // Action forms state
   const [actionSubmitting, setActionSubmitting] = useState(false);
@@ -126,11 +132,20 @@ export function IncidentsPage() {
     review_notes: "",
   });
 
-  // Investigate form state
+  // Investigate & RCA form state (Phase 2 Comprehensive RCA Studio)
   const [investigateForm, setInvestigateForm] = useState({
+    rca_method: "5_whys",
+    direct_causes: "",
     root_cause: "",
     contributing_factors: "",
-    immediate_actions_taken: "",
+    five_whys_data: [
+      { why_number: 1, question: "چرا رویداد اتفاق افتاد؟", answer: "" },
+      { why_number: 2, question: "چرا این وضعیت پیش آمد؟", answer: "" },
+      { why_number: 3, question: "چرا مانع کنترلی عمل نکرد؟", answer: "" },
+      { why_number: 4, question: "چرا انحراف متوقف نشد؟", answer: "" },
+      { why_number: 5, question: "علت ریشه‌ای سیستمی چه بود؟", answer: "" },
+    ],
+    lessons_learned: "",
   });
 
   // Link CAPA form state
@@ -197,10 +212,12 @@ export function IncidentsPage() {
     Promise.all([
       fetchIncidents(params, controller.signal),
       fetchIncidentStats(organizationId || undefined, controller.signal),
+      organizationId ? fetchRiskRegisters(organizationId).catch(() => []) : Promise.resolve([]),
     ])
-      .then(([incList, statsData]) => {
+      .then(([incList, statsData, registers]) => {
         setIncidents(incList);
         setStats(statsData);
+        setRiskRegisters(registers || []);
         setLoading(false);
       })
       .catch((err) => {
@@ -229,9 +246,20 @@ export function IncidentsPage() {
         setDetailLoading(false);
         // Pre-fill forms with incident data
         setInvestigateForm({
+          rca_method: (detail as any).rca_method || "5_whys",
+          direct_causes: (detail as any).direct_causes || "",
           root_cause: detail.root_cause || "",
           contributing_factors: detail.contributing_factors || "",
-          immediate_actions_taken: detail.immediate_actions_taken || "",
+          five_whys_data: (detail as any).five_whys_data && (detail as any).five_whys_data.length > 0
+            ? (detail as any).five_whys_data
+            : [
+                { why_number: 1, question: "چرا رویداد اتفاق افتاد؟", answer: "" },
+                { why_number: 2, question: "چرا این وضعیت پیش آمد؟", answer: "" },
+                { why_number: 3, question: "چرا مانع کنترلی عمل نکرد؟", answer: "" },
+                { why_number: 4, question: "چرا انحراف متوقف نشد؟", answer: "" },
+                { why_number: 5, question: "علت ریشه‌ای سیستمی چه بود؟", answer: "" },
+              ],
+          lessons_learned: (detail as any).lessons_learned || "",
         });
         setReviewForm({
           status: "under_investigation",
@@ -308,7 +336,7 @@ export function IncidentsPage() {
     }
   };
 
-  // Submit Investigation
+  // Submit Comprehensive RCA Investigation
   const handleInvestigateSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedIncident) return;
@@ -316,9 +344,28 @@ export function IncidentsPage() {
     setActionError(null);
 
     try {
-      const updated = await investigateIncident(selectedIncident.id, investigateForm);
+      const updated = await recordIncidentRCA(selectedIncident.id, investigateForm);
       setSelectedIncident(updated);
       setIsInvestigateModalOpen(false);
+      setActionSubmitting(false);
+      loadData();
+    } catch (err) {
+      setActionError(errorMessage(err));
+      setActionSubmitting(false);
+    }
+  };
+
+  // Submit Link Risk Register
+  const handleLinkRiskSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedIncident || !selectedRiskRegisterId) return;
+    setActionSubmitting(true);
+    setActionError(null);
+
+    try {
+      const updated = await linkIncidentToRisk(selectedIncident.id, selectedRiskRegisterId);
+      setSelectedIncident(updated);
+      setIsLinkRiskModalOpen(false);
       setActionSubmitting(false);
       loadData();
     } catch (err) {
@@ -681,14 +728,50 @@ export function IncidentsPage() {
               </div>
               {selectedIncident.root_cause ? (
                 <div>
+                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.5rem" }}>
+                    <span style={{ fontSize: "0.75rem", background: "rgba(37, 99, 235, 0.12)", color: "#2563eb", padding: "0.15rem 0.5rem", borderRadius: "10px", fontWeight: 700 }}>
+                      متدولوژی: {selectedIncident.rca_method_display || selectedIncident.rca_method || "۵ چرا"}
+                    </span>
+                    {selectedIncident.investigation_completed_at && (
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
+                        تاریخ تکمیل: {new Date(selectedIncident.investigation_completed_at).toLocaleDateString("fa-IR")}
+                      </span>
+                    )}
+                  </div>
+                  {selectedIncident.direct_causes && (
+                    <div style={{ marginBottom: "0.5rem" }}>
+                      <strong style={{ color: "#d97706", fontSize: "0.85rem" }}>علل مستقیم و شرایط فوری:</strong>
+                      <p style={{ margin: "0.2rem 0", fontSize: "0.875rem" }}>{selectedIncident.direct_causes}</p>
+                    </div>
+                  )}
+                  {selectedIncident.five_whys_data && selectedIncident.five_whys_data.length > 0 && selectedIncident.five_whys_data.some(w => w.answer) && (
+                    <div style={{ background: "var(--bg-subtle)", padding: "0.5rem 0.75rem", borderRadius: "6px", marginBottom: "0.5rem" }}>
+                      <strong style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>مراحل ۵ چرا:</strong>
+                      <ul style={{ margin: "0.25rem 0 0", paddingRight: "1.2rem", fontSize: "0.8rem" }}>
+                        {selectedIncident.five_whys_data.map(w => w.answer ? (
+                          <li key={w.why_number} style={{ marginBottom: 2 }}>
+                            چرا {w.why_number}: {w.answer}
+                          </li>
+                        ) : null)}
+                      </ul>
+                    </div>
+                  )}
                   <div style={{ marginBottom: "0.5rem" }}>
                     <strong style={{ color: "var(--danger-fg)" }}>علت ریشه‌ای اصلی (Root Cause):</strong>
-                    <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>{selectedIncident.root_cause}</p>
+                    <p style={{ margin: "0.25rem 0", fontSize: "0.9rem", fontWeight: 600 }}>{selectedIncident.root_cause}</p>
                   </div>
                   {selectedIncident.contributing_factors && (
-                    <div>
+                    <div style={{ marginBottom: "0.5rem" }}>
                       <strong style={{ color: "var(--warning)" }}>عوامل کمکی و زمینه‌ساز:</strong>
-                      <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>{selectedIncident.contributing_factors}</p>
+                      <p style={{ margin: "0.25rem 0", fontSize: "0.85rem" }}>{selectedIncident.contributing_factors}</p>
+                    </div>
+                  )}
+                  {selectedIncident.lessons_learned && (
+                    <div style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "6px", padding: "0.75rem", marginTop: "0.5rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", color: "#059669", fontWeight: 700, fontSize: "0.85rem", marginBottom: 3 }}>
+                        <Lightbulb size={14} /> درس‌آموخته‌های ایمنی (Lessons Learned):
+                      </div>
+                      <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-primary)", lineHeight: "1.5" }}>{selectedIncident.lessons_learned}</p>
                     </div>
                   )}
                 </div>
@@ -697,6 +780,48 @@ export function IncidentsPage() {
                   هنوز تحلیل علت ریشه‌ای برای این حادثه ثبت نشده است.
                 </p>
               )}
+            </div>
+
+            {/* Matrix & Traceability Wiring Section */}
+            <div style={{ marginBottom: "1.25rem", border: "1px solid var(--border-strong)", borderRadius: "6px", padding: "1rem", background: "rgba(99, 102, 241, 0.03)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                <h3 style={{ fontSize: "1rem", color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <Link2 size={16} color="#6366f1" /> اتصالات بین‌ماژولی و زنجیره ردیابی
+                </h3>
+                {!selectedIncident.related_risk_register && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionError(null);
+                      setSelectedRiskRegisterId(riskRegisters[0]?.id || "");
+                      setIsLinkRiskModalOpen(true);
+                    }}
+                    style={{ background: "#2563eb", color: "#fff", border: "none", padding: "0.3rem 0.6rem", borderRadius: "4px", fontSize: "0.8rem", cursor: "pointer", fontWeight: 600 }}
+                  >
+                    + اتصال به رجیستر ریسک
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", fontSize: "0.8rem" }}>
+                <div>
+                  <span style={{ color: "var(--text-tertiary)" }}>کد ردیابی کلان: </span>
+                  <span style={{ fontFamily: "monospace", color: "#6366f1", fontWeight: 700 }}>{selectedIncident.traceability_chain_id || "—"}</span>
+                </div>
+                <div>
+                  <span style={{ color: "var(--text-tertiary)" }}>ناهنجاری مبدأ: </span>
+                  <strong>{selectedIncident.related_anomaly_code || "ندارد (ثبت مستقل)"}</strong>
+                </div>
+                <div>
+                  <span style={{ color: "var(--text-tertiary)" }}>مجوز کار مرتبط: </span>
+                  <strong>{selectedIncident.related_permit_code || "ندارد"}</strong>
+                </div>
+                <div>
+                  <span style={{ color: "var(--text-tertiary)" }}>رجیستر ریسک پیوندخورده: </span>
+                  <strong style={{ color: selectedIncident.related_risk_register_code ? "#2563eb" : "var(--text-muted)" }}>
+                    {selectedIncident.related_risk_register_code || "هنوز متصل نشده"}
+                  </strong>
+                </div>
+              </div>
             </div>
 
             {/* Linked CAPAs Section */}
@@ -996,39 +1121,154 @@ export function IncidentsPage() {
         </div>
       )}
 
-      {/* Investigate Modal */}
+      {/* Investigate & RCA Studio Modal */}
       {isInvestigateModalOpen && selectedIncident && (
         <div className="modal-overlay" onClick={() => setIsInvestigateModalOpen(false)}>
-          <form className="modal-container" style={{ maxWidth: "600px" }} onSubmit={handleInvestigateSubmit} onClick={(e) => e.stopPropagation()}>
+          <form className="modal-container" style={{ maxWidth: "700px", maxHeight: "90vh", overflowY: "auto" }} onSubmit={handleInvestigateSubmit} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">ثبت نتایج ریشه‌یابی و تحلیل علل (RCA) - پرونده #{selectedIncident.id}</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <BookOpen size={20} color="#2563eb" />
+                <h3 className="modal-title">استودیوی تحلیل ریشه‌ای (RCA) و درس‌آموخته‌ها — {selectedIncident.incident_code || `#${selectedIncident.id}`}</h3>
+              </div>
               <button type="button" className="modal-close-btn" onClick={() => setIsInvestigateModalOpen(false)} aria-label="بستن">
                 <X size={18} />
               </button>
             </div>
             {actionError && <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>{actionError}</div>}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>متدولوژی تحلیل علل ریشه‌ای (RCA Method)</label>
+                <select
+                  className="form-input"
+                  value={investigateForm.rca_method}
+                  onChange={(e) => setInvestigateForm({ ...investigateForm, rca_method: e.target.value })}
+                >
+                  <option value="5_whys">روش ۵ چرا (5-Whys)</option>
+                  <option value="fishbone">نمودار استخوان ماهی (Ishikawa)</option>
+                  <option value="scat">تکنیک تحلیل علت و معلول (SCAT)</option>
+                  <option value="taproot">متدولوژی ریشه‌یابی خطای انسانی (TapRooT)</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>علل مستقیم و شرایط فوری حادثه</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="مثال: لغزش پای اپراتور روی سطح آلوده به روغن"
+                  value={investigateForm.direct_causes}
+                  onChange={(e) => setInvestigateForm({ ...investigateForm, direct_causes: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* 5-Whys Interactive Builder */}
+            <div style={{ background: "var(--bg-subtle)", padding: "1rem", borderRadius: "8px", marginBottom: "1rem" }}>
+              <h4 style={{ margin: "0 0 0.75rem", fontSize: "0.9rem", color: "var(--text-primary)", fontWeight: 700 }}>
+                مراحل ۵ گانه استخراج علت (5-Whys Sequence)
+              </h4>
+              {investigateForm.five_whys_data.map((why, idx) => (
+                <div key={why.why_number} style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: "0.75rem", marginBottom: "0.5rem", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: 600 }}>
+                    چرای شماره {why.why_number}:
+                  </span>
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ fontSize: "0.85rem" }}
+                    placeholder={`پاسخ چرای ${why.why_number}...`}
+                    value={why.answer}
+                    onChange={(e) => {
+                      const updatedWhys = [...investigateForm.five_whys_data];
+                      updatedWhys[idx].answer = e.target.value;
+                      setInvestigateForm({ ...investigateForm, five_whys_data: updatedWhys });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
             <div className="form-group">
-              <label>علت ریشه‌ای وقوع (Root Cause - ۵ چرا) *</label>
+              <label>علت ریشه‌ای اصلی (Root Cause) *</label>
               <textarea
                 required
-                rows={4}
-                placeholder="تحلیل ریشه‌ای و پاسخ به ۵ چرا را وارد کنید..."
+                rows={3}
+                placeholder="علت بنیادین سیستمی، فنی یا سازمانی که باعث وقوع این رویداد گردید..."
                 value={investigateForm.root_cause}
                 onChange={(e) => setInvestigateForm({ ...investigateForm, root_cause: e.target.value })}
               />
             </div>
+
             <div className="form-group">
-              <label>عوامل کمکی و خطاهای زمینه‌ساز</label>
+              <label>عوامل کمکی، شرایط زمینه‌ساز و خطاهای انسانی (Contributing Factors)</label>
               <textarea
                 rows={2}
+                placeholder="خستگی پرسنل، روشنایی نامناسب، نبود دستورالعمل به‌روز..."
                 value={investigateForm.contributing_factors}
                 onChange={(e) => setInvestigateForm({ ...investigateForm, contributing_factors: e.target.value })}
               />
             </div>
+
+            <div className="form-group" style={{ background: "rgba(16, 185, 129, 0.08)", padding: "0.75rem", borderRadius: "8px", border: "1px dashed #10b981" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#059669", marginBottom: "0.4rem", fontWeight: 700, fontSize: "0.9rem" }}>
+                <Lightbulb size={16} />
+                <label style={{ margin: 0, color: "#059669" }}>درس‌آموخته‌های ایمنی قابل تعمیم (Lessons Learned)</label>
+              </div>
+              <textarea
+                rows={3}
+                placeholder="اقدامات و هشدارهای آموزنده جهت انتقال به سایر کارگاه‌ها، جلسات TBM و برنامه‌های آموزشی..."
+                value={investigateForm.lessons_learned}
+                onChange={(e) => setInvestigateForm({ ...investigateForm, lessons_learned: e.target.value })}
+              />
+            </div>
+
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setIsInvestigateModalOpen(false)}>انصراف</button>
-              <button type="submit" disabled={actionSubmitting} className="btn btn-primary">
-                {actionSubmitting ? "در حال ثبت…" : "ثبت ریشه‌یابی"}
+              <button type="submit" disabled={actionSubmitting} className="btn btn-primary" style={{ fontWeight: 700 }}>
+                {actionSubmitting ? "در حال ثبت…" : "ثبت و انتشار ریشه‌یابی"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Link Risk Register Modal */}
+      {isLinkRiskModalOpen && selectedIncident && (
+        <div className="modal-overlay" onClick={() => setIsLinkRiskModalOpen(false)}>
+          <form className="modal-container" style={{ maxWidth: "520px" }} onSubmit={handleLinkRiskSubmit} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <ArrowUpRight size={20} color="#2563eb" />
+                <h3 className="modal-title">اتصال مستقیم حادثه به رجیستر ریسک</h3>
+              </div>
+              <button type="button" className="modal-close-btn" onClick={() => setIsLinkRiskModalOpen(false)} aria-label="بستن">
+                <X size={18} />
+              </button>
+            </div>
+            {actionError && <div className="alert alert-danger" style={{ marginBottom: "1rem" }}>{actionError}</div>}
+            <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
+              اتصال حادثه {selectedIncident.incident_code || `#${selectedIncident.id}`} به رجیستر ریسک جهت بازنگری احتمال و شدت سناریوهای شناسایی‌شده در فاز ۱.
+            </p>
+            <div className="form-group">
+              <label>انتخاب رجیستر ریسک هدف *</label>
+              <select
+                required
+                className="form-input"
+                value={selectedRiskRegisterId}
+                onChange={(e) => setSelectedRiskRegisterId(e.target.value)}
+              >
+                <option value="">انتخاب رجیستر ریسک...</option>
+                {riskRegisters.map((rr) => (
+                  <option key={rr.id} value={rr.id}>
+                    [{rr.register_code}] {rr.title} — {rr.department || "عمومی"}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setIsLinkRiskModalOpen(false)}>انصراف</button>
+              <button type="submit" disabled={actionSubmitting || !selectedRiskRegisterId} className="btn btn-primary">
+                {actionSubmitting ? "در حال اتصال…" : "اتصال و به‌روزرسانی زنجیره ردیابی"}
               </button>
             </div>
           </form>

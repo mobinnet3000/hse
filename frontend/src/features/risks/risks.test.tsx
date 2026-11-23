@@ -96,6 +96,46 @@ const hcmsControl = {
   updated_at: "2026-10-26T00:00:00Z",
 };
 
+const sampleRiskRegister = {
+  id: "550e8400-e29b-41d4-a716-446655440000",
+  organization: 1,
+  register_code: "RR-2026-901",
+  title: "ارزیابی ورود به فضای بسته برج تقطیر",
+  revision: 1,
+  status: "approved",
+  status_display: "تأییدشده",
+  assessment_date: "2026-11-23",
+  next_review_date: "2027-11-23",
+  project_name: "پروژه الفین",
+  department: "بهره‌برداری",
+  site_location: "عسلویه",
+  area: "واحد ۱۰۲",
+  project_phase: "عملیات",
+  operation_type: "تعمیرات اساسی",
+  client_name: "شرکت ملی گاز",
+  contractor_name: "دماوند سازه",
+  created_by_name: "مدیر HSE",
+  approved_by_name: "رئیس مجتمع",
+  activities_count: 1,
+  traceability_chain_id: "TRC-RSK-2026-901",
+  audit_trail_code: "AUD-RR-2026-901-ABCDEF",
+  created_at: "2026-11-23T00:00:00Z",
+  updated_at: "2026-11-23T00:00:00Z",
+};
+
+const sampleMatrix5x5 = {
+  dimension: "all",
+  phase: "current",
+  total_assessments: 4,
+  total_scenarios: 1,
+  levels: { low: 2, medium: 1, high: 1, critical: 0 },
+  cells: [
+    { likelihood: 1, severity: 1, rpn: 1, level: "low", count: 2 },
+    { likelihood: 2, severity: 3, rpn: 6, level: "medium", count: 1 },
+    { likelihood: 2, severity: 5, rpn: 10, level: "high", count: 1 },
+  ],
+};
+
 const riskSummary = {
   total_hazards: 1,
   reassessment_needed_count: 0,
@@ -116,6 +156,8 @@ describe("RisksPage — Phase 11 BowTie & HCMS", () => {
         "/workplaces/": () => jsonResponse([{ id: 1, name: "کارگاه نورد", code: "w1" }]),
         "/risks/": () => jsonResponse([hazard]),
         "/risks/assessments/": () => jsonResponse([]),
+        "/risks/registers/": () => jsonResponse([sampleRiskRegister]),
+        "/risks/matrix-5x5/": () => jsonResponse(sampleMatrix5x5),
         "/risks/bowtie/": () => jsonResponse([bowtieDiagram]),
         "/risks/hcms/": () => jsonResponse([hcmsControl]),
         "/risks/dashboard/summary/": () => jsonResponse(riskSummary),
@@ -166,5 +208,28 @@ describe("RisksPage — Phase 11 BowTie & HCMS", () => {
     expect(await screen.findByText("تعداد نمودارهای پاپیونی")).toBeInTheDocument();
     expect(screen.getByText("موانع ایمنی بحرانی (SCE)")).toBeInTheDocument();
     expect(screen.getByText("توصیه‌های ایمنی فرآیند و تحلیل یکپارچگی موانع")).toBeInTheDocument();
+  });
+
+  it("switches to 11-step Risk Register tab, renders registers list with traceability and opens 11-step studio", async () => {
+    const user = userEvent.setup();
+    render(<RisksPage />);
+
+    // Click on 11-step Register tab
+    const registerTab = await screen.findByRole("button", { name: /رجیستر ۱۱ مرحله‌ای ریسک/i });
+    await user.click(registerTab);
+
+    // Verify register item rendered
+    expect(await screen.findByText("RR-2026-901")).toBeInTheDocument();
+    expect(screen.getByText("ارزیابی ورود به فضای بسته برج تقطیر")).toBeInTheDocument();
+    expect(screen.getByText("TRC-RSK-2026-901")).toBeInTheDocument();
+
+    // Verify button to open 11-step wizard studio
+    const openWizardBtn = screen.getByRole("button", { name: /تدوین ارزیابی ریسک جدید/i });
+    expect(openWizardBtn).toBeInTheDocument();
+    await user.click(openWizardBtn);
+
+    // Verify 11-step studio modal title and step navigation
+    expect(await screen.findByText(/استودیوی تدوین رجیستر ریسک/i)).toBeInTheDocument();
+    expect(screen.getByText(/مرحله ۱: اطلاعات سازمانی و محدوده ارزیابی/i)).toBeInTheDocument();
   });
 });

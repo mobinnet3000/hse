@@ -47,4 +47,7 @@ urlpatterns = [
     path("attendance/", views.AttendanceRecordListCreateView.as_view(), name="attendance-list"),
     path("attendance/<int:pk>/", views.AttendanceRecordDetailView.as_view(), name="attendance-detail"),
     path("attendance/roster/", views.AttendanceRosterView.as_view(), name="attendance-roster"),
+    # Occupational Health & Medical Confidentiality
+    path("health/fit-status/", views.OccupationalHealthFitListCreateView.as_view(), name="health-fit-list"),
+    path("health/confidential/", views.MedicalRecordConfidentialView.as_view(), name="health-confidential-list"),
 ]

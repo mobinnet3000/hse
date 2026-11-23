@@ -49,6 +49,7 @@ class PermitListSerializer(serializers.ModelSerializer):
     requester_name = serializers.SerializerMethodField()
     approver_name = serializers.SerializerMethodField()
     contractor_name = serializers.CharField(source="contractor.name", read_only=True, default=None)
+    related_risk_register_code = serializers.CharField(source="related_risk_register.register_code", read_only=True, default=None)
     is_expired = serializers.SerializerMethodField()
 
     class Meta:
@@ -79,6 +80,15 @@ class PermitListSerializer(serializers.ModelSerializer):
             "controls_verified",
             "gas_testing_required",
             "isolation_loto_required",
+            "related_risk_register",
+            "related_risk_register_code",
+            "jsa_document_ref",
+            "operational_constraints",
+            "traceability_chain_id",
+            "project_name",
+            "site_location",
+            "area",
+            "department",
             "is_expired",
             "is_synthetic",
             "created_at",
@@ -138,11 +148,14 @@ class PermitDetailSerializer(PermitListSerializer):
             "review_notes",
             "rejection_reason",
             "suspension_reason",
+            "cancellation_reason",
             "resumption_notes",
             "closure_summary",
             "closed_by",
             "closed_by_name",
             "closed_at",
+            "suspended_at",
+            "cancelled_at",
             "weather_notes",
             "simops_override_approved",
             "simops_override_reason",
@@ -280,6 +293,13 @@ class PermitCreateSerializer(serializers.ModelSerializer):
             "gas_testing_results",
             "isolation_loto_required",
             "isolation_loto_details",
+            "related_risk_register",
+            "jsa_document_ref",
+            "operational_constraints",
+            "project_name",
+            "site_location",
+            "area",
+            "department",
             "related_hazard_ids",
             "is_synthetic",
         ]

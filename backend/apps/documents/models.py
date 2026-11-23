@@ -387,6 +387,7 @@ class DocumentLink(models.Model):
         SCAFFOLD = "scaffold", "داربست (Scaffold)"
         ENVIRONMENTAL_ASPECT = "environmental_aspect", "جنبه زیست‌محیطی (Environmental Aspect)"
         CONTRACTOR = "contractor", "پیمانکار (Contractor)"
+        MOC = "moc", "مدیریت تغییرات (Management of Change - MOC)"
         OTHER = "other", "سایر ماژول‌ها"
 
     document = models.ForeignKey(

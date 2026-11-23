@@ -512,6 +512,10 @@ export type Inspection = {
   completed_at: string | null;
   status: 'draft' | 'in_progress' | 'completed' | 'cancelled';
   status_display: string;
+  inspection_code?: string;
+  overall_result?: 'pass' | 'conditional' | 'fail';
+  defects_count?: number;
+  traceability_chain_id?: string;
   notes: string;
   total_responses: number;
   answered_responses: number;
@@ -526,6 +530,8 @@ export type NonConformity = {
   description: string;
   anomaly_type?: string;
   anomaly_type_display?: string;
+  category_flag?: 'safety' | 'health' | 'environment' | 'ppe' | 'procedural';
+  category_flag_display?: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   severity_display: string;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
@@ -535,11 +541,26 @@ export type NonConformity = {
   reporter_name?: string;
   location_details?: string;
   department?: string;
+  potential_likelihood?: number;
+  potential_severity?: number;
   risk_score?: number;
   immediate_containment?: string;
   target_deadline?: string | null;
   responsible: number | null;
   responsible_detail?: { id: number; full_name?: string; username: string };
+  contractor?: number | null;
+  contractor_title?: string | null;
+  related_risk_register?: string | null;
+  related_risk_register_code?: string | null;
+  related_incident?: number | null;
+  related_incident_code?: string | null;
+  escalated_to_incident?: boolean;
+  escalated_to_risk?: boolean;
+  closure_notes?: string;
+  traceability_chain_id?: string;
+  project_name?: string;
+  site_location?: string;
+  area?: string;
   status: 'open' | 'in_progress' | 'ready_for_review' | 'closed';
   status_display: string;
   evidence_text: string;
@@ -592,8 +613,23 @@ export function updateInspection(id: number, data: Record<string, unknown>) {
     body: JSON.stringify(data),
   });
 }
-export function completeInspection(id: number) {
-  return request<Inspection>(`/inspections/${id}/complete/`, { method: 'POST' });
+export function completeInspection(id: number, data?: { overall_result?: string }) {
+  return request<Inspection>(`/inspections/${id}/complete/`, {
+    method: 'POST',
+    body: data ? JSON.stringify(data) : undefined,
+  });
+}
+export function triggerEquipmentInspection(equipmentId: number, data?: { checklist_id?: number; title?: string; notes?: string }) {
+  return request<{
+    message: string;
+    inspection_id: number;
+    inspection_code: string;
+    equipment_id: number;
+    operating_permit_status: string;
+  }>(`/assets/equipment/${equipmentId}/trigger-inspection/`, {
+    method: 'POST',
+    body: data ? JSON.stringify(data) : undefined,
+  });
 }
 export function updateInspectionResponse(id: number, data: Record<string, unknown>) {
   return request<InspectionResponse>(`/inspections/responses/${id}/`, {
@@ -939,6 +975,7 @@ export type IncidentAttachment = {
 
 export type IncidentListItem = {
   id: number;
+  incident_code?: string;
   organization: number;
   organization_name: string;
   workplace?: number | null;
@@ -957,6 +994,22 @@ export type IncidentListItem = {
   assigned_investigator_name?: string | null;
   injury_count: number;
   lost_time_days: number;
+  property_damage_cost?: string | number | null;
+  rca_method?: "5_whys" | "fishbone" | "scat" | "taproot";
+  direct_causes?: string;
+  root_cause?: string;
+  lessons_learned?: string;
+  related_risk_register?: string | null;
+  related_risk_register_code?: string | null;
+  related_permit?: number | null;
+  related_permit_code?: string | null;
+  related_anomaly?: number | null;
+  related_anomaly_code?: string | null;
+  traceability_chain_id?: string;
+  project_name?: string;
+  site_location?: string;
+  area?: string;
+  department?: string;
   capa_count: number;
   is_synthetic: boolean;
   created_at: string;
@@ -968,8 +1021,14 @@ export type IncidentDetail = IncidentListItem & {
   immediate_actions_taken: string;
   environmental_impact: string;
   property_damage_cost: string | number | null;
+  rca_method?: "5_whys" | "fishbone" | "scat" | "taproot";
+  rca_method_display?: string;
+  direct_causes?: string;
   root_cause: string;
   contributing_factors: string;
+  five_whys_data?: Array<{ why_number: number; question: string; answer: string }>;
+  lessons_learned?: string;
+  emergency_alert_dispatched?: boolean;
   investigation_completed_at?: string | null;
   review_notes: string;
   closure_notes: string;
@@ -1080,6 +1139,30 @@ export function investigateIncident(
   });
 }
 
+export function recordIncidentRCA(
+  id: number,
+  data: {
+    rca_method?: string;
+    direct_causes?: string;
+    root_cause: string;
+    contributing_factors?: string;
+    five_whys_data?: Array<{ why_number: number; question: string; answer: string }>;
+    lessons_learned?: string;
+  }
+) {
+  return request<IncidentDetail>(`/incidents/${id}/rca/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function linkIncidentToRisk(id: number, riskRegisterId: string) {
+  return request<IncidentDetail>(`/incidents/${id}/link-risk/`, {
+    method: "POST",
+    body: JSON.stringify({ risk_register_id: riskRegisterId }),
+  });
+}
+
 export function linkIncidentCapa(id: number, correctiveActionId: number) {
   return request<IncidentDetail>(`/incidents/${id}/link-capa/`, {
     method: "POST",
@@ -1156,6 +1239,15 @@ export interface PermitListItem {
   controls_verified: boolean;
   contractor?: number | null;
   contractor_name?: string | null;
+  related_risk_register?: string | null;
+  related_risk_register_code?: string | null;
+  jsa_document_ref?: string;
+  operational_constraints?: string;
+  traceability_chain_id?: string;
+  project_name?: string;
+  site_location?: string;
+  area?: string;
+  department?: string;
   weather_condition_ok?: boolean;
   is_synthetic: boolean;
   created_at: string;
@@ -1290,6 +1382,9 @@ export interface PermitDetail extends PermitListItem {
   review_notes: string;
   rejection_reason: string;
   suspension_reason: string;
+  cancellation_reason?: string;
+  suspended_at?: string | null;
+  cancelled_at?: string | null;
   closure_summary: string;
   closed_by?: number | null;
   closed_by_name?: string | null;
@@ -1595,6 +1690,11 @@ export interface EquipmentListItem {
   serial_number: string;
   status: EquipmentStatus;
   status_display: string;
+  operating_permit_status?: 'valid' | 'expired' | 'pending_inspection' | 'suspended';
+  operating_permit_expires_on?: string | null;
+  technical_clearance?: 'cleared' | 'conditional' | 'blocked';
+  health_notes?: string;
+  traceability_chain_id?: string;
   calibration_required: boolean;
   calibration_status: CalibrationStatus;
   calibration_status_display: string;
@@ -4053,6 +4153,20 @@ export function reopenAnomaly(id: number, data: { reopened_reason: string }) {
   return request<NonConformity>(`/non-conformities/${id}/reopen/`, { method: "POST", body: JSON.stringify(data) });
 }
 
+export function escalateAnomalyToIncident(id: number, data?: { title?: string; incident_type?: string; severity?: string }) {
+  return request<IncidentDetail>(`/non-conformities/${id}/escalate-incident/`, {
+    method: "POST",
+    body: JSON.stringify(data || {}),
+  });
+}
+
+export function escalateAnomalyToRisk(id: number, data?: { risk_register_id?: string }) {
+  return request<NonConformity>(`/non-conformities/${id}/escalate-risk/`, {
+    method: "POST",
+    body: JSON.stringify(data || {}),
+  });
+}
+
 // ==========================================
 // 11. Phase 19 Intelligent AI HSE Assistant
 // ==========================================
@@ -4343,3 +4457,704 @@ export function testAIServiceConnection() {
   });
 }
 
+
+
+// =====================================================================
+// Enterprise 10-Step Risk Register & 5x5 Matrix API Methods
+// =====================================================================
+
+export interface RiskRegisterItem {
+  id: string;
+  organization: number;
+  register_code: string;
+  title: string;
+  revision: number;
+  status: "draft" | "under_review" | "approved" | "superseded" | "archived";
+  status_display: string;
+  assessment_date: string;
+  next_review_date: string | null;
+  project_name: string;
+  department: string;
+  site_location: string;
+  area: string;
+  project_phase: string;
+  operation_type: string;
+  client_name: string;
+  contractor_name: string;
+  traceability_chain_id?: string;
+  risk_acceptance_status?: string;
+  acceptance_authority?: string;
+  audit_trail_code?: string;
+  approval_notes?: string;
+  created_by_name: string | null;
+  approved_by_name: string | null;
+  activities_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RiskScenarioItem {
+  id: string;
+  hazard: string;
+  scenario_title: string;
+  undesired_event: string;
+  initiating_event: string;
+  direct_causes: string;
+  root_causes: string;
+  escalation_factors: string;
+  event_sequence: string[];
+  scenario_conditions: string;
+  exposure_pathway: string;
+  existing_controls: Array<{
+    id: string;
+    description: string;
+    hierarchy: string;
+    hierarchy_display: string;
+    is_effective: boolean;
+  }>;
+  scores: Array<{
+    id: string;
+    phase: string;
+    dimension: string;
+    dimension_display?: string;
+    likelihood: number;
+    severity: number;
+    rpn: number;
+    risk_level: string;
+  }>;
+  treatments: Array<{
+    id: string;
+    action_description: string;
+    hierarchy: string;
+    priority: string;
+    status: string;
+    due_date: string;
+  }>;
+  overall_current_risk: {
+    overall_rpn: number;
+    overall_level: string;
+    dominant_dimension: string | null;
+  };
+}
+
+export interface HazardSourceItem {
+  id: string;
+  activity_task: string;
+  domain: "safety" | "health" | "environment" | "process";
+  domain_display: string;
+  category: string;
+  description: string;
+  scenarios: RiskScenarioItem[];
+}
+
+export interface RiskActivityTaskItem {
+  id: string;
+  register: string;
+  activity_title: string;
+  activity_description: string;
+  task_name: string;
+  job_steps: string[];
+  work_method: string;
+  equipment: string;
+  materials: string;
+  personnel_count: number;
+  competency: string;
+  duration_frequency: string;
+  simops: string;
+  operating_conditions: string;
+  hazards: HazardSourceItem[];
+}
+
+export interface RiskRegisterDetail extends RiskRegisterItem {
+  activities: RiskActivityTaskItem[];
+}
+
+export interface RiskMatrix5x5Summary {
+  dimension: string;
+  phase: string;
+  total_assessments: number;
+  total_scenarios: number;
+  levels: {
+    low: number;
+    medium: number;
+    high: number;
+    critical: number;
+  };
+  cells: Array<{
+    likelihood: number;
+    severity: number;
+    rpn: number;
+    level: string;
+    count: number;
+  }>;
+}
+
+export function fetchRiskRegisters(organizationId?: number, statusFilter?: string, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  if (statusFilter) params.append("status", statusFilter);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  return request<RiskRegisterItem[]>(`/risks/registers/${qs}`, { signal });
+}
+
+export function fetchRiskRegisterDetail(id: string, signal?: AbortSignal) {
+  return request<RiskRegisterDetail>(`/risks/registers/${id}/`, { signal });
+}
+
+export function createRiskRegister(data: Record<string, unknown>) {
+  return request<RiskRegisterItem>("/risks/registers/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function createFullRiskRegister(data: Record<string, unknown>) {
+  return request<RiskRegisterDetail>("/risks/registers/full-create/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function syncLegacyRisks(organizationId?: number) {
+  return request<{ message: string; migrated_count: number; skipped_count: number; total_legacy: number }>(
+    "/risks/registers/sync-legacy/",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organization: organizationId }),
+    }
+  );
+}
+
+export function approveRiskRegister(
+  id: string,
+  options?: { acceptance_authority?: string; approval_notes?: string; risk_acceptance_status?: string }
+) {
+  return request<{ message: string; status: string; approved_by: string; audit_trail_code?: string }>(
+    `/risks/registers/${id}/approve/`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(options || {}),
+    }
+  );
+}
+
+export function createRiskActivityTask(data: Record<string, unknown>) {
+  return request<RiskActivityTaskItem>("/risks/activities/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function createHazardSource(data: Record<string, unknown>) {
+  return request<HazardSourceItem>("/risks/hazard-sources/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function createRiskScenario(data: Record<string, unknown>) {
+  return request<RiskScenarioItem>("/risks/scenarios/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function evaluateRiskScenario(scenarioId: string, phase: string, scores: Array<Record<string, unknown>>) {
+  return request<{
+    message: string;
+    scores: Array<Record<string, unknown>>;
+    overall: { overall_rpn: number; overall_level: string };
+  }>(`/risks/scenarios/${scenarioId}/evaluate/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phase, scores }),
+  });
+}
+
+export function createRiskControl(data: Record<string, unknown>) {
+  return request<Record<string, unknown>>("/risks/controls/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function createRiskTreatment(data: Record<string, unknown>) {
+  return request<Record<string, unknown>>("/risks/treatments/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchRiskMatrix5x5(organizationId: number, dimension?: string, phase?: string, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  params.append("organization", String(organizationId));
+  if (dimension) params.append("dimension", dimension);
+  if (phase) params.append("phase", phase);
+  return request<RiskMatrix5x5Summary>(`/risks/matrix-5x5/?${params.toString()}`, { signal });
+}
+
+
+// --- Phase 3: Management of Change (MOC) ---
+export type ChangeRequest = {
+  id: number;
+  organization: number;
+  workplace: number | null;
+  moc_number: string;
+  title: string;
+  change_type: 'process' | 'equipment' | 'procedural' | 'material' | 'organizational';
+  change_type_display: string;
+  category: 'permanent' | 'temporary' | 'emergency';
+  category_display: string;
+  status: 'draft' | 'submitted' | 'risk_assessed' | 'under_review' | 'approved' | 'rejected' | 'implemented' | 'closed';
+  status_display: string;
+  reason_for_change: string;
+  description: string;
+  requested_by: number | null;
+  requested_by_name: string | null;
+  related_equipment: number | null;
+  related_equipment_name?: string | null;
+  related_risk_register: string | null;
+  related_risk_register_code?: string | null;
+  risk_assessment_required: boolean;
+  risk_assessed: boolean;
+  risk_approved: boolean;
+  risk_assessment_notes?: string;
+  risk_assessor_name?: string;
+  risk_assessed_at?: string;
+  pre_implementation_checklist?: Array<{ item: string; checked: boolean }>;
+  document_revision_required: boolean;
+  document_revisions_notes?: string;
+  training_required: boolean;
+  training_notes?: string;
+  approved_by_name?: string;
+  approved_at?: string;
+  closed_at?: string;
+  closure_notes?: string;
+  traceability_chain_id?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export function fetchMOCList(organizationId: number, status?: string, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  params.append("organization", String(organizationId));
+  if (status) params.append("status", status);
+  return request<ChangeRequest[]>(`/moc/?${params.toString()}`, { signal });
+}
+
+export function fetchMOCDetail(id: number, signal?: AbortSignal) {
+  return request<ChangeRequest>(`/moc/${id}/`, { signal });
+}
+
+export function createMOC(data: Partial<ChangeRequest>) {
+  return request<ChangeRequest>('/moc/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function submitMOC(id: number) {
+  return request<ChangeRequest>(`/moc/${id}/submit/`, { method: 'POST' });
+}
+
+export function approveMOCRisk(id: number, data: { risk_notes: string; is_approved: boolean; risk_register?: string }) {
+  return request<ChangeRequest>(`/moc/${id}/approve-risk/`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function authorizeMOC(id: number) {
+  return request<ChangeRequest>(`/moc/${id}/authorize/`, { method: 'POST' });
+}
+
+export function closeMOC(id: number, data?: { closure_notes: string }) {
+  return request<ChangeRequest>(`/moc/${id}/close/`, {
+    method: 'POST',
+    body: JSON.stringify(data || {}),
+  });
+}
+
+
+// ============================================================================
+// Phase 4, 5, 6 Ecosystem Types & API Services
+// ============================================================================
+
+// --- Phase 4: Occupational Health Fit ---
+export type OccupationalHealthFitRecord = {
+  id: number;
+  employee: number;
+  employee_name?: string;
+  evaluation_date: string;
+  fit_status: 'fit' | 'fit_with_restriction' | 'temporarily_unfit' | 'permanently_unfit';
+  fit_status_display?: string;
+  work_restrictions?: string;
+  restriction_notes?: string;
+  valid_until?: string;
+  next_checkup_due?: string;
+  related_risk_register?: number;
+  traceability_chain_id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export function fetchHealthFitRecords(organizationId?: number, employeeId?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  if (employeeId) params.append("employee", String(employeeId));
+  return request<OccupationalHealthFitRecord[] | { count: number; results: OccupationalHealthFitRecord[] }>(
+    `/workforce/health/fit-status/?${params.toString()}`,
+    { signal }
+  ).then(res => Array.isArray(res) ? res : res.results);
+}
+
+export function createHealthFitRecord(data: Partial<OccupationalHealthFitRecord>) {
+  return request<OccupationalHealthFitRecord>('/workforce/health/fit-status/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// --- Phase 4: Chemicals Management ---
+export type ChemicalItem = {
+  id: number;
+  organization: number;
+  workplace?: number;
+  workplace_name?: string;
+  name: string;
+  cas_number?: string;
+  un_number?: string;
+  hazard_classification: 'flammable' | 'toxic' | 'corrosive' | 'oxidizer' | 'explosive' | 'environmental' | 'irritant';
+  hazard_classification_display?: string;
+  ghs_symbols?: string[];
+  storage_location?: string;
+  current_stock: number;
+  unit: string;
+  compatibility_group?: string;
+  sds_document_url?: string;
+  ppe_requirements?: Record<string, string>;
+  exposure_limit_oel?: string;
+  fire_extinguishing_method?: string;
+  spill_response_procedure?: string;
+  is_active: boolean;
+  traceability_chain_id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export function fetchChemicals(organizationId?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  return request<ChemicalItem[] | { count: number; results: ChemicalItem[] }>(
+    `/environment/chemicals/?${params.toString()}`,
+    { signal }
+  ).then(res => Array.isArray(res) ? res : res.results);
+}
+
+export function createChemical(data: Partial<ChemicalItem>) {
+  return request<ChemicalItem>('/environment/chemicals/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// --- Phase 4: Emergency Management ---
+export type EmergencyScenario = {
+  id: number;
+  organization: number;
+  workplace?: number;
+  workplace_name?: string;
+  title: string;
+  severity_tier: 'tier_1' | 'tier_2' | 'tier_3';
+  severity_tier_display?: string;
+  muster_point?: string;
+  evacuation_route?: string;
+  erp_summary?: string;
+  emergency_commander?: number;
+  commander_name?: string;
+  is_active: boolean;
+  traceability_chain_id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type EmergencyDrill = {
+  id: number;
+  organization: number;
+  scenario: number;
+  scenario_title?: string;
+  drill_date: string;
+  response_time_minutes: number;
+  target_response_time_minutes: number;
+  participants_count: number;
+  success_rating: 'excellent' | 'satisfactory' | 'needs_improvement' | 'failed';
+  success_rating_display?: string;
+  identified_gaps?: string;
+  lessons_learned?: string;
+  related_capa?: number;
+};
+
+export type EmergencyResource = {
+  id: number;
+  organization: number;
+  resource_type: string;
+  resource_type_display?: string;
+  title: string;
+  quantity: number;
+  location?: string;
+  readiness_status: 'ready' | 'maintenance' | 'depleted';
+  readiness_status_display?: string;
+  notes?: string;
+};
+
+export function fetchEmergencyScenarios(organizationId?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  return request<EmergencyScenario[] | { count: number; results: EmergencyScenario[] }>(
+    `/environment/emergency-scenarios/?${params.toString()}`,
+    { signal }
+  ).then(res => Array.isArray(res) ? res : res.results);
+}
+
+export function activateEmergencyScenario(id: number) {
+  return request<{ status: string; message: string; scenario_id: number }>(
+    `/environment/emergency-scenarios/${id}/activate/`,
+    { method: 'POST' }
+  );
+}
+
+export function fetchEmergencyDrills(organizationId?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  return request<EmergencyDrill[] | { count: number; results: EmergencyDrill[] }>(
+    `/environment/emergency-drills/?${params.toString()}`,
+    { signal }
+  ).then(res => Array.isArray(res) ? res : res.results);
+}
+
+export function fetchEmergencyResources(organizationId?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  return request<EmergencyResource[] | { count: number; results: EmergencyResource[] }>(
+    `/environment/emergency-resources/?${params.toString()}`,
+    { signal }
+  ).then(res => Array.isArray(res) ? res : res.results);
+}
+
+// --- Phase 5: Audit & Compliance ---
+export type AuditFinding = {
+  id: number;
+  audit_plan: number;
+  audit_code?: string;
+  finding_type: 'major_nonconformity' | 'minor_nonconformity' | 'observation' | 'opportunity_for_improvement';
+  finding_type_display?: string;
+  standard_clause?: string;
+  description: string;
+  evidence?: string;
+  related_capa?: number;
+  created_at?: string;
+};
+
+export type AuditPlan = {
+  id: number;
+  organization: number;
+  audit_code?: string;
+  title: string;
+  audit_standard: string;
+  planned_date: string;
+  lead_auditor?: number;
+  lead_auditor_name?: string;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status_display?: string;
+  scope_summary?: string;
+  executive_summary?: string;
+  findings_count?: number;
+  traceability_chain_id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export function fetchAuditPlans(organizationId?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  return request<AuditPlan[]>(`/audit-logs/plans/?${params.toString()}`, { signal });
+}
+
+export function createAuditPlan(data: Partial<AuditPlan>) {
+  return request<AuditPlan>('/audit-logs/plans/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchAuditFindings(planId?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (planId) params.append("audit_plan", String(planId));
+  return request<AuditFinding[]>(`/audit-logs/findings/?${params.toString()}`, { signal });
+}
+
+export function createAuditFinding(data: Partial<AuditFinding>) {
+  return request<AuditFinding>('/audit-logs/findings/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// --- Phase 5: Safety Culture BBS ---
+export type BehaviorObservation = {
+  id: number;
+  organization: number;
+  observer?: number;
+  observer_name?: string;
+  observation_date: string;
+  observation_type: 'safe' | 'at_risk';
+  observation_type_display?: string;
+  category: 'ppe' | 'ergonomics' | 'line_of_fire' | 'housekeeping' | 'tools' | 'procedure_compliance';
+  category_display?: string;
+  description: string;
+  immediate_coaching?: string;
+  traceability_chain_id?: string;
+  created_at?: string;
+};
+
+export type SafetyCultureScore = {
+  id: number;
+  organization: number;
+  period: string;
+  overall_score: number;
+  participation_rate: number;
+  safe_behavior_ratio: number;
+  strengths?: string;
+  improvement_plan?: string;
+  created_at?: string;
+};
+
+export function fetchBBSObservations(organizationId?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  return request<BehaviorObservation[]>(`/surveys/bbs/?${params.toString()}`, { signal });
+}
+
+export function createBBSObservation(data: Partial<BehaviorObservation>) {
+  return request<BehaviorObservation>('/surveys/bbs/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchCultureScores(organizationId?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  return request<SafetyCultureScore[]>(`/surveys/culture-score/?${params.toString()}`, { signal });
+}
+
+// --- Phase 6: Strategic HSE Goals & Budget ---
+export type HSEStrategicGoal = {
+  id: number;
+  organization: number;
+  fiscal_year: string;
+  title: string;
+  pillar: 'zero_harm' | 'sustainability' | 'culture' | 'compliance';
+  pillar_display?: string;
+  target_metric: string;
+  baseline_value: number;
+  target_value: number;
+  current_value: number;
+  unit: string;
+  deadline: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  priority_display?: string;
+  status: 'on_track' | 'at_risk' | 'lagging' | 'achieved';
+  status_display?: string;
+  action_plan_summary?: string;
+  traceability_chain_id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type HSEBudgetProgram = {
+  id: number;
+  organization: number;
+  fiscal_year: string;
+  program_name: string;
+  category: string;
+  category_display?: string;
+  allocated_amount: number;
+  spent_amount: number;
+  utilization_percentage: number;
+  notes?: string;
+  created_at?: string;
+};
+
+export function fetchStrategicGoals(organizationId?: number, fiscalYear?: string, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  if (fiscalYear) params.append("fiscal_year", fiscalYear);
+  return request<HSEStrategicGoal[]>(`/dashboard/strategic-goals/?${params.toString()}`, { signal });
+}
+
+export function createStrategicGoal(data: Partial<HSEStrategicGoal>) {
+  return request<HSEStrategicGoal>('/dashboard/strategic-goals/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function fetchHSEBudget(organizationId?: number, fiscalYear?: string, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  if (fiscalYear) params.append("fiscal_year", fiscalYear);
+  return request<HSEBudgetProgram[]>(`/dashboard/budget/?${params.toString()}`, { signal });
+}
+
+// --- Phase 6: KPI Intelligence Engine & Executive 20-Module Overview ---
+export type HSEKPIEngineSummary = {
+  man_hours_worked: number;
+  ltifr: number;
+  trir: number;
+  severity_rate: number;
+  lti_count: number;
+  total_incidents: number;
+  inspection_compliance_rate: number;
+  capa_closure_rate: number;
+  safe_behavior_rate: number;
+  proactive_ratio: number;
+  status: 'normal' | 'warning';
+};
+
+export type ExecutiveModuleStatus = {
+  name: string;
+  code: string;
+  count?: number;
+  status: string;
+  path: string;
+  [key: string]: any;
+};
+
+export type Executive20ModuleSummary = {
+  modules_total: number;
+  modules_healthy: number;
+  modules_action_required: number;
+  modules: ExecutiveModuleStatus[];
+};
+
+export function fetchKPIEngine(organizationId?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  return request<HSEKPIEngineSummary>(`/dashboard/kpi-engine/?${params.toString()}`, { signal });
+}
+
+export function fetchExecutiveDashboard(organizationId?: number, signal?: AbortSignal) {
+  const params = new URLSearchParams();
+  if (organizationId) params.append("organization", String(organizationId));
+  return request<Executive20ModuleSummary>(`/dashboard/executive/?${params.toString()}`, { signal });
+}
